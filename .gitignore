@@ -1,0 +1,24 @@
+# Dependencias y compilación
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+
+# Registros
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Entorno local (no publicar secretos)
+.env
+.env.*
+!.env.example
+
+# Editores y sistema
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
