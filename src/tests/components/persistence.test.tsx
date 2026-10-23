@@ -28,7 +28,7 @@ describe('recuperación de preferencias', () => {
     expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('example.com');
     // Al restaurar no se vuelve a abrir la página automáticamente.
     expect(second.open).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Abrir en el navegador externo' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Abrir en el navegador externo' })).toBeInTheDocument();
     second.services.settings.set((s) => ({ ...s, general: { ...s.general, startup: 'new-tab' } }));
     second.unmount();
 

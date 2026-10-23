@@ -19,7 +19,7 @@ export function ExternalPage({ page }: { page: ExternalEntry }) {
   const m = useMessages();
   const t = m.externalPage;
   const { engine } = useServices();
-  const { describe, openCurrentExternally } = useBrowser();
+  const { describe, markCurrentOpened } = useBrowser();
   const presentation = describe(page);
   const display = splitUrlForDisplay(page.url);
 
@@ -77,14 +77,13 @@ export function ExternalPage({ page }: { page: ExternalEntry }) {
         )}
 
         <div className="external-card__actions">
-          <button type="button" className="btn btn--primary" onClick={openCurrentExternally}>
+          {/* Un enlace real funciona aunque el entorno bloquee las ventanas emergentes. */}
+          <a className="btn btn--primary" href={page.url} target="_blank" rel="noopener noreferrer" onClick={markCurrentOpened}>
             <Icon name="external" size={16} />
             {page.openedExternally ? t.openAgain : t.open}
-          </button>
-          <a className="external-card__fallback" href={page.url} target="_blank" rel="noopener noreferrer">
-            {t.fallbackLink}
           </a>
         </div>
+        {page.openedExternally && <p className="external-card__hint">{t.notOpenedHint}</p>}
         <p className="external-card__engine">
           <Icon name="info" size={14} />
           {t.engine(engine.info.name)}

@@ -148,7 +148,7 @@ export const es = {
       'ICARUS todavía no incluye un motor de navegación integrado. La página se abrirá en tu navegador del sistema cuando lo confirmes.',
     open: 'Abrir en el navegador externo',
     openAgain: 'Abrir de nuevo',
-    fallbackLink: '¿No se abrió? Usa este enlace',
+    notOpenedHint: 'Si la página no aparece (por ejemplo, porque se bloqueó la ventana emergente), usa «Abrir de nuevo».',
     realUrl: 'URL real',
     alias: 'Alias visual',
     rule: 'Regla',

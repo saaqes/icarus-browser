@@ -127,6 +127,7 @@ button:disabled {
   font-weight: 600;
   font-size: var(--text-md);
   white-space: nowrap;
+  text-decoration: none;
   transition:
     background var(--duration-fast),
     border-color var(--duration-fast),

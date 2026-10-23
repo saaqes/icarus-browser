@@ -65,7 +65,8 @@ export function createDefaultSettings(): Settings {
     },
     navigation: {
       newTabPage: 'home',
-      externalOpening: 'automatic',
+      // Las compilaciones para entornos que bloquean ventanas emergentes usan «confirm».
+      externalOpening: import.meta.env.VITE_ICARUS_EXTERNAL_OPENING === 'confirm' ? 'confirm' : 'automatic',
       shortcutOpenTarget: 'current-tab',
       loadFavicons: true,
     },

@@ -92,9 +92,21 @@ describe('barra de direcciones y navegación', () => {
     services.settings.set((s) => ({ ...s, navigation: { ...s.navigation, externalOpening: 'confirm' } }));
     await typeAddress(user, 'example.com{Enter}');
     expect(open).not.toHaveBeenCalled();
-    await user.click(await screen.findByRole('button', { name: 'Abrir en el navegador externo' }));
-    expect(open).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('heading', { name: 'Abrir en el navegador del sistema' })).toBeInTheDocument();
+
+    // Recargar no abre nada en este modo.
+    await user.click(screen.getByRole('button', { name: 'Recargar' }));
+    expect(open).not.toHaveBeenCalled();
+
+    // La acción es un enlace real (funciona aunque se bloqueen las ventanas emergentes).
+    const link = screen.getByRole('link', { name: 'Abrir en el navegador externo' });
+    expect(link).toHaveAttribute('href', 'https://example.com/');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    link.addEventListener('click', (event) => event.preventDefault());
+    await user.click(link);
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Página abierta fuera de ICARUS' })).toBeInTheDocument());
+    expect(screen.getByRole('link', { name: 'Abrir de nuevo' })).toBeInTheDocument();
   });
 
   it('muestra el alias sin ocultar la URL real', async () => {

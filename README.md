@@ -22,6 +22,7 @@ Esta primera fase es un **prototipo web de la interfaz de escritorio**: la venta
 
 - [Tecnologías](#tecnologías)
 - [Requisitos](#requisitos)
+- [Cómo abrirlo y compartirlo](#cómo-abrirlo-y-compartirlo)
 - [Instalación y comandos](#instalación-y-comandos)
 - [Funciones implementadas](#funciones-implementadas)
 - [Funciones que siguen siendo prototipo](#funciones-que-siguen-siendo-prototipo)
@@ -50,6 +51,24 @@ No hay dependencias de ejecución aparte de `react` y `react-dom`.
 - npm 10 o superior.
 - Un navegador moderno (Chrome, Edge, Firefox o Safari recientes) para abrir el prototipo.
 
+## Cómo abrirlo y compartirlo
+
+ICARUS es todavía una aplicación web: no hay instalador (.exe, .apk) hasta que se integre el motor de navegación. Hay tres formas de usarlo:
+
+| Forma | Para quién | Cómo |
+| --- | --- | --- |
+| **Archivo único** | Cualquier persona, sin instalar nada | `npm run build:single` genera `dist/icarus-browser.html`. Ese archivo se abre con doble clic en Chrome, Edge o Firefox y puede enviarse por correo o subirse a cualquier alojamiento. |
+| **Servidor de desarrollo** | Quien quiera modificar el código | `npm install` y `npm run dev` (ver abajo). |
+| **Alojamiento estático** | Compartir una dirección web permanente | Subir el contenido de `dist/` (tras `npm run build`) a GitHub Pages, Netlify, Vercel o similar. Las rutas son relativas, así que funciona en cualquier subcarpeta. |
+
+Cada persona guarda sus preferencias en su propio navegador: compartir ICARUS no comparte tu configuración. Para llevarla a otro equipo usa Configuración → Avanzado → Exportar configuración.
+
+Si ICARUS se aloja en un entorno que bloquea las ventanas emergentes, puede compilarse para que las páginas web se abran siempre con un enlace en vez de automáticamente:
+
+```bash
+VITE_ICARUS_EXTERNAL_OPENING=confirm npm run build
+```
+
 ## Instalación y comandos
 
 ```bash
@@ -60,7 +79,7 @@ npm run build      # comprueba los tipos (tsc -b) y genera dist/
 npm run preview    # sirve la compilación de dist/ para revisarla
 ```
 
-Otros comandos: `npm run test:watch` (pruebas en modo observación) y `npm run typecheck` (solo tipos).
+Otros comandos: `npm run build:single` (genera `dist/icarus-browser.html`, un único archivo autocontenido), `npm run test:watch` (pruebas en modo observación) y `npm run typecheck` (solo tipos).
 
 La compilación de producción usa rutas relativas (`base: './'`), por lo que `dist/` puede servirse desde cualquier carpeta o cargarse más adelante dentro de un contenedor de escritorio. Además añade una política de seguridad de contenido (CSP) a `index.html`.
 
@@ -143,7 +162,7 @@ No existen todavía (y la interfaz no afirma que existan): sincronización, cuen
 
 ## Limitaciones actuales
 
-- **Ventanas emergentes**: con `noopener` el navegador no informa si bloqueó la ventana. La página de la pestaña ofrece un enlace alternativo («¿No se abrió?»).
+- **Ventanas emergentes**: con `noopener` el navegador no informa si bloqueó la ventana. El botón «Abrir de nuevo» de la pestaña es un enlace real, que funciona aunque se bloqueen las ventanas emergentes.
 - **Atajos**: en la versión web, Ctrl+T, Ctrl+W y similares los captura el navegador anfitrión.
 - **Almacenamiento**: LocalStorage es por navegador y perfil (unos 5 MB). Si no está disponible, ICARUS funciona en memoria y lo avisa. La imagen de fondo propia puede no caber; se informa del error.
 - **Iconos de sitios**: se piden a cada sitio; sin red o sin icono se muestra la inicial. Pueden desactivarse en Configuración → Navegación.
@@ -156,6 +175,7 @@ No existen todavía (y la interfaz no afirma que existan): sincronización, cuen
 icarus-browser/
 ├── index.html                 Punto de entrada HTML (CSP añadida al compilar)
 ├── vite.config.ts             Vite + Vitest + CSP de producción
+├── scripts/build-single-file.mjs  Genera la versión de un solo archivo HTML
 ├── public/icarus.svg          Icono de la aplicación
 ├── docs/
 │   ├── ARCHITECTURE.md        Capas, flujo de datos y decisiones

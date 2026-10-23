@@ -93,9 +93,10 @@
   gap: var(--space-4);
 }
 
-.external-card__fallback {
-  color: var(--accent);
+.external-card__hint {
+  margin-top: calc(var(--space-2) * -1);
   font-size: var(--text-sm);
+  color: var(--fg-3);
 }
 
 .external-card__engine {

@@ -49,7 +49,8 @@ export interface BrowserController {
   navigateInput: (text: string, options?: OpenOptions) => boolean;
   openUrl: (url: string, options?: OpenOptions) => void;
   openPage: (page: PageEntry, options?: OpenOptions) => void;
-  openCurrentExternally: () => void;
+  /** Marca la página actual como entregada al navegador externo (tras pulsar su enlace). */
+  markCurrentOpened: () => void;
   newTab: () => void;
   closeTab: (tabId: string) => void;
   activateTab: (tabId: string) => void;
@@ -213,11 +214,10 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     [m, notify, openPage, openUrl],
   );
 
-  const openCurrentExternally = useCallback(() => {
+  const markCurrentOpened = useCallback(() => {
     const tab = getActiveTab(sessionRef.current);
-    const entry = getCurrentEntry(tab);
-    if (entry.page.kind === 'external') openExternally(tab.id, entry.id, entry.page.url);
-  }, [openExternally]);
+    dispatch({ type: 'tab/mark-opened', tabId: tab.id, entryId: getCurrentEntry(tab).id });
+  }, []);
 
   const focusAddressBar = useCallback(() => {
     // Se espera al siguiente fotograma para que la pestaña nueva ya esté montada.
@@ -253,9 +253,13 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(() => {
     const tab = getActiveTab(sessionRef.current);
     const entry = getCurrentEntry(tab);
-    // Recargar una página web la vuelve a entregar al navegador externo (acción explícita).
-    if (entry.page.kind === 'external') openExternally(tab.id, entry.id, entry.page.url);
-    else dispatch({ type: 'tab/reload', tabId: tab.id });
+    // Con apertura automática, recargar vuelve a entregar la página al navegador externo.
+    // Con «pedir confirmación» solo se vuelve a mostrar la página interna.
+    if (entry.page.kind === 'external' && settingsRef.current.navigation.externalOpening === 'automatic') {
+      openExternally(tab.id, entry.id, entry.page.url);
+    } else {
+      dispatch({ type: 'tab/reload', tabId: tab.id });
+    }
   }, [openExternally]);
 
   const goHome = useCallback(() => {
@@ -332,7 +336,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       navigateInput,
       openUrl,
       openPage,
-      openCurrentExternally,
+      markCurrentOpened,
       newTab,
       closeTab,
       activateTab,
@@ -356,7 +360,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       navigateInput,
       openUrl,
       openPage,
-      openCurrentExternally,
+      markCurrentOpened,
       newTab,
       closeTab,
       activateTab,
