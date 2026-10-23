@@ -41,7 +41,7 @@ const DEFAULT_THEME_CONFIGS: Record<ThemeId, ThemeConfig> = {
     layout: {
       searchPosition: 'center',
       shortcutStyle: 'dock',
-      shortcutColumns: 6,
+      shortcutColumns: 8,
       density: 'comfortable',
       widgetPlacement: 'side',
       showShortcuts: true,

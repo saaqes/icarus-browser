@@ -1,0 +1,96 @@
+/* Base común de la página de inicio. Cada estilo define su distribución. */
+
+.home {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--home-fg);
+  background: var(--page-bg);
+}
+
+.home__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.home[data-surface='color-light'] .home__backdrop,
+.home[data-surface='color-dark'] .home__backdrop {
+  background: var(--home-bg-color);
+}
+
+.home[data-surface='image'] .home__backdrop {
+  background: var(--home-bg-image) center / cover no-repeat;
+}
+
+/* Velo para garantizar la legibilidad del texto sobre imágenes. */
+.home[data-surface='image'] .home__backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 8, 14, 0.38) 0%, rgba(8, 8, 14, 0.12) 40%, rgba(8, 8, 14, 0.35) 100%);
+}
+
+.home > :not(.home__backdrop) {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.home[data-surface='image'],
+.home[data-surface='color-dark'] {
+  --home-fg: #ffffff;
+  --home-fg-2: rgba(255, 255, 255, 0.82);
+  --home-tile-bg: rgba(255, 255, 255, 0.16);
+  --home-tile-hover: rgba(255, 255, 255, 0.12);
+  --home-search-border: rgba(255, 255, 255, 0.24);
+}
+
+.home[data-surface='color-light'] {
+  --home-fg: #1b1b22;
+  --home-fg-2: #4a4a57;
+  --home-tile-bg: rgba(255, 255, 255, 0.7);
+  --home-tile-hover: rgba(0, 0, 0, 0.05);
+  --home-search-border: rgba(0, 0, 0, 0.12);
+}
+
+.home[data-surface='image'] .home-text-shadow,
+.home[data-surface='image'] .shortcut__title,
+.home[data-surface='image'] .searchbox__note {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.customize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--home-search-border);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-1) 82%, transparent);
+  color: var(--fg-1);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-1);
+  transition:
+    background var(--duration-fast),
+    transform var(--duration-fast);
+}
+
+.customize-btn:hover {
+  background: var(--surface-1);
+  transform: translateY(-1px);
+}
+
+.customize-btn--compact {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+}
+
+.home[data-density='compact'] {
+  --home-gap: var(--space-4);
+}

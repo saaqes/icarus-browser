@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="wing" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#6d28d9"/>
+      <stop offset="1" stop-color="#c4b5fd"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f5f0ff"/>
+      <stop offset="1" stop-color="#b9a4ff"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#16141c"/>
+  <circle cx="41" cy="22" r="9" fill="url(#sun)"/>
+  <path d="M10 48c11-1.5 23.5-8.5 34-21-4.6 12.6-15.4 21.5-31 24.5Z" fill="url(#wing)"/>
+  <path d="M12.5 39.5c8.6-1.4 17.4-6.3 24.4-14.4-3.6 9.2-11.4 15.7-22.8 18Z" fill="url(#wing)" opacity="0.8"/>
+  <path d="M16 31.5c6-1.1 11.2-4.2 15.5-9-2.2 6-7 10.2-14.2 11.8Z" fill="url(#wing)" opacity="0.6"/>
+</svg>

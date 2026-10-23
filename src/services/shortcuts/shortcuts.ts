@@ -143,6 +143,6 @@ export function sanitizeShortcuts(raw: unknown, issues: string[]): Shortcut[] {
 export const shortcutsSchema: DocumentSchema<Shortcut[]> = {
   key: STORAGE_KEYS.shortcuts,
   version: 1,
-  defaults: () => createDefaultShortcuts(),
+  defaults: () => createDefaultShortcuts(new Date()),
   sanitize: sanitizeShortcuts,
 };

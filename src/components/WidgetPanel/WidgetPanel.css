@@ -1,0 +1,261 @@
+.widgets {
+  width: 100%;
+}
+
+.widgets--below {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.widgets--side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.widgets--empty {
+  display: flex;
+  justify-content: center;
+}
+
+.widget {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  background: var(--card-bg);
+  color: var(--fg-1);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(24px) saturate(150%);
+  animation: pop-in var(--duration-slow) var(--ease-out);
+}
+
+.widget__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2) 0 var(--space-4);
+  color: var(--fg-3);
+}
+
+.widget__title {
+  flex: 1;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.widget__hide {
+  opacity: 0;
+}
+
+.widget:hover .widget__hide,
+.widget__hide:focus-visible {
+  opacity: 1;
+}
+
+.widget__body {
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+/* Reloj */
+.clock-widget__time {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 300;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-widget__date {
+  color: var(--fg-2);
+}
+
+.clock-widget__greeting {
+  margin-top: var(--space-1);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+/* Calendario */
+.calendar-widget__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.calendar-widget__month {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+}
+
+.calendar-widget__grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-widget__grid th {
+  padding-bottom: var(--space-1);
+  color: var(--fg-3);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
+
+.calendar-widget__grid td {
+  height: 30px;
+  text-align: center;
+  color: var(--fg-2);
+}
+
+.calendar-widget__grid td.is-today {
+  color: var(--accent-contrast);
+  font-weight: 700;
+  background: radial-gradient(circle, var(--accent) 13px, transparent 14px);
+}
+
+.calendar-widget__today {
+  margin-top: var(--space-2);
+}
+
+/* Notas */
+.notes-widget__input {
+  width: 100%;
+  min-height: 120px;
+  padding: var(--space-2);
+  border: 1px dashed var(--border-2);
+  border-radius: var(--radius-md);
+  background: transparent;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.notes-widget__input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+.notes-widget__counter {
+  margin-top: var(--space-1);
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+}
+
+/* Tareas */
+.tasks-widget__form {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.tasks-widget__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tasks-widget__list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.tasks-widget__list label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.tasks-widget__list input {
+  accent-color: var(--accent);
+}
+
+.tasks-widget__list li.is-done span {
+  color: var(--fg-3);
+  text-decoration: line-through;
+}
+
+.tasks-widget__list li button {
+  opacity: 0;
+}
+
+.tasks-widget__list li:hover button,
+.tasks-widget__list li button:focus-visible {
+  opacity: 1;
+}
+
+.tasks-widget__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+}
+
+/* Fuentes */
+.sources-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.sources-widget .widget-empty--block .icon {
+  color: var(--fg-3);
+}
+
+.sources-widget__demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sources-widget__demo li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.skeleton--thumb {
+  width: 56px;
+  height: 40px;
+  flex: none;
+}
+
+.sources-widget__title {
+  display: block;
+  font-weight: 600;
+  color: var(--fg-2);
+}
+
+.sources-widget__meta {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+}

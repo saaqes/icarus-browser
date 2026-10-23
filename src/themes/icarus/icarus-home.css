@@ -1,0 +1,201 @@
+.icarus-home {
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+
+/* Resplandor morado animado (solo transform/opacity: barato para la GPU). */
+.icarus-home__glow {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.home .icarus-home__glow {
+  position: absolute;
+}
+
+.home[data-surface='theme'] .icarus-home__glow {
+  background:
+    radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%),
+    var(--page-bg);
+}
+
+.icarus-home__glow span {
+  position: absolute;
+  width: 46vmax;
+  height: 46vmax;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.icarus-home__glow span:nth-child(1) {
+  top: -18vmax;
+  left: -10vmax;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent), transparent 65%);
+  animation: icarus-drift-a 26s ease-in-out infinite alternate;
+}
+
+.icarus-home__glow span:nth-child(2) {
+  right: -16vmax;
+  top: 10vh;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.32), transparent 65%);
+  animation: icarus-drift-b 32s ease-in-out infinite alternate;
+}
+
+.icarus-home__glow span:nth-child(3) {
+  left: 30vw;
+  bottom: -26vmax;
+  background: radial-gradient(circle, rgba(192, 38, 211, 0.18), transparent 65%);
+  animation: icarus-drift-a 38s ease-in-out infinite alternate-reverse;
+}
+
+.icarus-root[data-mode='light'] .icarus-home__glow span {
+  opacity: 0.35;
+}
+
+.home:not([data-surface='theme']) .icarus-home__glow span {
+  opacity: 0.25;
+}
+
+@keyframes icarus-drift-a {
+  to {
+    transform: translate(8vmax, 6vmax) scale(1.08);
+  }
+}
+
+@keyframes icarus-drift-b {
+  to {
+    transform: translate(-10vmax, 4vmax) scale(0.94);
+  }
+}
+
+.icarus-home__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  flex: 1;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) var(--space-4);
+}
+
+.icarus-home--side .icarus-home__content {
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+
+.icarus-home__main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--home-gap, var(--space-6));
+  min-width: 0;
+}
+
+.home[data-search='top'] .icarus-home__main {
+  justify-content: flex-start;
+  padding-top: 6vh;
+}
+
+.icarus-home__greeting {
+  text-align: center;
+  color: var(--home-fg);
+}
+
+.icarus-home__hello {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.home:not([data-surface='theme']) .icarus-home__hello {
+  color: var(--home-fg-2);
+}
+
+.icarus-home__time {
+  font-family: var(--font-display);
+  font-size: clamp(3.2rem, 7vw, 5.4rem);
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, var(--home-fg) 30%, color-mix(in srgb, var(--home-fg) 60%, var(--accent)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.icarus-home__date {
+  margin-top: var(--space-1);
+  color: var(--home-fg-2);
+}
+
+.icarus-home__main .shortcuts {
+  max-width: 720px;
+}
+
+.icarus-home__main .widgets--below {
+  max-width: 980px;
+}
+
+.icarus-home__aside {
+  align-self: center;
+}
+
+.home[data-search='top'] .icarus-home__aside {
+  align-self: start;
+  padding-top: 6vh;
+}
+
+.icarus-home__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-6) var(--space-5);
+}
+
+.icarus-home .customize-btn {
+  background: var(--home-tile-bg);
+  border-color: var(--home-search-border);
+  color: var(--home-fg);
+}
+
+.icarus-home__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--home-fg-2);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 8px var(--warning);
+}
+
+@media (max-width: 960px) {
+  .icarus-home--side .icarus-home__content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .icarus-home__content {
+    padding-inline: var(--space-4);
+  }
+
+  .icarus-home__footer {
+    flex-direction: column-reverse;
+    padding-inline: var(--space-4);
+  }
+}

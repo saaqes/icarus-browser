@@ -162,7 +162,7 @@ export function sanitizeAliasRules(raw: unknown, issues: string[]): AliasRule[] 
 export const aliasRulesSchema: DocumentSchema<AliasRule[]> = {
   key: STORAGE_KEYS.aliasRules,
   version: 1,
-  defaults: () => createDefaultAliasRules(),
+  defaults: () => createDefaultAliasRules(new Date()),
   sanitize: sanitizeAliasRules,
 };
 

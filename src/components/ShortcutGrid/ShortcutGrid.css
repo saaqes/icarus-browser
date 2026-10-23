@@ -1,0 +1,216 @@
+.shortcuts {
+  --tile-w: 104px;
+  --tile-gap: 8px;
+  width: 100%;
+}
+
+.shortcuts__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--tile-w));
+  justify-content: center;
+  gap: var(--tile-gap);
+  max-width: calc(var(--columns) * var(--tile-w) + (var(--columns) - 1) * var(--tile-gap));
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.shortcut {
+  position: relative;
+  border-radius: var(--radius-lg);
+  transition:
+    transform var(--duration-base) var(--ease-out),
+    opacity var(--duration-base);
+}
+
+.shortcut.is-dragging {
+  opacity: 0.4;
+}
+
+.shortcut.is-drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.shortcut__open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--home-fg);
+  transition: background var(--duration-fast);
+}
+
+.shortcut__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--home-tile-bg);
+  color: var(--home-fg);
+  transition:
+    transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base);
+}
+
+.shortcut__title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.shortcut__alias {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: -4px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.home[data-surface='image'] .shortcut__alias,
+.home[data-surface='color-dark'] .shortcut__alias {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.shortcut__menu {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  opacity: 0;
+  color: var(--home-fg);
+  transition: opacity var(--duration-fast);
+}
+
+.shortcut .menu-root {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+
+.shortcut .menu-root .shortcut__menu {
+  position: static;
+}
+
+.shortcut:hover .shortcut__menu,
+.shortcut:focus-within .shortcut__menu,
+.shortcut__menu[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.shortcut--add .shortcut__icon {
+  color: var(--home-fg-2);
+}
+
+/* Círculos (Esencial) */
+.shortcuts--circle .shortcut__open:hover {
+  background: var(--home-tile-hover);
+}
+
+/* Mosaicos (Panorama) */
+.shortcuts--tile {
+  --tile-w: 96px;
+  --tile-gap: 12px;
+}
+
+.shortcuts--tile .shortcut__open {
+  height: 96px;
+  justify-content: center;
+  padding: var(--space-2);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(20px) saturate(150%);
+  color: var(--fg-1);
+  box-shadow: var(--shadow-1);
+}
+
+.shortcuts--tile .shortcut__open:hover {
+  background: var(--surface-1);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
+
+.shortcuts--tile .shortcut__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg-1);
+}
+
+.shortcuts--tile .shortcut__title {
+  font-size: var(--text-xs);
+  text-shadow: none !important;
+}
+
+.shortcuts--tile .shortcut__menu,
+.shortcuts--tile .shortcut--add .shortcut__icon {
+  color: var(--fg-2);
+}
+
+.shortcuts--tile .shortcut__alias {
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+}
+
+/* Dock (ICARUS) */
+.shortcuts--dock {
+  --tile-w: 88px;
+  --tile-gap: 10px;
+}
+
+.shortcuts--dock .shortcut__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--home-tile-bg);
+  border: 1px solid var(--card-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 18px rgba(0, 0, 0, 0.16);
+}
+
+.shortcuts--dock .shortcut__open:hover .shortcut__icon {
+  transform: translateY(-4px) scale(1.04);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+    0 10px 28px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.shortcuts--dock .shortcut__title {
+  color: var(--home-fg-2);
+}
+
+.home[data-density='compact'] .shortcuts {
+  --tile-w: 84px;
+}
+
+.home[data-density='compact'] .shortcuts--tile .shortcut__open {
+  height: 80px;
+}
+
+.home[data-density='compact'] .shortcut__icon {
+  width: 40px;
+  height: 40px;
+}
+
+@media (max-width: 560px) {
+  .shortcuts {
+    --tile-w: 80px;
+  }
+}

@@ -1,0 +1,126 @@
+/*
+ * Estilo propio de ICARUS: carbón profundo, blanco y morado. Pestañas en
+ * píldora con indicador luminoso, omnibox de cristal y variante clara «Marfil».
+ */
+
+.icarus-root[data-theme='icarus'] {
+  --radius-tab: 10px;
+  --radius-omnibox: 12px;
+  --radius-card: 18px;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  /* Variante clara «Marfil» */
+  --app-bg: #ece8f5;
+  --tabstrip-bg: #ece8f5;
+  --tab-bg-hover: rgba(76, 29, 149, 0.07);
+  --tab-active-bg: #ffffff;
+  --tab-fg: #5a5470;
+  --tab-fg-active: #1b1726;
+  --toolbar-bg: #ffffff;
+  --toolbar-border: #e6e1f1;
+  --omnibox-bg: #f4f1fa;
+  --omnibox-bg-hover: #efebf8;
+  --omnibox-bg-focus: #ffffff;
+  --omnibox-border: #e6e1f1;
+  --omnibox-dim: #7a7392;
+  --page-bg: #f7f5fc;
+  --surface-1: #ffffff;
+  --surface-2: #f2eff9;
+  --surface-raised: #ffffff;
+  --border-1: rgba(60, 30, 110, 0.1);
+  --border-2: rgba(60, 30, 110, 0.18);
+  --fg-1: #1b1726;
+  --fg-2: #4a4460;
+  --fg-3: #77708e;
+  --card-bg: rgba(255, 255, 255, 0.72);
+  --card-border: rgba(109, 40, 217, 0.12);
+  --card-shadow: 0 10px 30px rgba(60, 30, 110, 0.08);
+  --home-search-bg: rgba(255, 255, 255, 0.78);
+  --home-search-border: rgba(109, 40, 217, 0.18);
+  --home-tile-bg: rgba(255, 255, 255, 0.82);
+  --home-tile-hover: rgba(109, 40, 217, 0.06);
+}
+
+.icarus-root[data-theme='icarus'][data-mode='dark'] {
+  --app-bg: #0e0d12;
+  --tabstrip-bg: #0e0d12;
+  --tab-bg-hover: rgba(255, 255, 255, 0.05);
+  --tab-active-bg: #1b1922;
+  --tab-fg: #9f99b3;
+  --tab-fg-active: #f3f0fb;
+  --toolbar-bg: #1b1922;
+  --toolbar-border: #24212d;
+  --omnibox-bg: #121118;
+  --omnibox-bg-hover: #15141c;
+  --omnibox-bg-focus: #121118;
+  --omnibox-border: #2a2734;
+  --omnibox-fg: #f3f0fb;
+  --omnibox-dim: #8a84a0;
+  --page-bg: #0f0e13;
+  --surface-1: #17151d;
+  --surface-2: #211e2a;
+  --surface-raised: #1a1821;
+  --border-1: rgba(255, 255, 255, 0.07);
+  --border-2: rgba(255, 255, 255, 0.13);
+  --fg-1: #f3f0fb;
+  --fg-2: #bdb6d1;
+  --fg-3: #8a84a0;
+  --card-bg: rgba(26, 24, 33, 0.66);
+  --card-border: rgba(255, 255, 255, 0.07);
+  --card-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+  --home-search-bg: rgba(255, 255, 255, 0.045);
+  --home-search-border: rgba(255, 255, 255, 0.1);
+  --home-tile-bg: rgba(255, 255, 255, 0.05);
+  --home-tile-hover: rgba(255, 255, 255, 0.04);
+  --scrim: rgba(4, 3, 8, 0.66);
+}
+
+/* Pestañas en píldora con indicador de acento. */
+.icarus-root[data-theme='icarus'] .tabstrip {
+  align-items: center;
+  height: 44px;
+}
+
+.icarus-root[data-theme='icarus'] .tabstrip__tabs {
+  align-items: center;
+  gap: 4px;
+}
+
+.icarus-root[data-theme='icarus'] .tab {
+  height: 32px;
+  border-radius: var(--radius-tab);
+}
+
+.icarus-root[data-theme='icarus'] .tab.is-active {
+  box-shadow: inset 0 0 0 1px var(--border-1);
+}
+
+.icarus-root[data-theme='icarus'] .tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.icarus-root[data-theme='icarus'] .tab:not(.is-active) + .tab:not(.is-active)::before {
+  display: none;
+}
+
+.icarus-root[data-theme='icarus'] .tabstrip__brand,
+.icarus-root[data-theme='icarus'] .tabstrip__new {
+  margin-bottom: 0;
+}
+
+.icarus-root[data-theme='icarus'] .omnibox.is-editing .omnibox__field {
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 0 24px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.icarus-root[data-theme='icarus'][data-mode='dark'] .toolbar {
+  background: linear-gradient(180deg, #1d1b25, #1b1922);
+}

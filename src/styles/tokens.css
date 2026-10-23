@@ -1,0 +1,142 @@
+/*
+ * Tokens de diseño de ICARUS.
+ *
+ * Los tokens semánticos (superficies, texto, bordes) tienen aquí un valor base
+ * neutro. Cada estilo los redefine en themes/<estilo>/theme.css con selectores
+ * [data-theme][data-mode]. `--accent` y `--accent-contrast` se calculan en
+ * AppearanceRoot según el estilo, el modo y el acento elegido.
+ */
+
+.icarus-root {
+  /* Tipografía */
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.75rem;
+
+  /* Espaciado y radios */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --radius-tab: 10px;
+  --radius-omnibox: 999px;
+  --radius-card: 16px;
+
+  /* Movimiento */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 360ms;
+
+  /* Capas */
+  --z-popover: 40;
+  --z-drawer: 60;
+  --z-modal: 80;
+  --z-toast: 100;
+
+  /* Colores base (modo claro neutro) */
+  --app-bg: #eef0f4;
+  --tabstrip-bg: #e3e6ec;
+  --tab-bg-hover: rgba(0, 0, 0, 0.05);
+  --tab-active-bg: #ffffff;
+  --tab-fg: #4a4f5c;
+  --tab-fg-active: #1c1f26;
+  --toolbar-bg: #ffffff;
+  --toolbar-border: rgba(0, 0, 0, 0.08);
+  --omnibox-bg: #eef0f4;
+  --omnibox-bg-hover: #e6e9ef;
+  --omnibox-bg-focus: #ffffff;
+  --omnibox-border: transparent;
+  --omnibox-fg: #1c1f26;
+  --omnibox-dim: #6b7080;
+  --page-bg: #ffffff;
+  --surface-1: #ffffff;
+  --surface-2: #f3f4f7;
+  --surface-raised: #ffffff;
+  --border-1: rgba(15, 20, 30, 0.1);
+  --border-2: rgba(15, 20, 30, 0.18);
+  --fg-1: #1c1f26;
+  --fg-2: #4a4f5c;
+  --fg-3: #6f7484;
+  --danger: #c4314b;
+  --success: #1f7a43;
+  --warning: #a65a00;
+  --shadow-1: 0 1px 2px rgba(15, 20, 30, 0.08), 0 1px 3px rgba(15, 20, 30, 0.06);
+  --shadow-2: 0 4px 14px rgba(15, 20, 30, 0.1), 0 1px 3px rgba(15, 20, 30, 0.08);
+  --shadow-pop: 0 16px 40px rgba(15, 20, 30, 0.18), 0 2px 8px rgba(15, 20, 30, 0.1);
+  --card-bg: rgba(255, 255, 255, 0.86);
+  --card-border: rgba(15, 20, 30, 0.08);
+  --card-shadow: var(--shadow-1);
+  --scrim: rgba(10, 12, 20, 0.45);
+
+  /* Página de inicio */
+  --home-fg: var(--fg-1);
+  --home-fg-2: var(--fg-2);
+  --home-tile-bg: var(--surface-2);
+  --home-tile-hover: rgba(0, 0, 0, 0.05);
+  --home-search-bg: var(--surface-1);
+  --home-search-border: var(--border-1);
+
+  /* Derivados del acento */
+  --accent: #6d28d9;
+  --accent-contrast: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-softer: color-mix(in srgb, var(--accent) 8%, transparent);
+  --focus-ring: color-mix(in srgb, var(--accent) 60%, transparent);
+  --danger-soft: color-mix(in srgb, var(--danger) 12%, transparent);
+  --warning-soft: color-mix(in srgb, var(--warning) 14%, transparent);
+}
+
+.icarus-root[data-mode='dark'] {
+  color-scheme: dark;
+  --app-bg: #16171b;
+  --tabstrip-bg: #1b1c21;
+  --tab-bg-hover: rgba(255, 255, 255, 0.06);
+  --tab-active-bg: #2a2b31;
+  --tab-fg: #a9adba;
+  --tab-fg-active: #eceef3;
+  --toolbar-bg: #2a2b31;
+  --toolbar-border: rgba(255, 255, 255, 0.06);
+  --omnibox-bg: #1c1d22;
+  --omnibox-bg-hover: #222329;
+  --omnibox-bg-focus: #1c1d22;
+  --omnibox-fg: #eceef3;
+  --omnibox-dim: #8d92a1;
+  --page-bg: #1f2025;
+  --surface-1: #26272d;
+  --surface-2: #2e3036;
+  --surface-raised: #2c2d33;
+  --border-1: rgba(255, 255, 255, 0.09);
+  --border-2: rgba(255, 255, 255, 0.16);
+  --fg-1: #eceef3;
+  --fg-2: #b6bac6;
+  --fg-3: #8d92a1;
+  --danger: #ff8a9b;
+  --success: #6fd195;
+  --warning: #f3b552;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 18px 44px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --card-bg: rgba(38, 39, 45, 0.86);
+  --card-border: rgba(255, 255, 255, 0.07);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --home-tile-hover: rgba(255, 255, 255, 0.06);
+}
+
+.icarus-root:not([data-mode='dark']) {
+  color-scheme: light;
+}

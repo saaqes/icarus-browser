@@ -1,0 +1,84 @@
+/*
+ * «Esencial» — estilo original de ICARUS inspirado en la sobriedad de Google Chrome:
+ * pestañas con esquinas curvas que se funden con la barra, omnibox en píldora gris
+ * y página de inicio blanca y despejada.
+ */
+
+.icarus-root[data-theme='google-inspired'] {
+  --radius-tab: 12px;
+  --radius-omnibox: 999px;
+  --radius-card: 14px;
+  --app-bg: #dfe3ea;
+  --tabstrip-bg: #dfe3ea;
+  --tab-bg-hover: rgba(30, 40, 60, 0.07);
+  --tab-active-bg: #ffffff;
+  --tab-fg: #4b5262;
+  --tab-fg-active: #1d2129;
+  --toolbar-bg: #ffffff;
+  --toolbar-border: #e3e6ec;
+  --omnibox-bg: #eef1f5;
+  --omnibox-bg-hover: #e5e9ef;
+  --omnibox-bg-focus: #ffffff;
+  --page-bg: #ffffff;
+  --surface-1: #ffffff;
+  --surface-2: #f1f3f6;
+  --fg-1: #1d2129;
+  --fg-2: #464c59;
+  --fg-3: #6b7180;
+  --home-search-bg: #ffffff;
+  --home-search-border: #dfe2e8;
+  --home-tile-bg: #f1f3f6;
+  --card-bg: #ffffff;
+  --card-border: #e3e6ec;
+}
+
+.icarus-root[data-theme='google-inspired'][data-mode='dark'] {
+  --app-bg: #1b1c20;
+  --tabstrip-bg: #1b1c20;
+  --tab-bg-hover: rgba(255, 255, 255, 0.07);
+  --tab-active-bg: #2b2c31;
+  --tab-fg: #a9adb8;
+  --tab-fg-active: #eef0f4;
+  --toolbar-bg: #2b2c31;
+  --toolbar-border: #26272c;
+  --omnibox-bg: #1f2024;
+  --omnibox-bg-hover: #25262b;
+  --omnibox-bg-focus: #1f2024;
+  --page-bg: #202125;
+  --surface-1: #2b2c31;
+  --surface-2: #35363c;
+  --fg-1: #eef0f4;
+  --fg-2: #c0c4cd;
+  --fg-3: #959aa6;
+  --home-search-bg: #2f3035;
+  --home-search-border: #3a3b41;
+  --home-tile-bg: #35363c;
+  --card-bg: #2b2c31;
+  --card-border: #36373d;
+}
+
+/* Pestañas con «pies» curvos que enlazan con la barra de herramientas. */
+.icarus-root[data-theme='google-inspired'] .tab.is-active::before,
+.icarus-root[data-theme='google-inspired'] .tab.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.icarus-root[data-theme='google-inspired'] .tab.is-active::before {
+  left: -12px;
+  top: auto;
+  background: radial-gradient(circle at 0 0, transparent 12px, var(--tab-active-bg) 12.5px);
+}
+
+.icarus-root[data-theme='google-inspired'] .tab.is-active::after {
+  right: -12px;
+  background: radial-gradient(circle at 100% 0, transparent 12px, var(--tab-active-bg) 12.5px);
+}
+
+.icarus-root[data-theme='google-inspired'] .tabstrip__tabs {
+  padding-inline: 12px;
+}

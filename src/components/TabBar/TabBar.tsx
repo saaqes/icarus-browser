@@ -1,0 +1,74 @@
+import { useMessages } from '../../i18n';
+import type { PagePresentation } from '../../services/tabs/pages';
+import { getCurrentEntry } from '../../services/tabs/tabs';
+import { Favicon } from '../common/Favicon';
+import { Icon } from '../common/Icon';
+import { IcarusMark } from '../common/IcarusLogo';
+import { useBrowser } from '../BrowserShell/BrowserContext';
+import './TabBar.css';
+
+function TabIcon({ presentation, loading }: { presentation: PagePresentation; loading: boolean }) {
+  const m = useMessages();
+  if (loading) return <span className="tab__spinner" role="img" aria-label={m.tabs.loading} />;
+  switch (presentation.icon) {
+    case 'icarus':
+      return <IcarusMark size={16} />;
+    case 'settings':
+      return <Icon name="settings" size={16} />;
+    case 'blank':
+      return <Icon name="page" size={16} />;
+    case 'site':
+      return <Favicon url={presentation.realUrl} label={presentation.title} size={16} />;
+  }
+}
+
+/** Barra superior de pestañas visuales. */
+export function TabBar() {
+  const m = useMessages();
+  const { session, describe, activateTab, closeTab, newTab } = useBrowser();
+
+  return (
+    <div className="tabstrip">
+      <div className="tabstrip__brand" aria-hidden="true">
+        <IcarusMark size={20} />
+      </div>
+      <div className="tabstrip__tabs" role="tablist" aria-label={m.tabs.list}>
+        {session.tabs.map((tab) => {
+          const presentation = describe(getCurrentEntry(tab).page);
+          const active = tab.id === session.activeTabId;
+          const tooltip = presentation.alias
+            ? `${presentation.title}\n${presentation.alias.rule.alias} · ${presentation.realUrl}`
+            : presentation.kind === 'external'
+              ? `${presentation.title}\n${presentation.realUrl}`
+              : presentation.title;
+          return (
+            <div key={tab.id} className={`tab${active ? ' is-active' : ''}`} title={tooltip}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className="tab__main"
+                onClick={() => activateTab(tab.id)}
+                onAuxClick={(event) => {
+                  if (event.button === 1) closeTab(tab.id);
+                }}
+              >
+                <span className="tab__icon">
+                  <TabIcon presentation={presentation} loading={tab.loading} />
+                </span>
+                <span className="tab__title">{presentation.title}</span>
+                {presentation.alias && <span className="tab__alias-dot" aria-hidden="true" />}
+              </button>
+              <button type="button" className="tab__close" onClick={() => closeTab(tab.id)} aria-label={m.tabs.close(presentation.title)}>
+                <Icon name="close" size={14} />
+              </button>
+            </div>
+          );
+        })}
+        <button type="button" className="tabstrip__new" onClick={newTab} aria-label={m.tabs.newTab} title={m.tabs.newTab}>
+          <Icon name="plus" size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
