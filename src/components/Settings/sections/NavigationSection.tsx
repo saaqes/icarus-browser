@@ -17,6 +17,7 @@ export function NavigationSection() {
       <SettingsCard title={t.newTab}>
         <RadioList<NewTabPage>
           label={t.newTab}
+          hideLabel
           value={navigation.newTabPage}
           onChange={(newTabPage) => updateSettings((current) => updateNavigation(current, { newTabPage }))}
           options={[
@@ -33,6 +34,7 @@ export function NavigationSection() {
         </p>
         <RadioList<ExternalOpeningMode>
           label={t.opening}
+          hideLabel
           value={navigation.externalOpening}
           onChange={(externalOpening) => updateSettings((current) => updateNavigation(current, { externalOpening }))}
           options={[

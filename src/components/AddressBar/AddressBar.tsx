@@ -37,6 +37,8 @@ export function AddressBar() {
   const [value, setValue] = useState(editable);
   const [highlight, setHighlight] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
+  // Evita que el mouseup posterior al foco con clic deshaga la selección del texto.
+  const selectOnMouseUp = useRef(false);
   const listId = useId();
 
   useEffect(() => {
@@ -146,8 +148,12 @@ export function AddressBar() {
               setEditing(true);
               setInfoOpen(false);
               setValue(editable);
-              const target = event.currentTarget;
-              requestAnimationFrame(() => target.select());
+              event.currentTarget.select();
+              selectOnMouseUp.current = true;
+            }}
+            onMouseUp={(event) => {
+              if (selectOnMouseUp.current) event.preventDefault();
+              selectOnMouseUp.current = false;
             }}
             onBlur={() => {
               setEditing(false);
@@ -156,6 +162,7 @@ export function AddressBar() {
               setValue(editable);
             }}
             onChange={(event) => {
+              selectOnMouseUp.current = false;
               setValue(event.target.value);
               setDirty(true);
               setHighlight(0);

@@ -80,6 +80,8 @@ export function Segmented<T extends string | number>({ label, value, options, on
 
 interface RadioListProps<T extends string> {
   label: string;
+  /** Oculta la leyenda visualmente (se mantiene para lectores de pantalla). */
+  hideLabel?: boolean;
   value: T;
   options: ReadonlyArray<{ value: T; label: string; description?: string }>;
   onChange: (value: T) => void;
@@ -87,11 +89,11 @@ interface RadioListProps<T extends string> {
 }
 
 /** Lista de opciones en vertical, para la página de configuración. */
-export function RadioList<T extends string>({ label, value, options, onChange, children }: RadioListProps<T>) {
+export function RadioList<T extends string>({ label, hideLabel = false, value, options, onChange, children }: RadioListProps<T>) {
   const name = useId();
   return (
     <fieldset className="radio-list">
-      <legend className="field-label">{label}</legend>
+      <legend className={hideLabel ? 'visually-hidden' : 'field-label'}>{label}</legend>
       {options.map((option) => (
         <label key={option.value} className="radio-list__item">
           <input type="radio" name={name} value={option.value} checked={option.value === value} onChange={() => onChange(option.value)} />

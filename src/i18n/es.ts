@@ -487,6 +487,7 @@ export const es = {
       editTitle: 'Editar regla',
       name: 'Nombre de la regla',
       namePlaceholder: 'Ej. Buscador del trabajo',
+      realSection: 'Dirección real',
       matchType: 'Tipo de coincidencia',
       matchTypes: {
         exact: 'URL exacta',

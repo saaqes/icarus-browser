@@ -59,6 +59,7 @@ export function GeneralSection() {
       <SettingsCard title={t.startup} description={t.startupHint}>
         <RadioList<StartupBehavior>
           label={t.startup}
+          hideLabel
           value={general.startup}
           onChange={(startup) => updateSettings((current) => updateGeneral(current, { startup }))}
           options={[
@@ -71,6 +72,7 @@ export function GeneralSection() {
       <SettingsCard title={t.homePage}>
         <RadioList<'new-tab' | 'url'>
           label={t.homePage}
+          hideLabel
           value={homeMode}
           onChange={(mode) => {
             setHomeMode(mode);

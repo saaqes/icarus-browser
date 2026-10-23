@@ -51,8 +51,11 @@ export function AliasRuleForm({ mode, draft, errors, dirty, createdAt, updatedAt
       </Field>
 
       <fieldset className="alias-form__group">
-        <legend>{t.pattern}</legend>
-        <div className="segmented__options alias-form__match">
+        <legend>{t.realSection}</legend>
+        <p className="field-label" id="alias-match-label">
+          {t.matchType}
+        </p>
+        <div className="segmented__options alias-form__match" role="radiogroup" aria-labelledby="alias-match-label">
           {ALIAS_MATCH_TYPES.map((type: AliasMatchType) => (
             <label key={type} className={`segmented__option${draft.matchType === type ? ' is-selected' : ''}`}>
               <input type="radio" name="alias-match-type" value={type} checked={draft.matchType === type} onChange={() => onChange({ matchType: type })} />
@@ -60,7 +63,7 @@ export function AliasRuleForm({ mode, draft, errors, dirty, createdAt, updatedAt
             </label>
           ))}
         </div>
-        <Field label={t.matchType} hint={t.matchHints[draft.matchType]} error={error('pattern')}>
+        <Field label={t.pattern} hint={t.matchHints[draft.matchType]} error={error('pattern')}>
           {(props) => (
             <input
               {...props}
