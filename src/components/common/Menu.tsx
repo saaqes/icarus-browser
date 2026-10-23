@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useDismiss } from '../../hooks/useDismiss';
 import { Icon, type IconName } from './Icon';
 
@@ -23,11 +23,41 @@ interface MenuButtonProps {
 /** Botón con menú desplegable accesible (flechas, Inicio/Fin, Escape). */
 export function MenuButton({ label, items, children, className, align = 'end' }: MenuButtonProps) {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<CSSProperties>({});
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
   const close = useCallback(() => setOpen(false), []);
   useDismiss(rootRef, open, close);
+
+  // El menú se coloca de forma fija respecto a la ventana para que ningún
+  // contenedor con desplazamiento lo recorte; se cierra al desplazar o redimensionar.
+  useEffect(() => {
+    if (!open) return undefined;
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open, close]);
+
+  const toggle = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const width = 240;
+      const height = items.length * 36 + 10;
+      const left = align === 'end' ? rect.right - width : rect.left;
+      // Si no cabe por debajo, se abre hacia arriba.
+      const top = rect.bottom + 6 + height > window.innerHeight ? Math.max(8, rect.top - 6 - height) : rect.bottom + 6;
+      setPosition({
+        top,
+        left: Math.max(8, Math.min(left, window.innerWidth - width - 8)),
+        width,
+      });
+    }
+    setOpen((value) => !value);
+  };
 
   const focusItem = (index: number) => {
     const elements = rootRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
@@ -70,11 +100,11 @@ export function MenuButton({ label, items, children, className, align = 'end' }:
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggle}
         onKeyDown={(event) => {
-          if (event.key === 'ArrowDown') {
+          if (event.key === 'ArrowDown' && !open) {
             event.preventDefault();
-            setOpen(true);
+            toggle();
             requestAnimationFrame(() => focusItem(0));
           }
         }}
@@ -82,7 +112,7 @@ export function MenuButton({ label, items, children, className, align = 'end' }:
         {children}
       </button>
       {open && (
-        <div id={menuId} role="menu" aria-label={label} className={`menu menu--${align}`} onKeyDown={onMenuKeyDown}>
+        <div id={menuId} role="menu" aria-label={label} className="menu" style={position} onKeyDown={onMenuKeyDown}>
           {items.map((item) => (
             <button
               key={item.id}

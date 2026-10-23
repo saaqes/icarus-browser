@@ -60,6 +60,16 @@
     box-shadow var(--duration-base);
 }
 
+/* Respaldo claro para que los iconos oscuros se vean sobre fondos oscuros. */
+.icarus-root[data-mode='dark'] .shortcut__icon img.favicon,
+.home[data-surface='image'] .shortcut__icon img.favicon,
+.home[data-surface='color-dark'] .shortcut__icon img.favicon {
+  box-sizing: content-box;
+  padding: 3px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
 .shortcut__title {
   max-width: 100%;
   overflow: hidden;

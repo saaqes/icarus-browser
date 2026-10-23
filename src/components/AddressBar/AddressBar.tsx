@@ -49,6 +49,14 @@ export function AddressBar() {
     setInfoOpen(false);
   }, [activeTab.id, currentEntry.id]);
 
+  // Al cambiar de pestaña (p. ej. con Ctrl+Tab mientras se edita) se descarta lo escrito.
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
+  useEffect(() => {
+    setValue(editableRef.current);
+    setDirty(false);
+  }, [activeTab.id]);
+
   const focusInput = useCallback(() => {
     inputRef.current?.focus();
     inputRef.current?.select();

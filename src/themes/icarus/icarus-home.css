@@ -155,12 +155,20 @@
   padding-top: 6vh;
 }
 
+/* Pie fijo: «Personalizar» siempre visible aunque las tarjetas sean altas. */
 .icarus-home__footer {
+  position: sticky;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-3) var(--space-6) var(--space-5);
+  pointer-events: none;
+}
+
+.icarus-home__footer > * {
+  pointer-events: auto;
 }
 
 .icarus-home .customize-btn {
@@ -173,8 +181,17 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding: 6px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-pill);
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
   font-size: var(--text-xs);
-  color: var(--home-fg-2);
+  color: var(--fg-2);
+}
+
+.icarus-home .customize-btn {
+  backdrop-filter: blur(16px);
 }
 
 .status-dot {

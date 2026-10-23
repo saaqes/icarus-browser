@@ -146,7 +146,6 @@ export const es = {
       'ICARUS todavía no incluye un motor de navegación integrado. Esta página se ha entregado a tu navegador del sistema y se muestra allí, no dentro de esta pestaña.',
     pendingBody:
       'ICARUS todavía no incluye un motor de navegación integrado. La página se abrirá en tu navegador del sistema cuando lo confirmes.',
-    restoredBody: 'Esta entrada del historial no se vuelve a abrir automáticamente.',
     open: 'Abrir en el navegador externo',
     openAgain: 'Abrir de nuevo',
     fallbackLink: '¿No se abrió? Usa este enlace',
