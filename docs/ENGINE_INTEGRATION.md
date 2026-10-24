@@ -41,12 +41,12 @@ Los tipos están en `src/types/native.ts` y los compilan tanto Vite como `tsc`. 
 | Grupo | Métodos | Canal |
 | --- | --- | --- |
 | `storage` | `snapshot`, `setItem`, `removeItem` | `icarus:bootstrap` (síncrono, al arrancar), `icarus:storage:*` |
-| `tabs` | `navigate`, `goBack`, `goForward`, `reload`, `stop`, `close`, `show`, `setBounds`, `snapshot` | `icarus:tabs:*` |
+| `tabs` | `navigate`, `goBack`, `goForward`, `reload`, `stop`, `close`, `show`, `setBounds`, `snapshot`, `find`, `stopFind` | `icarus:tabs:*` |
 | `history` | `list`, `remove` | `icarus:history:*` |
 | `downloads` | `list`, `cancel`, `open`, `showInFolder`, `clear`, `chooseDirectory` | `icarus:downloads:*` |
 | `shield` | `getState`, `setEnabled`, `setListEnabled`, `addList`, `removeList`, `updateLists`, `setCustomRules`, `setSiteAllowed` | `icarus:shield:*` |
 | `privacy`, `permissions`, `auth`, `preferences`, `favicons`, `window` | borrar datos, responder permisos, enviar o cancelar credenciales HTTP, preferencias de escritorio, iconos, colores de la barra de título | `icarus:*` |
-| `onEvent` | `tab-state`, `open-in-new-tab`, `shortcut`, `permission-request`, `auth-request`, `downloads`, `history-changed`, `shield`… | `icarus:event` |
+| `onEvent` | `tab-state`, `open-in-new-tab`, `shortcut`, `permission-request`, `auth-request`, `find-result`, `downloads`, `history-changed`, `shield`… | `icarus:event` |
 
 `electron/main/ipc.ts` comprueba en cada mensaje que el remitente es la `webContents` de la interfaz y que la URL del marco es `icarus-app://ui/`, y valida cada argumento (`electron/main/validate.ts`); un argumento inválido rechaza la llamada.
 

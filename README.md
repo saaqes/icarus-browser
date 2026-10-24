@@ -55,6 +55,7 @@ El prototipo web (`dist/icarus-browser.html`) sigue existiendo, pero **no es un 
 | Historial persistente con búsqueda y borrado | **Real** |
 | Permisos de sitios (cámara, micrófono, ubicación, notificaciones…) | **Real** |
 | Autenticación HTTP (Basic, Digest, NTLM) | **Real** |
+| Buscar en la página (Ctrl+F) con el contador de Chromium | **Real** |
 | Borrado de datos de navegación y borrado al salir | **Real** |
 | Preferencias guardadas en la carpeta de datos del usuario | **Real** |
 | Instalador de Windows (NSIS) y paquete portátil (.zip) | **Se genera** (ver [Instalar](#instalar-en-windows)) |
@@ -115,6 +116,7 @@ Notas:
 - Errores de red y de certificado con el código real de Chromium (`ERR_NAME_NOT_RESOLVED`, `ERR_CERT_…`), botones Reintentar y Atrás. **No se pueden omitir errores de certificado.**
 - Menú contextual: abrir enlace en pestaña nueva, copiar enlace o imagen, guardar imagen, buscar el texto seleccionado, copiar, pegar, inspeccionar.
 - Zoom por pestaña (Ctrl + / Ctrl − / Ctrl 0) y pantalla completa de vídeos.
+- Buscar en la página (Ctrl+F): barra bajo la barra de herramientas con el número real de coincidencias que informa Chromium («2 de 5»), siguiente y anterior; la página sigue visible con las coincidencias resaltadas.
 - Los menús, el panel «Personalizar» y los diálogos se muestran sobre la página: mientras están abiertos, la página se sustituye por una captura.
 
 ### Atajos de teclado
@@ -129,6 +131,7 @@ Funcionan también con el foco dentro de una página web.
 | Alt + ← / Alt + → | Atrás / adelante |
 | Ctrl + R, F5 / Ctrl + Mayús + R, Mayús + F5 | Recargar / recargar sin caché |
 | Ctrl + H / Ctrl + J | Historial / descargas |
+| Ctrl + F | Buscar en la página (Intro: siguiente; Mayús + Intro: anterior; Esc: cerrar) |
 | F12, Ctrl + Mayús + I | Herramientas de desarrollo de la página |
 
 ### Barra de direcciones
@@ -270,11 +273,11 @@ Resumen (completo en [docs/SECURITY.md](docs/SECURITY.md)):
 | Conjunto | Qué comprueba | Linux (local y CI) | Windows (GitHub Actions, `windows-latest`) |
 | --- | --- | --- | --- |
 | `npm run test` (115 pruebas, 13 archivos) | Servicios, componentes, filtros de Shield, dominios, rutas seguras, archivos JSON | 115/115 | 115/115 |
-| `npm run test:e2e` (24 pasos + 3 sitios reales) | Ver abajo | 24/24 en local (Xvfb, sin acceso a esos sitios) · en CI, ver la última ejecución | Ver la última ejecución del flujo Windows |
+| `npm run test:e2e` (25 pasos + 3 sitios reales) | Ver abajo | 25/25 en local (Xvfb, sin acceso a esos sitios) · en CI, ver la última ejecución | Ver la última ejecución del flujo Windows |
 | `npm run test:smoke` | Ejecutable empaquetado: arranque, página dentro de la pestaña, sin puente nativo en la web, datos en disco | Superada | Superada (sin instalar y ya instalado) |
 | Instalación silenciosa | `Setup.exe /S`, prueba de humo del navegador instalado y desinstalación silenciosa | — | Superada |
 
-Pasos E2E con Electron real y servidores HTTP y HTTPS locales: 1 iniciar · 2 abrir una página dentro de la pestaña · 3 buscar desde la barra · 4 volver atrás · 5 dos pestañas y cambiar · 6 atrás y adelante · 7 recargar · 8 `target=_blank` como pestaña · 9 cerrar y crear pestañas libera vistas · 10 los tres estilos · 11 menús sobre la página · 12 alias con navegación real y URL real conservada · 13 Shield bloquea una solicitud real y el contador lo refleja · 14 descarga real a disco · 15 historial · 16 icono real del sitio y detener la carga · 17 Ctrl+L desde la página (selecciona toda la dirección), Ctrl+W, Ctrl+Mayús+T y Ctrl+Tab · 18 el alias se retira cuando la regla deja de coincidir · 19 `javascript:`, `mailto:` y `file:` bloqueados en la barra y en enlaces · 20 certificado autofirmado rechazado sin opción de omitirlo (necesita `openssl`; si falta, el paso se marca como omitido) · 21 permiso de ubicación preguntado con el origen real y denegado · 22 autenticación HTTP: cancelar (401), contraseña incorrecta (se vuelve a pedir) y correcta, con la página oculta bajo el diálogo · 23 cerrar, reabrir y conservar estilo, reglas de Shield, historial y alias · 24 borrar el historial.
+Pasos E2E con Electron real y servidores HTTP y HTTPS locales: 1 iniciar · 2 abrir una página dentro de la pestaña · 3 buscar desde la barra · 4 volver atrás · 5 dos pestañas y cambiar · 6 atrás y adelante · 7 recargar · 8 `target=_blank` como pestaña · 9 cerrar y crear pestañas libera vistas · 10 los tres estilos · 11 menús sobre la página · 12 alias con navegación real y URL real conservada · 13 Shield bloquea una solicitud real y el contador lo refleja · 14 descarga real a disco · 15 historial · 16 icono real del sitio y detener la carga · 17 Ctrl+L desde la página (selecciona toda la dirección), Ctrl+W, Ctrl+Mayús+T y Ctrl+Tab · 18 el alias se retira cuando la regla deja de coincidir · 19 `javascript:`, `mailto:` y `file:` bloqueados en la barra y en enlaces · 20 certificado autofirmado rechazado sin opción de omitirlo (necesita `openssl`; si falta, el paso se marca como omitido) · 21 permiso de ubicación preguntado con el origen real y denegado · 22 autenticación HTTP: cancelar (401), contraseña incorrecta (se vuelve a pedir) y correcta, con la página oculta bajo el diálogo · 23 buscar en la página con Ctrl+F desde la página (1 de 3, siguiente, anterior, sin resultados, Escape) · 24 cerrar, reabrir y conservar estilo, reglas de Shield, historial y alias · 25 borrar el historial.
 
 `ICARUS_E2E_INTERNET=1` añade sitios reales por HTTPS (Wikipedia, Google y YouTube por defecto, o `ICARUS_E2E_SITES`): comprueba que cargan sin página de error y que la URL final es `https://`. Los flujos de GitHub Actions lo activan en Linux y en Windows. En el entorno donde se desarrolló esta versión, la red solo permitía algunos dominios: **github.com cargó dentro de ICARUS con TLS verificado**, mientras que Wikipedia, Google, YouTube y easylist.to estaban bloqueados por el proxy del entorno (`CONNECT 403`), así que esas páginas y la descarga de EasyList no pudieron probarse allí. En GitHub Actions, sin esas restricciones, el paso 3 sí cargó la búsqueda real de Google. No hubo una máquina Windows física: las pruebas de Windows son las de los ejecutores de GitHub Actions.
 
