@@ -206,7 +206,8 @@ let win;
 const addressBar = () => win.getByRole('combobox', { name: 'Barra de direcciones' });
 async function go(text) {
   await addressBar().click();
-  await win.keyboard.press('Control+A');
+  // Seleccionar todo: ⌘A en macOS (allí Ctrl+A mueve el cursor al principio de la línea).
+  await win.keyboard.press('ControlOrMeta+A');
   await win.keyboard.type(text);
   await win.keyboard.press('Enter');
 }
