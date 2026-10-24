@@ -1,0 +1,60 @@
+{
+  "shortcuts": [
+    {
+      "id": "default-google",
+      "title": "Google",
+      "url": "https://www.google.com/"
+    },
+    {
+      "id": "default-youtube",
+      "title": "YouTube",
+      "url": "https://www.youtube.com/"
+    },
+    {
+      "id": "default-wikipedia",
+      "title": "Wikipedia",
+      "url": "https://es.wikipedia.org/"
+    },
+    {
+      "id": "default-github",
+      "title": "GitHub",
+      "url": "https://github.com/"
+    },
+    {
+      "id": "default-gmail",
+      "title": "Gmail",
+      "url": "https://mail.google.com/"
+    },
+    {
+      "id": "default-outlook",
+      "title": "Outlook",
+      "url": "https://outlook.live.com/"
+    }
+  ],
+  "aliasRules": [
+    {
+      "id": "default-search",
+      "name": "Página de búsqueda",
+      "matchType": "exact",
+      "pattern": "https://www.google.com/",
+      "displayName": "Buscar",
+      "alias": "buscar.icarus",
+      "targetUrl": "https://www.google.com/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "default-wiki",
+      "name": "Enciclopedia",
+      "matchType": "host",
+      "pattern": "es.wikipedia.org",
+      "displayName": "Wikipedia",
+      "alias": "wiki.icarus",
+      "targetUrl": "https://es.wikipedia.org/",
+      "enabled": false,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}

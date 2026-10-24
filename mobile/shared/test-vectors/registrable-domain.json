@@ -1,0 +1,69 @@
+{
+  "description": "Nombre de host → dominio registrable (Public Suffix List).",
+  "cases": [
+    {
+      "host": "www.ejemplo.com",
+      "domain": "ejemplo.com"
+    },
+    {
+      "host": "a.b.ejemplo.com",
+      "domain": "ejemplo.com"
+    },
+    {
+      "host": "www.bbc.co.uk",
+      "domain": "bbc.co.uk"
+    },
+    {
+      "host": "tienda.ejemplo.com.mx",
+      "domain": "ejemplo.com.mx"
+    },
+    {
+      "host": "usuario.github.io",
+      "domain": "usuario.github.io"
+    },
+    {
+      "host": "github.io",
+      "domain": "github.io"
+    },
+    {
+      "host": "a.b.ck",
+      "domain": "a.b.ck"
+    },
+    {
+      "host": "www.ck",
+      "domain": "www.ck"
+    },
+    {
+      "host": "x.www.ck",
+      "domain": "www.ck"
+    },
+    {
+      "host": "foo.bar.kawasaki.jp",
+      "domain": "foo.bar.kawasaki.jp"
+    },
+    {
+      "host": "a.city.kawasaki.jp",
+      "domain": "city.kawasaki.jp"
+    },
+    {
+      "host": "a.b.ejemplo.icarusprueba",
+      "domain": "ejemplo.icarusprueba"
+    },
+    {
+      "host": "localhost",
+      "domain": "localhost"
+    },
+    {
+      "host": "192.168.1.1",
+      "domain": "192.168.1.1"
+    },
+    {
+      "host": "www.ejemplo.xn--55qx5d.cn",
+      "domain": "ejemplo.xn--55qx5d.cn"
+    },
+    {
+      "host": "WWW.EJEMPLO.COM.",
+      "domain": "ejemplo.com"
+    }
+  ]
+}

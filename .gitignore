@@ -24,3 +24,18 @@ pnpm-debug.log*
 Thumbs.db
 dist-electron/
 release/
+
+# Android (Gradle)
+mobile/android/**/.gradle/
+mobile/android/**/build/
+mobile/android/local.properties
+mobile/android/.kotlin/
+*.keystore
+*.jks
+
+# iPhone (SwiftPM / Xcode / XcodeGen)
+mobile/ios/**/.build/
+mobile/ios/**/.swiftpm/
+mobile/ios/*.xcodeproj/
+mobile/ios/build/
+DerivedData/

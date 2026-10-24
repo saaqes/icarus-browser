@@ -1,0 +1,179 @@
+{
+  "description": "Lista de filtros y solicitudes → bloqueada o no (motor de escritorio).",
+  "list": "! Title: ICARUS Shield — lista básica\n! Dominios de publicidad y seguimiento bloqueados como terceros.\n||doubleclick.net^$third-party\n||googlesyndication.com^$third-party\n||googleadservices.com^$third-party\n||adservice.google.com^$third-party\n||amazon-adsystem.com^$third-party\n||adnxs.com^$third-party\n||adsrvr.org^$third-party\n||criteo.com^$third-party\n||criteo.net^$third-party\n||taboola.com^$third-party\n||outbrain.com^$third-party\n||rubiconproject.com^$third-party\n||pubmatic.com^$third-party\n||openx.net^$third-party\n||casalemedia.com^$third-party\n||advertising.com^$third-party\n||smartadserver.com^$third-party\n||adform.net^$third-party\n||yieldmo.com^$third-party\n||sharethrough.com^$third-party\n||teads.tv^$third-party\n||media.net^$third-party\n||bidswitch.net^$third-party\n||33across.com^$third-party\n||adroll.com^$third-party\n||revcontent.com^$third-party\n||mgid.com^$third-party\n||zedo.com^$third-party\n||popads.net^$third-party\n||propellerads.com^$third-party\n||adcolony.com^$third-party\n||moatads.com^$third-party\n||serving-sys.com^$third-party\n||quantcount.com^$third-party\n||google-analytics.com^$third-party\n||googletagmanager.com^$third-party\n||scorecardresearch.com^$third-party\n||quantserve.com^$third-party\n||hotjar.com^$third-party\n||mouseflow.com^$third-party\n||crazyegg.com^$third-party\n||fullstory.com^$third-party\n||mixpanel.com^$third-party\n||segment.io^$third-party\n||amplitude.com^$third-party\n||chartbeat.com^$third-party\n||chartbeat.net^$third-party\n||newrelic.com^$third-party\n||nr-data.net^$third-party\n||bluekai.com^$third-party\n||krxd.net^$third-party\n||demdex.net^$third-party\n||omtrdc.net^$third-party\n||everesttech.net^$third-party\n||rlcdn.com^$third-party\n||agkn.com^$third-party\n||tapad.com^$third-party\n||adsymptotic.com^$third-party\n||clarity.ms^$third-party\n||bat.bing.com^$third-party\n||ads-twitter.com^$third-party\n||analytics.twitter.com^$third-party\n||ads.linkedin.com^$third-party\n||px.ads.linkedin.com^$third-party\n||analytics.tiktok.com^$third-party\n||connect.facebook.net^$third-party\n! Reglas de prueba de ICARUS Shield\n||ads.ejemplo.com^\n/banner/*/ad.$image\n||tracker.net^$script,third-party\n@@||tracker.net/permitido.js^\n||cdn.ejemplo.com^$domain=noticias.com|~deportes.noticias.com\n@@||sinbloqueo.com^$document\n/\\/pixel\\?id=\\d+/\n0.0.0.0 hosts-bloqueado.com\n-publicidad-$~image\n||ejemplo.com/anuncio.js|\n##.banner-cosmetico\nejemplo.com#@#.anuncio\n||redireccion.com^$redirect=noop.js\n[Adblock Plus 2.0]\n/regex-roto(/",
+  "counts": {
+    "rules": 76,
+    "ignored": 7,
+    "invalid": 1
+  },
+  "requests": [
+    {
+      "url": "https://www.google-analytics.com/analytics.js",
+      "type": "script",
+      "pageUrl": "https://www.ejemplo.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://www.google-analytics.com/analytics.js",
+      "type": "script",
+      "pageUrl": "https://analytics.google-analytics.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://securepubads.g.doubleclick.net/tag/js/gpt.js",
+      "type": "script",
+      "pageUrl": "https://noticias.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://securepubads.g.doubleclick.net/tag/js/gpt.js",
+      "type": "document",
+      "pageUrl": "https://noticias.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://ads.ejemplo.com/x.png",
+      "type": "image",
+      "pageUrl": "https://www.ejemplo.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://sub.ads.ejemplo.com/x.png",
+      "type": "image",
+      "pageUrl": "https://otra.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://noads.ejemplo.com/x.png",
+      "type": "image",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://img.otra.com/banner/300x250/ad.png",
+      "type": "image",
+      "pageUrl": "https://otra.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://img.otra.com/banner/300x250/ad.png",
+      "type": "script",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://tracker.net/t.js",
+      "type": "script",
+      "pageUrl": "https://otra.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://tracker.net/t.js",
+      "type": "script",
+      "pageUrl": "https://tracker.net/",
+      "blocked": false
+    },
+    {
+      "url": "https://tracker.net/t.js",
+      "type": "image",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://tracker.net/permitido.js",
+      "type": "script",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://cdn.ejemplo.com/lib.js",
+      "type": "script",
+      "pageUrl": "https://noticias.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://cdn.ejemplo.com/lib.js",
+      "type": "script",
+      "pageUrl": "https://www.noticias.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://cdn.ejemplo.com/lib.js",
+      "type": "script",
+      "pageUrl": "https://deportes.noticias.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://cdn.ejemplo.com/lib.js",
+      "type": "script",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://www.google-analytics.com/analytics.js",
+      "type": "script",
+      "pageUrl": "https://sinbloqueo.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://medidor.com/pixel?id=42",
+      "type": "image",
+      "pageUrl": "https://otra.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://medidor.com/pixel?id=abc",
+      "type": "image",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://hosts-bloqueado.com/x",
+      "type": "xmlhttprequest",
+      "pageUrl": "https://otra.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://cdn.otra.com/js/-publicidad-.js",
+      "type": "script",
+      "pageUrl": "https://otra.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://cdn.otra.com/img/-publicidad-.png",
+      "type": "image",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://ejemplo.com/anuncio.js",
+      "type": "script",
+      "pageUrl": "https://otra.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://ejemplo.com/anuncio.js?v=2",
+      "type": "script",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://www.ejemplo.com/",
+      "type": "subdocument",
+      "pageUrl": "https://otra.com/",
+      "blocked": false
+    },
+    {
+      "url": "https://connect.facebook.net/es_ES/sdk.js",
+      "type": "script",
+      "pageUrl": "https://otra.com/",
+      "blocked": true
+    },
+    {
+      "url": "https://usuario.github.io/app.js",
+      "type": "script",
+      "pageUrl": "https://otro.github.io/",
+      "blocked": false
+    }
+  ]
+}

@@ -1,0 +1,425 @@
+{
+  "description": "Entrada de la barra de direcciones → resultado (generado desde la versión de escritorio).",
+  "rules": [
+    {
+      "id": "default-search",
+      "name": "Página de búsqueda",
+      "matchType": "exact",
+      "pattern": "https://www.google.com/",
+      "displayName": "Buscar",
+      "alias": "buscar.icarus",
+      "targetUrl": "https://www.google.com/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "default-wiki",
+      "name": "Enciclopedia",
+      "matchType": "host",
+      "pattern": "es.wikipedia.org",
+      "displayName": "Wikipedia",
+      "alias": "wiki.icarus",
+      "targetUrl": "https://es.wikipedia.org/",
+      "enabled": false,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "guia",
+      "name": "Guía",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "matchType": "prefix",
+      "pattern": "https://docs.ejemplo.com/guia",
+      "displayName": "Guía",
+      "alias": "guia.icarus",
+      "targetUrl": "https://docs.ejemplo.com/guia"
+    },
+    {
+      "id": "org",
+      "name": "Ejemplo ORG",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "matchType": "host",
+      "pattern": "*.ejemplo.org",
+      "displayName": "Ejemplo ORG",
+      "alias": "org.icarus",
+      "targetUrl": "https://ejemplo.org/"
+    },
+    {
+      "id": "local",
+      "name": "Servidor local",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "matchType": "exact",
+      "pattern": "http://localhost:3000/",
+      "displayName": "Servidor local",
+      "alias": "local.icarus",
+      "targetUrl": "http://localhost:3000/"
+    }
+  ],
+  "cases": [
+    {
+      "input": "google.com",
+      "kind": "url",
+      "url": "https://google.com/"
+    },
+    {
+      "input": "https://www.youtube.com",
+      "kind": "url",
+      "url": "https://www.youtube.com/"
+    },
+    {
+      "input": "https://www.wikipedia.org",
+      "kind": "url",
+      "url": "https://www.wikipedia.org/"
+    },
+    {
+      "input": "www.wikipedia.org",
+      "kind": "url",
+      "url": "https://www.wikipedia.org/"
+    },
+    {
+      "input": "EJEMPLO.COM",
+      "kind": "url",
+      "url": "https://ejemplo.com/"
+    },
+    {
+      "input": "ejemplo.com.",
+      "kind": "url",
+      "url": "https://ejemplo.com./"
+    },
+    {
+      "input": "ejemplo.com/ruta?x=1#parte",
+      "kind": "url",
+      "url": "https://ejemplo.com/ruta?x=1#parte"
+    },
+    {
+      "input": "ejemplo.com/ñandú",
+      "kind": "url",
+      "url": "https://ejemplo.com/%C3%B1and%C3%BA"
+    },
+    {
+      "input": "https://ejemplo.com:443/",
+      "kind": "url",
+      "url": "https://ejemplo.com/"
+    },
+    {
+      "input": "http://ejemplo.com:80/a",
+      "kind": "url",
+      "url": "http://ejemplo.com/a"
+    },
+    {
+      "input": "https://ejemplo.com:8443/a",
+      "kind": "url",
+      "url": "https://ejemplo.com:8443/a"
+    },
+    {
+      "input": "localhost",
+      "kind": "url",
+      "url": "http://localhost/"
+    },
+    {
+      "input": "localhost:3000",
+      "kind": "url",
+      "url": "http://localhost:3000/"
+    },
+    {
+      "input": "127.0.0.1:8080/x",
+      "kind": "url",
+      "url": "http://127.0.0.1:8080/x"
+    },
+    {
+      "input": "192.168.1.1",
+      "kind": "url",
+      "url": "http://192.168.1.1/"
+    },
+    {
+      "input": "[::1]:8080",
+      "kind": "url",
+      "url": "http://[::1]:8080/"
+    },
+    {
+      "input": "café.com",
+      "kind": "url",
+      "url": "https://xn--caf-dma.com/"
+    },
+    {
+      "input": "xn--caf-dma.com",
+      "kind": "url",
+      "url": "https://xn--caf-dma.com/"
+    },
+    {
+      "input": "ejemplo.com:99999",
+      "kind": "search",
+      "url": "https://www.google.com/search?q=ejemplo.com%3A99999"
+    },
+    {
+      "input": "a.b",
+      "kind": "search",
+      "url": "https://www.google.com/search?q=a.b"
+    },
+    {
+      "input": "hola",
+      "kind": "search",
+      "url": "https://www.google.com/search?q=hola"
+    },
+    {
+      "input": "hola mundo",
+      "kind": "search",
+      "url": "https://www.google.com/search?q=hola%20mundo"
+    },
+    {
+      "input": "¿qué es ICARUS?",
+      "kind": "search",
+      "url": "https://www.google.com/search?q=%C2%BFqu%C3%A9%20es%20ICARUS%3F"
+    },
+    {
+      "input": "cómo funciona javascript: en la web",
+      "kind": "search",
+      "url": "https://www.google.com/search?q=c%C3%B3mo%20funciona%20javascript%3A%20en%20la%20web"
+    },
+    {
+      "input": "javascript:alert(1)",
+      "kind": "blocked",
+      "protocol": "javascript:",
+      "dangerous": true
+    },
+    {
+      "input": "JavaScript:alert(1)",
+      "kind": "blocked",
+      "protocol": "javascript:",
+      "dangerous": true
+    },
+    {
+      "input": "file:///etc/passwd",
+      "kind": "blocked",
+      "protocol": "file:",
+      "dangerous": true
+    },
+    {
+      "input": "data:text/html,hola",
+      "kind": "blocked",
+      "protocol": "data:",
+      "dangerous": true
+    },
+    {
+      "input": "vbscript:msgbox",
+      "kind": "blocked",
+      "protocol": "vbscript:",
+      "dangerous": true
+    },
+    {
+      "input": "ftp://ejemplo.com",
+      "kind": "blocked",
+      "protocol": "ftp:",
+      "dangerous": false
+    },
+    {
+      "input": "mailto:hola@ejemplo.com",
+      "kind": "blocked",
+      "protocol": "mailto:",
+      "dangerous": false
+    },
+    {
+      "input": "https://usuario:clave@ejemplo.com/",
+      "kind": "search",
+      "url": "https://www.google.com/search?q=https%3A%2F%2Fusuario%3Aclave%40ejemplo.com%2F"
+    },
+    {
+      "input": "https://buscar.icarus/",
+      "kind": "alias",
+      "url": "https://www.google.com/",
+      "ruleId": "default-search"
+    },
+    {
+      "input": "buscar.icarus",
+      "kind": "alias",
+      "url": "https://www.google.com/",
+      "ruleId": "default-search"
+    },
+    {
+      "input": "BUSCAR.ICARUS",
+      "kind": "alias",
+      "url": "https://www.google.com/",
+      "ruleId": "default-search"
+    },
+    {
+      "input": "guia.icarus",
+      "kind": "alias",
+      "url": "https://docs.ejemplo.com/guia",
+      "ruleId": "guia"
+    },
+    {
+      "input": "wiki.icarus",
+      "kind": "alias-unresolved",
+      "alias": "wiki.icarus",
+      "reason": "disabled"
+    },
+    {
+      "input": "nada.icarus",
+      "kind": "alias-unresolved",
+      "alias": "nada.icarus",
+      "reason": "unknown"
+    },
+    {
+      "input": "icarus://nueva-pestana",
+      "kind": "internal",
+      "page": "newtab"
+    },
+    {
+      "input": "icarus://inicio",
+      "kind": "internal",
+      "page": "newtab"
+    },
+    {
+      "input": "icarus://historial",
+      "kind": "internal",
+      "page": "history"
+    },
+    {
+      "input": "icarus://configuracion",
+      "kind": "internal",
+      "page": "settings"
+    },
+    {
+      "input": "icarus://en-blanco",
+      "kind": "internal",
+      "page": "blank"
+    },
+    {
+      "input": "icarus://no-existe",
+      "kind": "internal-unknown"
+    },
+    {
+      "input": "   ",
+      "kind": "empty"
+    }
+  ],
+  "search": [
+    {
+      "providerId": "google",
+      "query": "icarus",
+      "url": "https://www.google.com/search?q=icarus"
+    },
+    {
+      "providerId": "google",
+      "query": "hola mundo",
+      "url": "https://www.google.com/search?q=hola%20mundo"
+    },
+    {
+      "providerId": "google",
+      "query": "café & té",
+      "url": "https://www.google.com/search?q=caf%C3%A9%20%26%20t%C3%A9"
+    },
+    {
+      "providerId": "google",
+      "query": "a+b=c?",
+      "url": "https://www.google.com/search?q=a%2Bb%3Dc%3F"
+    },
+    {
+      "providerId": "google",
+      "query": "¿qué es? 100%",
+      "url": "https://www.google.com/search?q=%C2%BFqu%C3%A9%20es%3F%20100%25"
+    },
+    {
+      "providerId": "google",
+      "query": "it's (fine) ~*!",
+      "url": "https://www.google.com/search?q=it's%20(fine)%20~*!"
+    },
+    {
+      "providerId": "google",
+      "query": "cohete 🚀",
+      "url": "https://www.google.com/search?q=cohete%20%F0%9F%9A%80"
+    },
+    {
+      "providerId": "google",
+      "query": "  espacios  ",
+      "url": "https://www.google.com/search?q=espacios"
+    },
+    {
+      "providerId": "bing",
+      "query": "icarus",
+      "url": "https://www.bing.com/search?q=icarus"
+    },
+    {
+      "providerId": "bing",
+      "query": "hola mundo",
+      "url": "https://www.bing.com/search?q=hola%20mundo"
+    },
+    {
+      "providerId": "bing",
+      "query": "café & té",
+      "url": "https://www.bing.com/search?q=caf%C3%A9%20%26%20t%C3%A9"
+    },
+    {
+      "providerId": "bing",
+      "query": "a+b=c?",
+      "url": "https://www.bing.com/search?q=a%2Bb%3Dc%3F"
+    },
+    {
+      "providerId": "bing",
+      "query": "¿qué es? 100%",
+      "url": "https://www.bing.com/search?q=%C2%BFqu%C3%A9%20es%3F%20100%25"
+    },
+    {
+      "providerId": "bing",
+      "query": "it's (fine) ~*!",
+      "url": "https://www.bing.com/search?q=it's%20(fine)%20~*!"
+    },
+    {
+      "providerId": "bing",
+      "query": "cohete 🚀",
+      "url": "https://www.bing.com/search?q=cohete%20%F0%9F%9A%80"
+    },
+    {
+      "providerId": "bing",
+      "query": "  espacios  ",
+      "url": "https://www.bing.com/search?q=espacios"
+    },
+    {
+      "providerId": "duckduckgo",
+      "query": "icarus",
+      "url": "https://duckduckgo.com/?q=icarus"
+    },
+    {
+      "providerId": "duckduckgo",
+      "query": "hola mundo",
+      "url": "https://duckduckgo.com/?q=hola%20mundo"
+    },
+    {
+      "providerId": "duckduckgo",
+      "query": "café & té",
+      "url": "https://duckduckgo.com/?q=caf%C3%A9%20%26%20t%C3%A9"
+    },
+    {
+      "providerId": "duckduckgo",
+      "query": "a+b=c?",
+      "url": "https://duckduckgo.com/?q=a%2Bb%3Dc%3F"
+    },
+    {
+      "providerId": "duckduckgo",
+      "query": "¿qué es? 100%",
+      "url": "https://duckduckgo.com/?q=%C2%BFqu%C3%A9%20es%3F%20100%25"
+    },
+    {
+      "providerId": "duckduckgo",
+      "query": "it's (fine) ~*!",
+      "url": "https://duckduckgo.com/?q=it's%20(fine)%20~*!"
+    },
+    {
+      "providerId": "duckduckgo",
+      "query": "cohete 🚀",
+      "url": "https://duckduckgo.com/?q=cohete%20%F0%9F%9A%80"
+    },
+    {
+      "providerId": "duckduckgo",
+      "query": "  espacios  ",
+      "url": "https://duckduckgo.com/?q=espacios"
+    }
+  ]
+}
