@@ -47,10 +47,15 @@ public struct ThemeInfo: Equatable {
     public let dark: Palette
 }
 
+public struct AccentColor: Identifiable, Equatable {
+    public let id: String
+    public let light: RGBA
+    public let dark: RGBA
+}
+
 public struct Themes {
     public let themes: [ThemeId: ThemeInfo]
-    /// id → (claro, oscuro).
-    public let accents: [(id: String, light: RGBA, dark: RGBA)]
+    public let accents: [AccentColor]
 
     public init(json: Data) throws {
         guard let root = try JSONSerialization.jsonObject(with: json) as? [String: Any],
@@ -71,7 +76,7 @@ public struct Themes {
         self.themes = themes
         accents = rawAccents.keys.sorted().compactMap { key in
             guard let light = rawAccents[key]?["light"].flatMap(RGBA.init(hex:)), let dark = rawAccents[key]?["dark"].flatMap(RGBA.init(hex:)) else { return nil }
-            return (key, light, dark)
+            return AccentColor(id: key, light: light, dark: dark)
         }
     }
 

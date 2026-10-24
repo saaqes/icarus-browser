@@ -1,0 +1,98 @@
+# Proyecto de Xcode de ICARUS para iPhone y iPad (se genera con XcodeGen):
+#   brew install xcodegen && xcodegen generate
+# La lógica está en el paquete IcarusCore (..), probado con `swift test`.
+name: IcarusBrowser
+options:
+  bundleIdPrefix: io.github.saaqes
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+packages:
+  IcarusCore:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+targets:
+  ICARUS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Resources
+      # Reglas compartidas con escritorio y Android (mobile/shared).
+      - path: ../../shared/defaults.json
+        buildPhase: resources
+      - path: ../../shared/shield-basic.txt
+        buildPhase: resources
+      - path: ../../shared/public-suffix-rules.txt
+        buildPhase: resources
+      - path: ../../shared/themes.json
+        buildPhase: resources
+      - path: ../../shared/strings.json
+        buildPhase: resources
+    dependencies:
+      - package: IcarusCore
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: ICARUS
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: es
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: Algunos sitios web piden la cámara (por ejemplo, para videollamadas). ICARUS te pregunta antes de permitirlo.
+        NSMicrophoneUsageDescription: Algunos sitios web piden el micrófono (por ejemplo, para videollamadas). ICARUS te pregunta antes de permitirlo.
+        NSLocationWhenInUseUsageDescription: Algunos sitios web piden tu ubicación (por ejemplo, mapas). WebKit te pregunta antes de compartirla.
+        # Las descargas se ven en la app Archivos (En mi iPhone → ICARUS).
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        ITSAppUsesNonExemptEncryption: false
+        # Un navegador debe poder abrir sitios http://. Solo afecta al contenido web:
+        # WebKit sigue comprobando los certificados de los sitios https.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoadsInWebContent: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.saaqes.icarusbrowser
+        PRODUCT_NAME: ICARUS
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: NO
+  ICARUSTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: ICARUS
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.saaqes.icarusbrowser.tests
+schemes:
+  ICARUS:
+    build:
+      targets:
+        ICARUS: all
+        ICARUSTests: [test]
+    test:
+      targets:
+        - ICARUSTests

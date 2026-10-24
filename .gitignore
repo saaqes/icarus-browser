@@ -39,3 +39,7 @@ mobile/ios/**/.swiftpm/
 mobile/ios/*.xcodeproj/
 mobile/ios/build/
 DerivedData/
+mobile/ios/App/*.xcodeproj/
+mobile/ios/App/Generated/
+mobile/ios/dist/
+mobile/ios/shots/

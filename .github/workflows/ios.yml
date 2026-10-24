@@ -1,0 +1,115 @@
+name: iPhone y iPad
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: Núcleo, simulador e .ipa sin firmar
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Herramientas
+        run: |
+          xcodebuild -version
+          swift --version
+          brew install xcodegen
+      - name: Pruebas del núcleo (vectores compartidos con escritorio)
+        working-directory: mobile/ios
+        run: swift test
+      - name: Generar el proyecto de Xcode
+        working-directory: mobile/ios/App
+        run: xcodegen generate
+      - name: Elegir un simulador de iPhone
+        id: sim
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          found = [(runtime, d["udid"], d["name"]) for runtime, items in devices.items() if "iOS" in runtime for d in items if d["name"].startswith("iPhone")]
+          found.sort()
+          print(found[-1][1])
+          ')
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices available | grep "$udid"
+      - name: Pruebas en el simulador (WebKit real)
+        working-directory: mobile/ios/App
+        run: |
+          set -o pipefail
+          xcodebuild test -project IcarusBrowser.xcodeproj -scheme ICARUS -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath ../build/test CODE_SIGNING_ALLOWED=NO 2>&1 | tee ../build-test.log | grep -E "Test Case|Test Suite|error:|EasyList:|skipped|\*\* TEST" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" ../build-test.log
+      - name: Compilar para el simulador
+        working-directory: mobile/ios/App
+        run: |
+          set -o pipefail
+          xcodebuild build -project IcarusBrowser.xcodeproj -scheme ICARUS -configuration Release -sdk iphonesimulator \
+            -destination "id=${{ steps.sim.outputs.udid }}" -derivedDataPath ../build/sim CODE_SIGNING_ALLOWED=NO 2>&1 | tail -5
+      - name: Capturas en el simulador
+        working-directory: mobile/ios
+        run: |
+          udid=${{ steps.sim.outputs.udid }}
+          app=build/sim/Build/Products/Release-iphonesimulator/ICARUS.app
+          xcrun simctl boot "$udid" 2>/dev/null || true
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl install "$udid" "$app"
+          mkdir -p shots
+          shot() {
+            name=$1; shift
+            xcrun simctl launch "$udid" io.github.saaqes.icarusbrowser "$@"
+            sleep 12
+            xcrun simctl io "$udid" screenshot "shots/$name.png"
+            xcrun simctl terminate "$udid" io.github.saaqes.icarusbrowser || true
+            sips -Z 720 "shots/$name.png" --out "shots/$name-small.png" >/dev/null
+            sips -s format jpeg -s formatOptions 55 "shots/$name-small.png" --out "shots/$name.jpg" >/dev/null
+            data=$(base64 -i "shots/$name.jpg" | tr -d '\n')
+            echo "BEGIN $name ${#data}"
+            echo "$data" | fold -w 3000
+            echo "END $name"
+          }
+          shot icarus-nueva-pestana -icarus.theme icarus -icarus.mode dark
+          shot esencial-pagina -icarus.theme google-inspired -icarus.mode light -icarus.open https://example.com/
+          shot panorama-nueva-pestana -icarus.theme edge-inspired -icarus.mode light
+          shot certificado-no-valido -icarus.theme icarus -icarus.mode dark -icarus.open https://self-signed.badssl.com/
+      - name: Compilar para iPhone (sin firmar)
+        working-directory: mobile/ios/App
+        run: |
+          set -o pipefail
+          xcodebuild build -project IcarusBrowser.xcodeproj -scheme ICARUS -configuration Release -sdk iphoneos \
+            -destination "generic/platform=iOS" -derivedDataPath ../build/device \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tail -5
+      - name: Empaquetar
+        working-directory: mobile/ios
+        run: |
+          version=$(sed -n 's/.*MARKETING_VERSION: "\(.*\)"/\1/p' App/project.yml)
+          mkdir -p dist/Payload
+          cp -R build/device/Build/Products/Release-iphoneos/ICARUS.app dist/Payload/
+          (cd dist && zip -qry "ICARUS-Browser-${version}-ios-sin-firmar.ipa" Payload && rm -rf Payload)
+          ditto -c -k --keepParent build/sim/Build/Products/Release-iphonesimulator/ICARUS.app "dist/ICARUS-Browser-${version}-ios-simulador.zip"
+          cd dist && shasum -a 256 *.ipa *.zip > SHA256SUMS-ios.txt && cat SHA256SUMS-ios.txt && ls -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: icarus-browser-ios
+          path: mobile/ios/dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-logs
+          path: |
+            mobile/ios/build-test.log
+            mobile/ios/shots/*.png
+          if-no-files-found: ignore
