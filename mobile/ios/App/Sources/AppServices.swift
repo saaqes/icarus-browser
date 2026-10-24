@@ -47,6 +47,7 @@ final class AppServices: ObservableObject {
         shield.onChange = { [weak self] in Task { @MainActor in self?.revision += 1 } }
         applyLaunchArguments()
         Task {
+            await restoreCompiledShield()
             await compileShield()
             // Las listas se actualizan en segundo plano solo si han caducado (4 días).
             await shield.updateLists(onlyStale: true)
@@ -74,26 +75,67 @@ final class AppServices: ObservableObject {
         (((strings[group] as? [String: Any])?[subgroup] as? [String: Any])?[key] as? String) ?? key
     }
 
-    /// Convierte las listas activas y las compila en WebKit (puede tardar unos segundos con EasyList).
+    private static let ruleListId = "icarus-shield"
+    private static let compiledKey = "icarus.shield.compiled"
+    /// Huella de las listas con las que se compilaron las reglas que hay en WebKit.
+    private var compiledFingerprint: String?
+
+    /// WebKit guarda las reglas compiladas: si las listas no han cambiado, se usan al
+    /// instante en lugar de convertir y compilar de nuevo (EasyList tarda varios segundos).
+    private func restoreCompiledShield() async {
+        guard let saved = UserDefaults.standard.dictionary(forKey: AppServices.compiledKey),
+              let fingerprint = saved["fingerprint"] as? String, fingerprint == shield.fingerprint else { return }
+        let list: WKContentRuleList? = await withCheckedContinuation { continuation in
+            WKContentRuleListStore.default().lookUpContentRuleList(forIdentifier: AppServices.ruleListId) { list, _ in
+                continuation.resume(returning: list)
+            }
+        }
+        guard let list else { return }
+        shieldRules = list
+        shieldConverted = saved["converted"] as? Int ?? 0
+        shieldSkipped = saved["skipped"] as? Int ?? 0
+        compiledFingerprint = fingerprint
+        revision += 1
+    }
+
+    /// Convierte las listas activas y las compila en WebKit (puede tardar unos segundos con
+    /// EasyList). Los contadores solo cambian cuando WebKit ha aceptado las reglas.
     func compileShield() async {
+        let fingerprint = shield.fingerprint
+        if shieldRules != nil && compiledFingerprint == fingerprint { return }
         shieldCompiling = true
         let lists = shield
-        let result = await Task.detached(priority: .utility) { lists.contentBlocker() }.value
-        shieldConverted = result.convertedFilters
-        shieldSkipped = result.skippedFilters
+        let result = await Task.detached(priority: .userInitiated) { lists.contentBlocker() }.value
         do {
-            shieldRules = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "icarus-shield", encodedContentRuleList: result.json)
+            shieldRules = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: AppServices.ruleListId, encodedContentRuleList: result.json)
+            shieldConverted = result.convertedFilters
+            shieldSkipped = result.skippedFilters
             shieldCompileError = nil
+            compiledFingerprint = fingerprint
+            UserDefaults.standard.set(["fingerprint": fingerprint, "converted": result.convertedFilters, "skipped": result.skippedFilters],
+                                      forKey: AppServices.compiledKey)
         } catch {
             // Si WebKit rechaza las listas descargadas, Shield sigue funcionando con la lista básica y las reglas propias.
             shieldCompileError = error.localizedDescription
             let fallback = ContentBlocker.convert(Filters.parseList(shieldBasicText).filters + Filters.parseList(shield.customRules).filters)
-            shieldRules = try? await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "icarus-shield", encodedContentRuleList: fallback.json)
-            shieldConverted = fallback.convertedFilters
-            shieldSkipped = fallback.skippedFilters
+            if let rules = try? await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: AppServices.ruleListId, encodedContentRuleList: fallback.json) {
+                shieldRules = rules
+                shieldConverted = fallback.convertedFilters
+                shieldSkipped = fallback.skippedFilters
+            }
+            compiledFingerprint = nil
+            UserDefaults.standard.removeObject(forKey: AppServices.compiledKey)
         }
         shieldCompiling = false
         revision += 1
+    }
+
+    /// Texto de estado de Shield para la interfaz (sin cifras hasta que WebKit tiene las reglas).
+    var shieldStatus: String {
+        guard shield.enabled else { return "Actívalo en Configuración" }
+        guard shieldRules != nil else { return "Preparando las reglas de WebKit…" }
+        let skipped = shieldSkipped > 0 ? " (\(shieldSkipped) no compatibles con WebKit)" : ""
+        return "\(shieldConverted.formatted()) filtros de anuncios y rastreadores aplicados por WebKit\(skipped)"
     }
 
     var settings: Settings { profile.settings }

@@ -133,9 +133,20 @@ final class StoresTests: XCTestCase {
         shield.setSiteAllowed(host: "noticias.co.uk", false)
         XCTAssertFalse(shield.isSiteAllowed("https://m.noticias.co.uk/portada"))
 
+        // La huella cambia con las reglas propias y las listas, y es estable al reabrir.
+        let before = shield.fingerprint
+        shield.setCustomRules("||otra-regla.net^\n")
+        XCTAssertNotEqual(shield.fingerprint, before)
+        shield.setCustomRules("||regla-personal.net^\n/roto(/\n")
+        XCTAssertEqual(shield.fingerprint, before)
+        shield.setListEnabled(id: "peter-lowe", true)
+        XCTAssertNotEqual(shield.fingerprint, before)
+        shield.setListEnabled(id: "peter-lowe", false)
+
         // La configuración se conserva al reabrir.
         let reopened = ShieldLists(directory: directory, builtinText: try Shared.text("shield-basic.txt"), suffixes: Shared.suffixes) { _ in .failed(.network) }
         XCTAssertEqual(reopened.lists.count, 5)
         XCTAssertEqual(reopened.customRules, "||regla-personal.net^\n/roto(/\n")
+        XCTAssertEqual(reopened.fingerprint, shield.fingerprint)
     }
 }

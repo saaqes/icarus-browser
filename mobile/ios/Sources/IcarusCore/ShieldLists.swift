@@ -223,6 +223,28 @@ public final class ShieldLists {
         return ContentBlocker.convert(activeFilters())
     }
 
+    /// Huella estable de lo que entra en las reglas (listas activas, sus versiones y las
+    /// reglas propias). Si no cambia, la app reutiliza las reglas que WebKit ya compiló.
+    public var fingerprint: String {
+        let snapshot = lock.locked { config }
+        var parts = ["v1", "builtin:\(ShieldLists.fnv1a(builtinText))", "custom:\(ShieldLists.fnv1a(snapshot.customRules))"]
+        for list in snapshot.lists where list.enabled {
+            let updated = snapshot.meta[list.id]?.lastUpdated?.timeIntervalSince1970 ?? 0
+            parts.append("\(list.id):\(updated):\(hasCachedText(list.id))")
+        }
+        return parts.joined(separator: "|")
+    }
+
+    /// FNV-1a de 64 bits (estable entre ejecuciones, a diferencia de `Hasher`).
+    static func fnv1a(_ text: String) -> String {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in text.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return String(hash, radix: 16)
+    }
+
     public var customStats: (rules: Int, invalid: Int) {
         let parsed = Filters.parseList(customRules)
         return (parsed.ruleCount, parsed.invalidCount)

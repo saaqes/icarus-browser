@@ -147,7 +147,7 @@ struct NewTabPage: View {
                 Image(systemName: services.shield.enabled ? "shield.fill" : "shield.slash").foregroundColor(look.accent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(services.shield.enabled ? "ICARUS Shield está activo" : "ICARUS Shield está desactivado").foregroundColor(look.fg1)
-                    Text(services.shield.enabled ? "\(services.shieldConverted) filtros de anuncios y rastreadores aplicados por WebKit" : "Actívalo en Configuración")
+                    Text(services.shieldStatus)
                         .font(.footnote).foregroundColor(look.fg3)
                 }
                 Spacer()
@@ -324,7 +324,7 @@ struct ShieldSheet: View {
                         Text("Abre una página web para gestionar Shield en ella.")
                     }
                 } footer: {
-                    Text("En iPhone y iPad, WebKit aplica las reglas de Shield y no informa de cuántas solicitudes bloquea, así que ICARUS no muestra un contador. \(services.shieldConverted) filtros activos\(services.shieldSkipped > 0 ? " · \(services.shieldSkipped) no se pueden expresar en WebKit" : "").")
+                    Text("En iPhone y iPad, WebKit aplica las reglas de Shield y no informa de cuántas solicitudes bloquea, así que ICARUS no muestra un contador. \(services.shieldStatus).")
                 }
                 Section {
                     Button("Configuración de Shield", action: openSettings)

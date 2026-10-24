@@ -221,7 +221,7 @@ struct ShieldSettings: View {
             Section {
                 Toggle("Activar ICARUS Shield", isOn: Binding(get: { services.shield.enabled }, set: { services.shield.setEnabled($0) }))
             } footer: {
-                Text(services.text("shield", "intro") + "\n\nEn iPhone y iPad las reglas las aplica WebKit, que no informa de cuántas solicitudes bloquea: por eso no hay contador. \(services.shieldConverted) filtros activos\(services.shieldSkipped > 0 ? "; \(services.shieldSkipped) no se pueden expresar en WebKit y se omiten" : "").")
+                Text(services.text("shield", "intro") + "\n\nEn iPhone y iPad las reglas las aplica WebKit, que no informa de cuántas solicitudes bloquea: por eso no hay contador. \(services.shieldStatus).")
             }
             if let error = services.shieldCompileError {
                 Section { Text("WebKit no pudo compilar las reglas: \(error)").foregroundColor(.red) }
