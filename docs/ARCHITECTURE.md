@@ -1,6 +1,6 @@
 # Arquitectura de ICARUS Browser
 
-Este documento describe cómo está organizada la interfaz de ICARUS, que es la misma en la aplicación de escritorio (Electron + Chromium) y en el prototipo web. La parte específica del motor de escritorio (procesos, IPC, pestañas reales, persistencia en disco) está en [ENGINE_INTEGRATION.md](ENGINE_INTEGRATION.md); la seguridad, en [SECURITY.md](SECURITY.md); el bloqueador, en [SHIELD.md](SHIELD.md).
+Este documento describe cómo está organizada la interfaz de ICARUS, que es la misma en la aplicación de escritorio (Electron + Chromium) y en el prototipo web. La parte específica del motor de escritorio (procesos, IPC, pestañas reales, persistencia en disco) está en [ENGINE_INTEGRATION.md](ENGINE_INTEGRATION.md); la seguridad, en [SECURITY.md](SECURITY.md); el bloqueador, en [SHIELD.md](SHIELD.md). Las apps de Android, iPhone y iPad tienen su propia interfaz nativa y reutilizan la lógica de `src/services` y `electron/shield` a través de los datos generados en `mobile/shared`: ver [MOBILE.md](MOBILE.md).
 
 ## Principios
 
