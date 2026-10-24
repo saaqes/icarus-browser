@@ -38,6 +38,7 @@ El prototipo web (`dist/icarus-browser.html`) sigue existiendo, pero **no es un 
 - [Seguridad](#seguridad)
 - [Pruebas](#pruebas)
 - [Integración continua y publicación](#integración-continua-y-publicación)
+- [Licencias de terceros](#licencias-de-terceros)
 - [Próximos pasos](#próximos-pasos)
 
 ## Estado de esta versión
@@ -194,7 +195,7 @@ Si el alojamiento bloquea ventanas emergentes: `VITE_ICARUS_EXTERNAL_OPENING=con
 
 - **Un solo perfil**: todas las pestañas comparten cookies, almacenamiento y caché. Iniciar sesión en una pestaña inicia sesión en todas. Cada pestaña tiene su propio proceso con sandbox, pero eso no aísla los datos.
 - **Sin firma de código**: SmartScreen avisa al instalar. Sin actualizaciones automáticas.
-- **Shield** solo bloquea solicitudes de red: no oculta elementos, no bloquea anuncios servidos desde el mismo dominio que el contenido (p. ej. YouTube) y usa una lista reducida de sufijos de dominio.
+- **Shield** solo bloquea solicitudes de red: no oculta elementos, y no bloquea anuncios servidos desde el mismo dominio que el contenido (p. ej. YouTube).
 - **Sin Widevine** (DRM): Netflix, Disney+ y similares no reproducen vídeo.
 - **Inicio de sesión de Google** y otros proveedores pueden rechazar navegadores integrados que no reconocen.
 - **Autenticación HTTP** (básica, NTLM) no implementada: esas páginas fallan.
@@ -267,8 +268,8 @@ Resumen (completo en [docs/SECURITY.md](docs/SECURITY.md)):
 
 | Conjunto | Qué comprueba | Linux (local y CI) | Windows (GitHub Actions, `windows-latest`) |
 | --- | --- | --- | --- |
-| `npm run test` (109 pruebas, 13 archivos) | Servicios, componentes, filtros de Shield, dominios, rutas seguras, archivos JSON | 109/109 | 109/109 |
-| `npm run test:e2e` (23 pasos + sitios reales) | Ver abajo | 23/23 (Xvfb) | Ver la última ejecución del flujo Windows |
+| `npm run test` (113 pruebas, 13 archivos) | Servicios, componentes, filtros de Shield, dominios, rutas seguras, archivos JSON | 113/113 | 113/113 |
+| `npm run test:e2e` (23 pasos + 3 sitios reales) | Ver abajo | 23/23 en local (Xvfb, sin acceso a esos sitios) · 26/26 en CI | 26/26 |
 | `npm run test:smoke` | Ejecutable empaquetado: arranque, página dentro de la pestaña, sin puente nativo en la web, datos en disco | Superada | Superada (sin instalar y ya instalado) |
 | Instalación silenciosa | `Setup.exe /S`, prueba de humo del navegador instalado y desinstalación silenciosa | — | Superada |
 
@@ -284,11 +285,17 @@ La prueba de humo habla directamente el protocolo DevTools, porque el ejecutable
 - **Windows** (`.github/workflows/windows.yml`, `windows-latest`): tipos, pruebas, compilación, instalador NSIS y `.zip`, sumas SHA-256, prueba de humo del ejecutable, instalación y desinstalación silenciosas, pruebas E2E y artefacto `icarus-browser-windows-x64` (30 días).
 - **Versiones**: al subir una etiqueta `v*` o lanzar el flujo a mano con *draft_release*, se crea un **borrador** de versión preliminar con el instalador. Nunca se publica una versión estable automáticamente: alguien debe revisarla y publicarla.
 
+## Licencias de terceros
+
+- **Electron y Chromium**: el paquete incluye sus licencias (`LICENSE.electron.txt` y `LICENSES.chromium.html` junto al ejecutable).
+- **Public Suffix List**: incluida en el ejecutable para ICARUS Shield; Mozilla Public License 2.0 (`electron/shield/publicSuffixList.ts` indica la fuente y la versión).
+- **EasyList, EasyPrivacy y la lista de Peter Lowe**: no se incluyen en el instalador; ICARUS las descarga de sus fuentes oficiales y se usan según sus propias licencias.
+
 ## Próximos pasos
 
 1. Firma de código del instalador y actualizaciones automáticas (electron-updater; el `.blockmap` ya se genera).
 2. Perfiles aislados (una partición `persist:<perfil>` por perfil) y ventanas por perfil.
-3. Shield: Public Suffix List completa y filtros cosméticos.
+3. Shield: filtros cosméticos (ocultar elementos) y actualización de la Public Suffix List en cada versión.
 4. Selector de pantalla para compartir, diálogo de autenticación HTTP y selector de dispositivos.
 5. Traducciones (la interfaz ya usa un catálogo de textos).
 6. Sincronización y cuentas con un servicio propio (p. ej. FastAPI + PostgreSQL) y cifrado, sin claves dentro del ejecutable.

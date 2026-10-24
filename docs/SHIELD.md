@@ -65,7 +65,14 @@ El motor (`electron/shield/engine.ts`) indexa las reglas por host (para `||domin
 
 ### Dominio registrable
 
-`$third-party` y las excepciones por sitio comparan el **dominio registrable** (eTLD+1). ICARUS no incluye la Public Suffix List completa: usa una lista corta de sufijos de dos niveles frecuentes (`co.uk`, `com.mx`, `com.ar`, `github.io`…) en `electron/shield/domains.ts`. Con sufijos poco comunes, dos sitios distintos bajo el mismo sufijo pueden considerarse el mismo «sitio». Es un límite conocido; la siguiente mejora es incluir la PSL.
+`$third-party` y las excepciones por sitio comparan el **dominio registrable** (eTLD+1), calculado con la **Public Suffix List** completa (unas 10 400 reglas de las secciones ICANN y PRIVATE) incluida en el ejecutable:
+
+- `www.bbc.co.uk` → `bbc.co.uk`; `tienda.ejemplo.com.mx` → `ejemplo.com.mx`.
+- Los dominios privados de la lista son sitios distintos: `usuario.github.io` y `otro.github.io` son terceros entre sí, y una excepción en `usuario.github.io` no afecta a los demás sitios de GitHub Pages.
+- Reglas comodín y de excepción (`*.ck`, `!www.ck`) y la regla implícita `*` para sufijos que no están en la lista.
+- Los nombres internacionales se comparan en punycode (`公司.cn` → `xn--55qx5d.cn`), como llegan en las URL.
+
+La lista se genera con `npm run update:psl` (`scripts/update-public-suffix-list.mjs`), que descarga `https://publicsuffix.org/list/public_suffix_list.dat` (o la URL que se le pase), la convierte a ASCII y escribe `electron/shield/publicSuffixList.ts` con la fuente, la fecha y el SHA-256 del archivo. No se descarga al usar ICARUS: se actualiza al publicar una versión nueva. La Public Suffix List se distribuye bajo la Mozilla Public License 2.0.
 
 ## Excepciones por sitio y contador
 
