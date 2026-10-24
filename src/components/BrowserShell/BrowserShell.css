@@ -328,3 +328,43 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Buscar en la página (Ctrl+F) */
+.findbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--toolbar-border, color-mix(in srgb, currentColor 14%, transparent));
+  background: var(--toolbar-bg, inherit);
+  color: var(--toolbar-fg, inherit);
+}
+
+.findbar__input {
+  flex: 0 1 320px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 8px;
+  background: var(--omnibox-bg, transparent);
+  color: inherit;
+  font: inherit;
+}
+
+.findbar__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.findbar__count {
+  min-width: 7.5em;
+  font-size: 0.85rem;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+.findbar__count.is-empty {
+  color: var(--danger, #d64545);
+  opacity: 1;
+}

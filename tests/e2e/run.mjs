@@ -136,6 +136,8 @@ const server = http.createServer((request, response) => {
       return send(401, 'text/html; charset=utf-8', page('Acceso denegado', '<p>Hace falta iniciar sesión</p>'), {
         'www-authenticate': 'Basic realm="Zona de pruebas ICARUS"',
       });
+    case '/texto.html':
+      return send(200, 'text/html; charset=utf-8', page('Texto', '<p>Cuaderno de vuelo</p><p>El vuelo de ICARUS</p><p>Plan de vuelo nocturno</p>'));
     case '/archivo.txt':
       return send(200, 'text/plain; charset=utf-8', 'Contenido de prueba de ICARUS\n', {
         'content-disposition': 'attachment; filename="informe-icarus.txt"',
@@ -586,7 +588,41 @@ await step('22. Autenticación HTTP: cancelar, contraseña incorrecta y correcta
   return 'Basic · 401 al cancelar · reintento tras contraseña incorrecta';
 });
 
-await step('23. Cerrar y volver a abrir conserva los datos', async () => {
+await step('23. Buscar en la página (Ctrl+F desde la página, siguiente, anterior y Escape)', async () => {
+  await go(`${local}/texto.html`);
+  await waitForActiveTab('Texto');
+  await app.evaluate(({ webContents }, url) => {
+    const contents = webContents.getAllWebContents().find((wc) => !wc.isDestroyed() && wc.getURL() === url);
+    contents.focus();
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'F', modifiers: ['control'] });
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'F', modifiers: ['control'] });
+  }, `${local}/texto.html`);
+  const bar = win.getByRole('search', { name: 'Buscar en la página' });
+  const input = bar.getByLabel('Texto que buscar en la página');
+  await eventually(() => input.evaluate((element) => document.activeElement === element), 'Ctrl+F no abrió la barra de búsqueda con el foco');
+  const count = bar.getByRole('status');
+  const expectCount = async (text) => {
+    let actual = '';
+    try {
+      await eventually(async () => (actual = (await count.innerText()).trim()) === text, 'contador');
+    } catch {
+      throw new Error(`El contador muestra «${actual}» en lugar de «${text}»`);
+    }
+  };
+  await win.keyboard.type('vuelo');
+  await expectCount('1 de 3');
+  await win.keyboard.press('Enter');
+  await expectCount('2 de 3');
+  await win.keyboard.press('Shift+Enter');
+  await expectCount('1 de 3');
+  await win.keyboard.type('xyz');
+  await expectCount('Sin resultados');
+  await win.keyboard.press('Escape');
+  await bar.waitFor({ state: 'hidden', timeout: 5_000 });
+  return 'contador real de Chromium: 3 coincidencias';
+});
+
+await step('24. Cerrar y volver a abrir conserva los datos', async () => {
   const customize = win.getByRole('button', { name: 'Personalizar', exact: true }).first();
   if (!(await customize.isVisible())) await win.keyboard.press('Control+T');
   await customize.click();
@@ -604,7 +640,7 @@ await step('23. Cerrar y volver a abrir conserva los datos', async () => {
   return `datos en ${dataDir}`;
 });
 
-await step('24. Borrar el historial', async () => {
+await step('25. Borrar el historial', async () => {
   await win.keyboard.press('Control+H');
   await win.getByRole('heading', { name: 'Historial' }).waitFor();
   await win.getByLabel('Borrar historial…').selectOption('all');

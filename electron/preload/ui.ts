@@ -51,6 +51,8 @@ const api: IcarusNativeApi = {
     show: (tabId) => send('icarus:tabs:show', tabId),
     setBounds: (rect) => send('icarus:tabs:bounds', { x: rect.x, y: rect.y, width: rect.width, height: rect.height }),
     snapshot: (tabId) => invoke('icarus:tabs:snapshot', tabId),
+    find: (tabId, text, options) => send('icarus:tabs:find', tabId, text, { forward: options.forward, next: options.next }),
+    stopFind: (tabId) => send('icarus:tabs:stop-find', tabId),
   },
   window: {
     setTitleBarColors: ({ color, symbolColor }) => send('icarus:window:titlebar', color, symbolColor),

@@ -58,8 +58,18 @@ export const SHORTCUT_ACTIONS = [
   'reload',
   'history',
   'downloads',
+  'find',
 ] as const;
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
+
+/** Resultado de buscar en la página (findInPage de Chromium). */
+export interface FindResult {
+  tabId: string;
+  /** Posición de la coincidencia resaltada (empieza en 1; 0 si no hay). */
+  activeMatch: number;
+  matches: number;
+  final: boolean;
+}
 
 export type PermissionKind = 'media' | 'geolocation' | 'notifications' | 'clipboard-read' | 'midi';
 
@@ -181,6 +191,7 @@ export type NativeEvent =
   | { type: 'permission-cancelled'; id: string }
   | { type: 'auth-request'; request: AuthRequestInfo }
   | { type: 'auth-cancelled'; id: string }
+  | { type: 'find-result'; result: FindResult }
   | { type: 'downloads'; downloads: DownloadItemInfo[] }
   | { type: 'download-started'; id: string }
   | { type: 'history-changed' }
@@ -212,6 +223,12 @@ export interface IcarusNativeApi {
     setBounds(rect: ViewportRect): void;
     /** Captura la página visible para mostrarla bajo menús y diálogos. */
     snapshot(tabId: string): Promise<string | null>;
+    /**
+     * Busca texto en la página; los resultados llegan como eventos `find-result`.
+     * `next` continúa la búsqueda del mismo texto (siguiente o anterior coincidencia).
+     */
+    find(tabId: string, text: string, options: { forward: boolean; next: boolean }): void;
+    stopFind(tabId: string): void;
   };
   window: {
     setTitleBarColors(colors: { color: string; symbolColor: string }): void;

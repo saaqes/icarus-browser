@@ -84,6 +84,14 @@ export function registerIpc(context: IpcContext): void {
       isRecord(options) && options.newSegment === true,
     ),
   );
+  on('icarus:tabs:find', (tabId, text, options) => {
+    if (!isRecord(options)) throw new IpcValidationError('options');
+    context.tabs.find(assertId(tabId, 'tabId'), assertString(text, 'text', 1000), {
+      forward: assertBoolean(options.forward, 'forward'),
+      next: assertBoolean(options.next, 'next'),
+    });
+  });
+  on('icarus:tabs:stop-find', (tabId) => context.tabs.stopFind(assertId(tabId, 'tabId')));
   on('icarus:tabs:command', (tabId, command) => {
     const id = assertId(tabId, 'tabId');
     switch (assertOneOf(command, TAB_COMMANDS, 'command')) {

@@ -159,6 +159,7 @@ async function start(): Promise<void> {
     },
     shieldCount: (contents) => shield.pageBlockedCount(contents.id),
     shieldAllowed: (url) => shield.isSiteAllowed(url),
+    emitFind: (result) => emit({ type: 'find-result', result }),
     onClosed: (tabId, contents) => {
       shield.forgetPage(contents.id);
       permissions.cancelForTab(tabId);

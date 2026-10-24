@@ -9,7 +9,7 @@
  */
 
 import { WebContentsView, type BrowserWindow, type Input, type Session, type WebContents } from 'electron';
-import type { NavigateResult, NavigationErrorInfo, ShortcutAction, ViewportRect, WebTabState } from '../../src/types/native';
+import type { FindResult, NavigateResult, NavigationErrorInfo, ShortcutAction, ViewportRect, WebTabState } from '../../src/types/native';
 import { showPageContextMenu } from './contextMenu';
 import { isAllowedPageNavigation, parseNavigableUrl, protocolOf } from './urlPolicy';
 
@@ -36,6 +36,7 @@ export interface TabManagerHooks {
   shieldCount: (contents: WebContents) => number;
   shieldAllowed: (url: string) => boolean;
   onClosed: (tabId: string, contents: WebContents) => void;
+  emitFind: (result: FindResult) => void;
 }
 
 const ZOOM_STEP = 0.5;
@@ -73,6 +74,7 @@ export function shortcutForInput(input: Input): ShortcutAction | 'reload-hard' |
   if ((mod && key === 'r') || input.key === 'F5') return 'reload';
   if (mod && key === 'h') return 'history';
   if (mod && key === 'j') return 'downloads';
+  if (mod && !input.shift && key === 'f') return 'find';
   if (mod && (key === '+' || key === '=')) return 'zoom-in';
   if (mod && key === '-') return 'zoom-out';
   if (mod && key === '0') return 'zoom-reset';
@@ -180,6 +182,24 @@ export class TabManager {
     } catch {
       return null;
     }
+  }
+
+  /** Busca texto en la página de la pestaña (Ctrl+F). */
+  find(tabId: string, text: string, options: { forward: boolean; next: boolean }): void {
+    const tab = this.tabs.get(tabId);
+    if (!tab || tab.view.webContents.isDestroyed()) return;
+    if (!text) {
+      this.stopFind(tabId);
+      return;
+    }
+    // En Electron, `findNext: true` empieza una sesión de búsqueda nueva y `false` continúa
+    // la actual. Una continuación sin sesión abierta no recibe ningún found-in-page.
+    tab.view.webContents.findInPage(text, { forward: options.forward, findNext: !options.next, matchCase: false });
+  }
+
+  stopFind(tabId: string): void {
+    const tab = this.tabs.get(tabId);
+    if (tab && !tab.view.webContents.isDestroyed()) tab.view.webContents.stopFindInPage('clearSelection');
   }
 
   tabIdFor(contents: WebContents): string | null {
@@ -344,12 +364,17 @@ export class TabManager {
           contents.toggleDevTools();
           return;
         case 'focus-address':
+        case 'find':
+          // El foco pasa a la interfaz para escribir en la barra de direcciones o de búsqueda.
           this.window.webContents.focus();
           this.hooks.emitShortcut(action);
           return;
         default:
           this.hooks.emitShortcut(action);
       }
+    });
+    contents.on('found-in-page', (_event, result) => {
+      this.hooks.emitFind({ tabId: tab.id, activeMatch: result.activeMatchOrdinal, matches: result.matches, final: result.finalUpdate });
     });
     contents.on('context-menu', (_event, params) => {
       showPageContextMenu(this.window, contents, params, {

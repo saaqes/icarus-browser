@@ -88,6 +88,10 @@ export interface BrowserController {
   /** Solicitudes de autenticación HTTP pendientes (una por pestaña como mucho). */
   authRequests: AuthRequestInfo[];
   respondAuth: (id: string, credentials: AuthCredentials | null) => void;
+  /** Barra «Buscar en la página» abierta en una pestaña; `token` cambia al pulsar Ctrl+F otra vez. */
+  find: { tabId: string; token: number } | null;
+  openFind: () => void;
+  closeFind: () => void;
 }
 
 const BrowserContext = createContext<BrowserController | null>(null);
@@ -127,6 +131,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const [webState, setWebState] = useState<Record<string, WebTabState>>({});
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequestInfo[]>([]);
   const [authRequests, setAuthRequests] = useState<AuthRequestInfo[]>([]);
+  const [find, setFind] = useState<{ tabId: string; token: number } | null>(null);
   const addressBarFocus = useRef<(() => void) | null>(null);
   /** Entrada web que muestra ahora la vista de cada pestaña (tramo «vivo»). */
   const liveEntry = useRef(new Map<string, string>());
@@ -141,6 +146,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   rulesRef.current = rules;
   const webStateRef = useRef(webState);
   webStateRef.current = webState;
+  const findRef = useRef(find);
+  findRef.current = find;
 
   const activeTab = getActiveTab(session);
   const currentEntry = getCurrentEntry(activeTab);
@@ -451,6 +458,25 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     [native],
   );
 
+  const openFind = useCallback(() => {
+    const tab = getActiveTab(sessionRef.current);
+    const entry = getCurrentEntry(tab);
+    // Solo se busca en páginas web cargadas en la vista de la pestaña.
+    if (!embedded || entry.page.kind !== 'web' || liveEntry.current.get(tab.id) !== entry.id) return;
+    setFind((current) => ({ tabId: tab.id, token: (current?.token ?? 0) + 1 }));
+  }, [embedded]);
+
+  const closeFind = useCallback(() => {
+    const current = findRef.current;
+    if (current) native?.tabs.stopFind(current.tabId);
+    setFind(null);
+  }, [native]);
+
+  // Al cambiar de pestaña o cerrar la buscada, se cierra la barra y se quita el resaltado.
+  useEffect(() => {
+    if (find && find.tabId !== activeTab.id) closeFind();
+  }, [activeTab.id, closeFind, find]);
+
   /* -------------------------- Atajos y eventos nativos ------------------------- */
 
   const runShortcut = useCallback(
@@ -478,9 +504,11 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           return openInternal({ kind: 'history' }, (page) => page.kind === 'history');
         case 'downloads':
           return openInternal({ kind: 'downloads' }, (page) => page.kind === 'downloads');
+        case 'find':
+          return openFind();
       }
     },
-    [closeTab, goBack, goForward, newTab, openInternal, reload, reopenClosedTab],
+    [closeTab, goBack, goForward, newTab, openFind, openInternal, reload, reopenClosedTab],
   );
 
   useEffect(() => {
@@ -544,6 +572,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       else if (event.altKey && event.key === 'ArrowRight') action = 'forward';
       else if (embedded && mod && key === 'h') action = 'history';
       else if (embedded && mod && key === 'j') action = 'downloads';
+      else if (embedded && mod && !event.shiftKey && key === 'f') action = 'find';
       else if (embedded && ((mod && key === 'r') || event.key === 'F5')) action = 'reload';
       if (!action) return;
       event.preventDefault();
@@ -593,6 +622,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       respondPermission,
       authRequests,
       respondAuth,
+      find,
+      openFind,
+      closeFind,
     }),
     [
       session,
@@ -626,6 +658,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       respondPermission,
       authRequests,
       respondAuth,
+      find,
+      openFind,
+      closeFind,
     ],
   );
 

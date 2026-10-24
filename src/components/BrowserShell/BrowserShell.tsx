@@ -17,6 +17,7 @@ import { TabBar } from '../TabBar/TabBar';
 import { AuthDialog } from './AuthDialog';
 import { useBrowser } from './BrowserContext';
 import { DownloadsButton } from './DownloadsButton';
+import { FindBar } from './FindBar';
 import { Infobar } from './Infobar';
 import { ShieldButton } from './ShieldButton';
 import { WebArea } from './WebArea';
@@ -169,6 +170,7 @@ export function BrowserShell() {
           <ToolbarActions />
         </div>
         <ProgressBar />
+        {native && <FindBar />}
         {native && <Infobar />}
       </header>
       <main className="viewport" id="icarus-viewport" ref={viewportRef}>
