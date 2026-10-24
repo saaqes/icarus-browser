@@ -1,0 +1,183 @@
+{
+  "description": "Colores de cada estilo, generados desde src/styles/tokens.css y src/themes/*/theme.css.",
+  "themes": {
+    "google-inspired": {
+      "name": "Esencial",
+      "description": "Minimalista y claro, con el buscador como protagonista.",
+      "light": {
+        "app-bg": "#DFE3EA",
+        "tabstrip-bg": "#DFE3EA",
+        "tab-active-bg": "#FFFFFF",
+        "toolbar-bg": "#FFFFFF",
+        "toolbar-border": "#E3E6EC",
+        "omnibox-bg": "#EEF1F5",
+        "omnibox-fg": "#1C1F26",
+        "omnibox-dim": "#6B7080",
+        "page-bg": "#FFFFFF",
+        "surface-1": "#FFFFFF",
+        "surface-2": "#F1F3F6",
+        "border-1": "#0F141E1A",
+        "border-2": "#0F141E2E",
+        "fg-1": "#1D2129",
+        "fg-2": "#464C59",
+        "fg-3": "#6B7180",
+        "danger": "#C4314B",
+        "success": "#1F7A43",
+        "warning": "#A65A00",
+        "accent": "#1F63D1"
+      },
+      "dark": {
+        "app-bg": "#1B1C20",
+        "tabstrip-bg": "#1B1C20",
+        "tab-active-bg": "#2B2C31",
+        "toolbar-bg": "#2B2C31",
+        "toolbar-border": "#26272C",
+        "omnibox-bg": "#1F2024",
+        "omnibox-fg": "#ECEEF3",
+        "omnibox-dim": "#8D92A1",
+        "page-bg": "#202125",
+        "surface-1": "#2B2C31",
+        "surface-2": "#35363C",
+        "border-1": "#FFFFFF17",
+        "border-2": "#FFFFFF29",
+        "fg-1": "#EEF0F4",
+        "fg-2": "#C0C4CD",
+        "fg-3": "#959AA6",
+        "danger": "#FF8A9B",
+        "success": "#6FD195",
+        "warning": "#F3B552",
+        "accent": "#86AEF5"
+      }
+    },
+    "edge-inspired": {
+      "name": "Panorama",
+      "description": "Visual, con fondos de imagen y tarjetas configurables.",
+      "light": {
+        "app-bg": "#EEF1F6",
+        "tabstrip-bg": "#E8ECF2",
+        "tab-active-bg": "#FFFFFF",
+        "toolbar-bg": "#F9FAFC",
+        "toolbar-border": "#DDE2EA",
+        "omnibox-bg": "#FFFFFF",
+        "omnibox-fg": "#1C1F26",
+        "omnibox-dim": "#6B7080",
+        "page-bg": "#F3F5F9",
+        "surface-1": "#FFFFFF",
+        "surface-2": "#F1F4F8",
+        "border-1": "#0F141E1A",
+        "border-2": "#0F141E2E",
+        "fg-1": "#12161F",
+        "fg-2": "#3F4756",
+        "fg-3": "#687183",
+        "danger": "#C4314B",
+        "success": "#1F7A43",
+        "warning": "#A65A00",
+        "accent": "#0B63C4"
+      },
+      "dark": {
+        "app-bg": "#1C1E22",
+        "tabstrip-bg": "#1F2125",
+        "tab-active-bg": "#2E3036",
+        "toolbar-bg": "#2B2D32",
+        "toolbar-border": "#24262A",
+        "omnibox-bg": "#3A3C42",
+        "omnibox-fg": "#ECEEF3",
+        "omnibox-dim": "#8D92A1",
+        "page-bg": "#1B1C20",
+        "surface-1": "#2E3036",
+        "surface-2": "#383A41",
+        "border-1": "#FFFFFF17",
+        "border-2": "#FFFFFF29",
+        "fg-1": "#F1F3F7",
+        "fg-2": "#C3C7D0",
+        "fg-3": "#9398A4",
+        "danger": "#FF8A9B",
+        "success": "#6FD195",
+        "warning": "#F3B552",
+        "accent": "#6CB4F0"
+      }
+    },
+    "icarus": {
+      "name": "ICARUS",
+      "description": "Oscuro premium en carbón y morado, con variante clara.",
+      "light": {
+        "app-bg": "#ECE8F5",
+        "tabstrip-bg": "#ECE8F5",
+        "tab-active-bg": "#FFFFFF",
+        "toolbar-bg": "#FFFFFF",
+        "toolbar-border": "#E6E1F1",
+        "omnibox-bg": "#F4F1FA",
+        "omnibox-fg": "#1C1F26",
+        "omnibox-dim": "#7A7392",
+        "page-bg": "#F7F5FC",
+        "surface-1": "#FFFFFF",
+        "surface-2": "#F2EFF9",
+        "border-1": "#3C1E6E1A",
+        "border-2": "#3C1E6E2E",
+        "fg-1": "#1B1726",
+        "fg-2": "#4A4460",
+        "fg-3": "#77708E",
+        "danger": "#C4314B",
+        "success": "#1F7A43",
+        "warning": "#A65A00",
+        "accent": "#6D28D9"
+      },
+      "dark": {
+        "app-bg": "#0E0D12",
+        "tabstrip-bg": "#0E0D12",
+        "tab-active-bg": "#1B1922",
+        "toolbar-bg": "#1B1922",
+        "toolbar-border": "#24212D",
+        "omnibox-bg": "#121118",
+        "omnibox-fg": "#F3F0FB",
+        "omnibox-dim": "#8A84A0",
+        "page-bg": "#0F0E13",
+        "surface-1": "#17151D",
+        "surface-2": "#211E2A",
+        "border-1": "#FFFFFF12",
+        "border-2": "#FFFFFF21",
+        "fg-1": "#F3F0FB",
+        "fg-2": "#BDB6D1",
+        "fg-3": "#8A84A0",
+        "danger": "#FF8A9B",
+        "success": "#6FD195",
+        "warning": "#F3B552",
+        "accent": "#A78BFA"
+      }
+    }
+  },
+  "accents": {
+    "violet": {
+      "light": "#7C3AED",
+      "dark": "#A78BFA"
+    },
+    "indigo": {
+      "light": "#4F46E5",
+      "dark": "#8B8FF8"
+    },
+    "blue": {
+      "light": "#1D64D8",
+      "dark": "#7FB0FF"
+    },
+    "teal": {
+      "light": "#0F7A80",
+      "dark": "#5FCFCF"
+    },
+    "green": {
+      "light": "#1F7A43",
+      "dark": "#6FD195"
+    },
+    "amber": {
+      "light": "#B45309",
+      "dark": "#F3B552"
+    },
+    "rose": {
+      "light": "#C0265A",
+      "dark": "#F590B5"
+    },
+    "graphite": {
+      "light": "#3F4452",
+      "dark": "#C4C8D2"
+    }
+  }
+}

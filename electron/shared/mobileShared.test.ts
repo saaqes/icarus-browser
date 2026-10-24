@@ -25,6 +25,9 @@ import { getRegistrableDomain } from '../shield/domains';
 import { FilterEngine } from '../shield/engine';
 import { parseFilterList, type ResourceType } from '../shield/filters';
 import { PUBLIC_SUFFIX_RULES } from '../shield/publicSuffixList';
+import { es } from '../../src/i18n/es';
+import { ACCENT_COLORS, THEME_ACCENTS } from '../../src/themes/accents';
+import { THEME_IDS } from '../../src/types/settings';
 
 const SHARED_DIR = fileURLToPath(new URL('../../mobile/shared/', import.meta.url));
 const UPDATE = process.env.UPDATE_MOBILE_SHARED === '1';
@@ -227,6 +230,66 @@ const REGISTRABLE_HOSTS = [
   'WWW.EJEMPLO.COM.',
 ];
 
+/* ---------------------------------- Estilos ---------------------------------- */
+
+/** Tokens de color que usan las apps móviles (los mismos nombres que en CSS). */
+const THEME_TOKENS = [
+  'app-bg', 'tabstrip-bg', 'tab-active-bg', 'toolbar-bg', 'toolbar-border', 'omnibox-bg', 'omnibox-fg', 'omnibox-dim',
+  'page-bg', 'surface-1', 'surface-2', 'border-1', 'border-2', 'fg-1', 'fg-2', 'fg-3', 'danger', 'success', 'warning',
+] as const;
+
+const readSource = (path: string) => readFileSync(fileURLToPath(new URL(`../../${path}`, import.meta.url)), 'utf8');
+
+/** Declaraciones `--token: valor;` del primer bloque cuyo selector es exactamente `selector`. */
+function cssBlock(css: string, selector: string): Record<string, string> {
+  const start = css.indexOf(`${selector} {`);
+  if (start < 0) throw new Error(`No se encontró ${selector}`);
+  const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start));
+  const tokens: Record<string, string> = {};
+  for (const match of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) tokens[match[1]] = match[2].trim();
+  return tokens;
+}
+
+/** #rgb, #rrggbb o rgba() → #RRGGBB / #RRGGBBAA (mismo orden que CSS). */
+function toHex(value: string, token: string): string {
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value);
+  if (hex) {
+    const digits = hex[1].length === 3 ? [...hex[1]].map((d) => d + d).join('') : hex[1];
+    return `#${digits.toUpperCase()}`;
+  }
+  const rgba = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(value);
+  if (rgba) {
+    const channels = rgba.slice(1, 4).map((n) => Number(n));
+    const alpha = Math.round(Number(rgba[4] ?? 1) * 255);
+    return `#${[...channels, alpha].map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+  }
+  throw new Error(`Color no admitido en --${token}: ${value}`);
+}
+
+function themePalettes() {
+  const base = readSource('src/styles/tokens.css');
+  const baseLight = cssBlock(base, '.icarus-root');
+  const baseDark = { ...baseLight, ...cssBlock(base, ".icarus-root[data-mode='dark']") };
+  const themes: Record<string, unknown> = {};
+  for (const id of THEME_IDS) {
+    const css = readSource(`src/themes/${id}/theme.css`);
+    const light = { ...baseLight, ...cssBlock(css, `.icarus-root[data-theme='${id}']`) };
+    const dark = { ...baseDark, ...cssBlock(css, `.icarus-root[data-theme='${id}'][data-mode='dark']`) };
+    const pick = (tokens: Record<string, string>, accent: string) =>
+      Object.fromEntries([...THEME_TOKENS.map((token) => [token, toHex(tokens[token], token)]), ['accent', toHex(accent, 'accent')]]);
+    themes[id] = {
+      name: es.themes[id].name,
+      description: es.themes[id].description,
+      light: pick(light, THEME_ACCENTS[id].light),
+      dark: pick(dark, THEME_ACCENTS[id].dark),
+    };
+  }
+  const accents = Object.fromEntries(
+    Object.entries(ACCENT_COLORS).map(([id, pair]) => [id, { light: toHex(pair.light, id), dark: toHex(pair.dark, id) }]),
+  );
+  return { description: 'Colores de cada estilo, generados desde src/styles/tokens.css y src/themes/*/theme.css.', themes, accents };
+}
+
 describe('datos compartidos con las apps móviles', () => {
   it('vectores de la barra de direcciones', () => {
     const providers: SearchProviderId[] = ['google', 'bing', 'duckduckgo'];
@@ -278,6 +341,10 @@ describe('datos compartidos con las apps móviles', () => {
         cases: REGISTRABLE_HOSTS.map((host) => ({ host, domain: getRegistrableDomain(host) })),
       }),
     );
+  });
+
+  it('paletas de los estilos', () => {
+    expectShared('themes.json', json(themePalettes()));
   });
 
   it('listas y valores predeterminados', () => {
