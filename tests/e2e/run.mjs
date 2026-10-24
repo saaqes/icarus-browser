@@ -283,11 +283,14 @@ await step('12. Alias de URL conectados a la navegación real', async () => {
   await win.getByText('Regla creada.').waitFor();
   await manager.getByRole('button', { name: 'Cerrar' }).first().click();
 
-  await win.getByRole('tab', { name: /Página A|Servidor local/ }).first().click();
+  // Todas las pestañas de 127.0.0.1 pasan a llamarse «Servidor local»: se abre a.html explícitamente.
+  await go(`${base}/a.html`);
   await waitForActiveTab('Servidor local');
-  const display = await win.locator('.omnibox__display').innerText();
-  assert(display.includes('local.icarus') && display.includes('127.0.0.1'), `La barra no muestra alias y host real (${display})`);
-  assert((await addressBar().inputValue()) === `${base}/a.html`, 'La URL real no se conserva en la barra');
+  await eventually(async () => (await addressBar().inputValue()) === `${base}/a.html`, 'La URL real no se conserva en la barra');
+  const display = await eventually(async () => {
+    const text = await win.locator('.omnibox__display').innerText();
+    return text.includes('local.icarus') && text.includes('127.0.0.1') ? text : null;
+  }, 'La barra no muestra alias y host real');
   const realUrls = (await views()).map((view) => view.url);
   assert(realUrls.some((url) => url === `${base}/a.html`), 'El motor no conserva la URL real');
   assert(!realUrls.some((url) => url?.includes('icarus')), 'Una vista navegó a un alias');
@@ -302,10 +305,12 @@ await step('13. ICARUS Shield bloquea solicitudes reales', async () => {
   await win.locator('#shield-custom-rules').fill('/ads/banner.js');
   await win.getByRole('button', { name: 'Guardar reglas' }).click();
   await win.getByText('Reglas guardadas.').waitFor();
-  await win.getByRole('tab', { name: /Servidor local/ }).first().click();
-  await win.locator('.nav-controls').getByRole('button', { name: 'Recargar' }).click();
+  // Pestaña propia con una URL única: otras pestañas cargaron a.html antes de la regla.
+  const page = '/a.html?shield=1';
+  await win.keyboard.press('Control+T');
+  await go(`${base}${page}`);
   const loaded = await eventually(async () => {
-    const result = await pageEval('/a.html', '[window.appLoaded === true, window.adLoaded === true]');
+    const result = await pageEval(page, '[window.appLoaded === true, window.adLoaded === true]');
     return Array.isArray(result) && result[0] ? result : null;
   }, 'La página no terminó de cargar');
   assert(loaded[1] === false, 'El script de anuncio se cargó a pesar de la regla');
@@ -320,7 +325,7 @@ await step('13. ICARUS Shield bloquea solicitudes reales', async () => {
   await win.locator('.shield-btn').click();
   await win.getByRole('switch', { name: /Activo en 127\.0\.0\.1/ }).click();
   await win.keyboard.press('Escape');
-  await eventually(async () => (await pageEval('/a.html', 'window.adLoaded === true')) === true, 'La excepción por sitio no permitió el script');
+  await eventually(async () => (await pageEval(page, 'window.adLoaded === true')) === true, 'La excepción por sitio no permitió el script');
   await win.locator('.shield-btn').click();
   await win.getByRole('switch', { name: /Activo en 127\.0\.0\.1/ }).click();
   await win.keyboard.press('Escape');

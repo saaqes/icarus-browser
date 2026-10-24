@@ -56,6 +56,28 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+/**
+ * Diagnóstico en Windows: lista las ventanas de nivel superior de los procesos
+ * de Electron y el texto que contienen (p. ej. un cuadro de error que bloquea
+ * el proceso principal), mediante UI Automation.
+ */
+function describeWindows(rootPid) {
+  const script = `
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+$ids = @(${rootPid}) + @(Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq ${rootPid} } | ForEach-Object { $_.ProcessId })
+$root = [Windows.Automation.AutomationElement]::RootElement
+$all = [Windows.Automation.Condition]::TrueCondition
+foreach ($window in $root.FindAll([Windows.Automation.TreeScope]::Children, $all)) {
+  if ($ids -notcontains $window.Current.ProcessId) { continue }
+  "Ventana «$($window.Current.Name)» clase=$($window.Current.ClassName) pid=$($window.Current.ProcessId)"
+  $window.FindAll([Windows.Automation.TreeScope]::Descendants, $all) |
+    Where-Object { $_.Current.Name } | Select-Object -First 40 |
+    ForEach-Object { "    [$($_.Current.ControlType.ProgrammaticName)] $($_.Current.Name)" }
+}`;
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 60_000 });
+  return `${result.stdout ?? ''}${result.stderr ?? ''}`.trim() || '(ninguna ventana encontrada)';
+}
+
 const server = http.createServer((request, response) => {
   response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   response.end('<!doctype html><title>Humo ICARUS</title><h1>Página servida localmente</h1>');
@@ -118,6 +140,8 @@ try {
 } catch (error) {
   failed = true;
   console.error(`  ✗ ${error.message}`);
+  console.error(`\n--- Salida del ejecutable (últimos 6000 caracteres) ---\n${output.slice(-6000)}`);
+  if (process.platform === 'win32') console.error(`\n--- Ventanas abiertas por el ejecutable ---\n${describeWindows(child.pid)}`);
 } finally {
   await browser?.close().catch(() => {});
   const exited = new Promise((resolve) => (child.exitCode !== null ? resolve() : child.once('exit', resolve)));
