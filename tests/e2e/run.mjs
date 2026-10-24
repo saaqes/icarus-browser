@@ -18,13 +18,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import http from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { _electron } = require('playwright-core');
 const electronPath = require('electron');
-const projectDir = fileURLToPath(new URL('../..', import.meta.url));
+const projectDir = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
 /* ------------------------------- Mini runner ------------------------------- */
 
@@ -105,11 +105,12 @@ const dataDir = mkdtempSync(join(tmpdir(), 'icarus-e2e-'));
 const downloadDir = mkdtempSync(join(tmpdir(), 'icarus-descargas-'));
 
 async function launch() {
-  const env = { ...process.env, ICARUS_USER_DATA_DIR: dataDir, ICARUS_SHIELD_AUTO_UPDATE: '0' };
+  // ELECTRON_ENABLE_LOGGING añade los mensajes de Chromium al registro si el arranque falla.
+  const env = { ...process.env, ICARUS_USER_DATA_DIR: dataDir, ICARUS_SHIELD_AUTO_UPDATE: '0', ELECTRON_ENABLE_LOGGING: '1' };
   delete env.NODE_OPTIONS;
   delete env.ELECTRON_RUN_AS_NODE;
   const extraArgs = process.env.ICARUS_E2E_PROXY ? [`--proxy-server=${process.env.ICARUS_E2E_PROXY}`] : [];
-  const app = await _electron.launch({ executablePath: electronPath, args: [projectDir, ...extraArgs], env, cwd: projectDir });
+  const app = await _electron.launch({ executablePath: electronPath, args: [projectDir, ...extraArgs], env, cwd: projectDir, timeout: 90_000 });
   const win = await app.firstWindow();
   await win.waitForSelector('.browser--desktop', { timeout: 30_000 });
   return { app, win };

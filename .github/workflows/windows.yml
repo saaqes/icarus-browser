@@ -62,7 +62,7 @@ jobs:
           $zip = Get-ChildItem release -Filter 'ICARUS-Browser-*-win-x64.zip'
           if (-not $setup) { throw 'No se generó el instalador .exe' }
           if (-not $zip) { throw 'No se generó el paquete .zip' }
-          $setup + $zip | ForEach-Object {
+          @($setup) + @($zip) | ForEach-Object {
             '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
           } | Tee-Object -FilePath release/SHA256SUMS.txt
 
@@ -109,7 +109,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Electron descarga su binario la primera vez que se usa; se fuerza aquí.
+      - run: node node_modules/electron/install.js
       - run: npm run build
+      - name: Arrancar ICARUS sin Playwright (diagnóstico)
+        run: node tests/e2e/smoke-packaged.mjs node_modules/electron/dist/electron.exe .
       - run: npm run test:e2e
 
   draft-release:

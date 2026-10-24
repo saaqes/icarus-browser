@@ -7,8 +7,10 @@
  * depuración de Chromium, se conecta por CDP a la interfaz y abre una página
  * de un servidor local desde la barra de direcciones.
  *
- * Uso: npm run dist:dir (o dist:win) && node tests/e2e/smoke-packaged.mjs [ejecutable]
- * Sin argumento busca el ejecutable de release/ para la plataforma actual.
+ * Uso: npm run dist:dir (o dist:win) && node tests/e2e/smoke-packaged.mjs [ejecutable [argumentos…]]
+ * Sin argumento busca el ejecutable de release/ para la plataforma actual. Con
+ * el Electron de desarrollo hay que pasar la carpeta del proyecto:
+ *   node tests/e2e/smoke-packaged.mjs node_modules/electron/dist/electron .
  */
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -16,12 +18,12 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import http from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright-core');
-const projectDir = fileURLToPath(new URL('../..', import.meta.url));
+const projectDir = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const pkg = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf8'));
 
 const DEFAULT_EXECUTABLES = {
@@ -63,8 +65,8 @@ const pageUrl = `http://127.0.0.1:${server.address().port}/humo.html`;
 const dataDir = mkdtempSync(join(tmpdir(), 'icarus-smoke-'));
 
 console.log(`ICARUS prueba de humo · ${executable}`);
-const child = spawn(executable, ['--remote-debugging-port=0'], {
-  env: { ...process.env, ICARUS_USER_DATA_DIR: dataDir, ICARUS_SHIELD_AUTO_UPDATE: '0' },
+const child = spawn(executable, [...process.argv.slice(3), '--remote-debugging-port=0'], {
+  env: { ...process.env, ICARUS_USER_DATA_DIR: dataDir, ICARUS_SHIELD_AUTO_UPDATE: '0', ELECTRON_ENABLE_LOGGING: '1' },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let output = '';
