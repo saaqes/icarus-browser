@@ -1,3 +1,4 @@
+import UIKit
 import WebKit
 import XCTest
 @testable import ICARUS
@@ -96,26 +97,39 @@ final class ShieldWebKitTests: XCTestCase {
     /// Una dirección que coincide con un filtro se abre igualmente como página principal
     /// (como en escritorio, Shield solo cancela subrecursos y marcos internos).
     func testLaPaginaPrincipalNoSeBloquea() async throws {
-        guard try await loadExample(rules: nil) == "Example Domain" else {
-            throw XCTSkip("example.com no responde desde el simulador.")
+        let withoutRules = try await loadExample(rules: nil)
+        guard withoutRules.title == "Example Domain" else {
+            throw XCTSkip("example.com no cargó sin reglas en el simulador: \(withoutRules.error ?? "título «\(withoutRules.title ?? "")»")")
         }
         let rules = try await compile(ContentBlocker.convert(Filters.parseList("||example.com^").filters).json, id: "icarus-prueba-principal")
-        let title = try await loadExample(rules: rules)
-        XCTAssertEqual(title, "Example Domain")
+        let withRules = try await loadExample(rules: rules)
+        XCTAssertNil(withRules.error)
+        XCTAssertEqual(withRules.title, "Example Domain")
     }
 
-    /// Abre example.com como página principal y devuelve su título (nil si no cargó).
-    private func loadExample(rules: WKContentRuleList?) async throws -> String? {
+    /// Abre example.com como página principal, dentro de una ventana, y espera a que
+    /// WebKit termine o informe de un error.
+    private func loadExample(rules: WKContentRuleList?) async throws -> (title: String?, error: String?) {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         if let rules { configuration.userContentController.add(rules) }
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 600), configuration: configuration)
+        let frame = CGRect(x: 0, y: 0, width: 390, height: 600)
+        let webView = WKWebView(frame: frame, configuration: configuration)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
+        window.frame = frame
+        window.addSubview(webView)
+        window.isHidden = false
+        defer { window.isHidden = true }
+        let probe = NavigationProbe()
+        webView.navigationDelegate = probe
         webView.load(URLRequest(url: URL(string: "https://example.com/?icarus=\(UUID().uuidString)")!))
-        for _ in 0..<80 {
+        for _ in 0..<180 {
             try await Task.sleep(nanoseconds: 250_000_000)
-            if let title = webView.title, !title.isEmpty { return title }
+            if probe.finished { return (webView.title, nil) }
+            if let error = probe.error as NSError? { return (webView.title, "\(error.domain) \(error.code): \(error.localizedDescription)") }
         }
-        return nil
+        return (webView.title, "WebKit no terminó la carga en 45 s")
     }
 
     func testLaBarraMuestraAliasYResuelveComoEnEscritorio() {
@@ -126,5 +140,24 @@ final class ShieldWebKitTests: XCTestCase {
         XCTAssertEqual(url, "https://www.google.com/")
         XCTAssertEqual(AddressFormat.display("https://www.google.com/").text, "buscar.icarus")
         XCTAssertEqual(AddressFormat.display("https://es.wikipedia.org/wiki/Ícaro").text, "es.wikipedia.org/wiki/%C3%8Dcaro")
+    }
+}
+
+/// Recoge cómo terminó una navegación de prueba.
+@MainActor
+private final class NavigationProbe: NSObject, WKNavigationDelegate {
+    var finished = false
+    var error: Error?
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        finished = true
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        self.error = error
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        self.error = error
     }
 }

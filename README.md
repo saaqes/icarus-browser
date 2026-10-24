@@ -274,7 +274,7 @@ Las apps móviles tienen interfaz nativa (vistas de Android en Kotlin; SwiftUI e
 | Barra de direcciones: URL, búsqueda, alias `.icarus`, `icarus://…`, sugerencias | Sí | Sí | Sí |
 | ICARUS Shield: bloqueo de solicitudes reales | `webRequest` de Chromium | `shouldInterceptRequest` (también service workers) | Reglas de contenido de WebKit (`WKContentRuleList`) |
 | Contador de bloqueos | Real, por página y total | Real, por página y total | **No hay**: WebKit no informa de lo que bloquea |
-| Listas (básica, EasyList, EasyPrivacy, Peter Lowe, propias), reglas propias y excepciones por sitio | Sí | Sí | Sí; los filtros que WebKit no puede expresar se omiten y se cuentan (19 de 57 201 en EasyList) |
+| Listas (básica, EasyList, EasyPrivacy, Peter Lowe, propias), reglas propias y excepciones por sitio | Sí | Sí | Sí; los filtros que WebKit no puede expresar se omiten y se cuentan (26 de 113 650 en EasyList y EasyPrivacy) |
 | Certificados no válidos | Bloqueados, sin opción de continuar | Igual | Igual |
 | Descargas | Gestor propio | DownloadManager de Android (carpeta Descargas) | WKDownload (Archivos → En mi iPhone → ICARUS → Descargas) |
 | Historial, accesos directos y «Cambiar nombre de URL» | Sí | Sí | Sí |
@@ -285,6 +285,14 @@ Las apps móviles tienen interfaz nativa (vistas de Android en Kotlin; SwiftUI e
 ![ICARUS para Android en un emulador de Android 14](docs/screenshots/android.webp)
 
 <sub>Capturas de la prueba en el emulador de Android 14 (GitHub Actions): nueva pestaña del estilo ICARUS; una página local con 2 solicitudes canceladas por Shield; certificado no válido real (`self-signed.badssl.com`) sin opción de continuar; Esencial; Panorama; y la misma página mostrada con su alias `prueba.icarus`.</sub>
+
+![Pantallas secundarias de ICARUS para Android](docs/screenshots/android-pantallas.webp)
+
+<sub>Android: Configuración, ICARUS Shield (con el contador real, aún a cero en esa prueba, y EasyList descargándose), «Cambiar nombre de URL», Historial y Descargas, capturadas por la prueba que comprueba que cada pantalla abre sin cerrarse.</sub>
+
+![ICARUS para iPhone en el simulador de iOS](docs/screenshots/iphone.webp)
+
+<sub>Capturas del simulador de iPhone (GitHub Actions, WebKit): nueva pestaña del estilo ICARUS; `example.com` en Esencial; Panorama; certificado no válido real (`self-signed.badssl.com`) sin opción de continuar; Configuración; e Historial. En iPhone no hay contador de bloqueos: Shield indica cuántos filtros aplica WebKit (113 624 con la lista básica, EasyList y EasyPrivacy) y cuántos no se pueden expresar (26).</sub>
 
 Detalles de arquitectura y diferencias en [docs/MOBILE.md](docs/MOBILE.md).
 
@@ -387,9 +395,9 @@ Resumen (completo en [docs/SECURITY.md](docs/SECURITY.md)):
 | `npm run test:smoke` | Ejecutable empaquetado: arranque, página dentro de la pestaña, sin puente nativo en la web, datos en disco | Linux, Windows (sin instalar y ya instalado) y macOS (empaquetado e instalado desde el `.dmg`) | Superada |
 | Instalación silenciosa | `Setup.exe /S`, prueba de humo del navegador instalado y desinstalación silenciosa | Windows (CI) | Superada |
 | `./gradlew -p core test` (Android, 25 pruebas) | Vectores compartidos con escritorio, validación, perfil, historial, listas de Shield y tipos de recurso | Linux (local y CI) | 25/25 |
-| Emulador de Android 14 | La app real: Shield cancela 2 solicitudes reales, alias, protocolos bloqueados, búsqueda, certificado no válido real, tres estilos | CI (Ubuntu) | Superada, con capturas |
-| `swift test` (iPhone, 16 pruebas) | Vectores compartidos y conversión a reglas de WebKit con un evaluador de su semántica | Linux local (Swift 6.1) y macOS (CI) | 16/16 |
-| Simulador de iOS (4 pruebas) | WebKit real: reglas compiladas, un rastreador real cancelado (y cargado sin reglas), EasyList real compilada | CI (macOS) | 4/4, con capturas |
+| Emulador de Android 14 (2 pruebas) | La app real: Shield cancela 2 solicitudes reales, alias, protocolos bloqueados, búsqueda, certificado no válido real, tres estilos; y Configuración, Shield, «Cambiar nombre de URL», Historial y Descargas abren sin cerrarse | CI (Ubuntu) | 2/2, con capturas |
+| `swift test` (iPhone, 18 pruebas) | Vectores compartidos y conversión a reglas de WebKit con un evaluador de su semántica: mismas 28 solicitudes que escritorio, la página principal nunca se bloquea y recorte por el límite de reglas | Linux local (Swift 6.1) y macOS (CI) | 18/18 |
+| Simulador de iOS (5 pruebas) | WebKit real: reglas compiladas, un rastreador real cancelado (y cargado sin reglas), EasyList y EasyPrivacy reales juntas (113 625 reglas, ninguna fuera del límite), una página principal que coincide con un filtro se abre, alias | CI (macOS) | 4/4 y 1 omitida (la de la página principal: `example.com` no cargó en la vista de prueba), con capturas |
 
 Pasos E2E con Electron real y servidores HTTP y HTTPS locales: 1 iniciar · 2 abrir una página dentro de la pestaña · 3 buscar desde la barra · 4 volver atrás · 5 dos pestañas y cambiar · 6 atrás y adelante · 7 recargar · 8 `target=_blank` como pestaña · 9 cerrar y crear pestañas libera vistas · 10 los tres estilos · 11 menús sobre la página · 12 alias con navegación real y URL real conservada · 13 Shield bloquea una solicitud real y el contador lo refleja · 14 descarga real a disco · 15 historial · 16 icono real del sitio y detener la carga · 17 Ctrl+L desde la página (selecciona toda la dirección), Ctrl+W, Ctrl+Mayús+T y Ctrl+Tab · 18 el alias se retira cuando la regla deja de coincidir · 19 `javascript:`, `mailto:` y `file:` bloqueados en la barra y en enlaces · 20 certificado autofirmado rechazado sin opción de omitirlo (necesita `openssl`; si falta, el paso se marca como omitido) · 21 permiso de ubicación preguntado con el origen real y denegado · 22 autenticación HTTP: cancelar (401), contraseña incorrecta (se vuelve a pedir) y correcta, con la página oculta bajo el diálogo · 23 buscar en la página con Ctrl+F desde la página (1 de 3, siguiente, anterior, sin resultados, Escape) · 24 cerrar, reabrir y conservar estilo, reglas de Shield, historial y alias · 25 borrar el historial.
 
