@@ -42,7 +42,9 @@ function expectMobile(relativePath: string, content: string): void {
   }
   const hint = `mobile/${relativePath} no está al día: ejecuta UPDATE_MOBILE_SHARED=1 npx vitest run electron/shared`;
   expect(existsSync(path), hint).toBe(true);
-  expect(readFileSync(path, 'utf8') === content, hint).toBe(true);
+  // Git para Windows puede convertir los saltos de línea (y los de las fuentes) a CRLF.
+  const lf = (text: string) => text.replace(/\r\n/g, '\n');
+  expect(lf(readFileSync(path, 'utf8')) === lf(content), hint).toBe(true);
 }
 
 const expectShared = (name: string, content: string) => expectMobile(`shared/${name}`, content);
