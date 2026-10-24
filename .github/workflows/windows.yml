@@ -1,0 +1,137 @@
+name: Windows
+
+# Compila y prueba ICARUS Browser en Windows, genera el instalador NSIS y el
+# paquete portátil, comprueba que el instalador se instala y que el navegador
+# instalado arranca, y sube ambos como artefactos de la ejecución.
+#
+# Nunca publica una versión estable: solo crea un BORRADOR (privado hasta que
+# alguien lo revise y lo publique a mano) al subir una etiqueta v* o al lanzar
+# el flujo manualmente con «draft_release».
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      draft_release:
+        description: Crear un borrador de versión con el instalador (no se publica)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Pruebas, instalador y prueba de instalación
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+      - id: version
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Generar instalador y paquete portátil
+        # Sin certificado de firma: el ejecutable no está firmado y SmartScreen lo avisará.
+        run: npx electron-builder --win --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Comprobar los archivos generados
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem release -Filter 'ICARUS-Browser-Setup-*.exe'
+          $zip = Get-ChildItem release -Filter 'ICARUS-Browser-*-win-x64.zip'
+          if (-not $setup) { throw 'No se generó el instalador .exe' }
+          if (-not $zip) { throw 'No se generó el paquete .zip' }
+          $setup + $zip | ForEach-Object {
+            '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Tee-Object -FilePath release/SHA256SUMS.txt
+
+      - name: Prueba de humo del paquete sin instalar
+        run: node tests/e2e/smoke-packaged.mjs "release/win-unpacked/ICARUS Browser.exe"
+
+      - name: Instalar en silencio y probar el navegador instalado
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem release -Filter 'ICARUS-Browser-Setup-*.exe').FullName
+          $process = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "El instalador terminó con el código $($process.ExitCode)" }
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Depth 2 -Filter 'ICARUS Browser.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'El instalador no dejó ICARUS Browser.exe en %LOCALAPPDATA%\Programs' }
+          "Instalado en $($exe.DirectoryName)"
+          node tests/e2e/smoke-packaged.mjs "$($exe.FullName)"
+          if ($LASTEXITCODE -ne 0) { throw 'El navegador instalado no superó la prueba de humo' }
+          $uninstaller = Join-Path $exe.DirectoryName 'Uninstall ICARUS Browser.exe'
+          if (-not (Test-Path $uninstaller)) { throw 'Falta el desinstalador' }
+          Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait
+          for ($i = 0; $i -lt 60 -and (Test-Path $exe.FullName); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $exe.FullName) { throw 'El desinstalador no eliminó la aplicación' }
+          'Desinstalación correcta'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: icarus-browser-windows-x64
+          path: |
+            release/ICARUS-Browser-Setup-*.exe
+            release/ICARUS-Browser-Setup-*.exe.blockmap
+            release/ICARUS-Browser-*-win-x64.zip
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  e2e:
+    name: Pruebas de extremo a extremo (Electron)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:e2e
+
+  draft-release:
+    name: Borrador de versión (sin publicar)
+    needs: [package, e2e]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.draft_release)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: icarus-browser-windows-x64
+          path: release
+      - name: Crear el borrador con los archivos de Windows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then tag="$GITHUB_REF_NAME"; else tag="v$VERSION-preview.$GITHUB_RUN_NUMBER"; fi
+          gh release create "$tag" release/* \
+            --draft --prerelease --target "$GITHUB_SHA" \
+            --title "ICARUS Browser $tag" \
+            --notes "Versión preliminar para Windows x64 generada por GitHub Actions (ejecución $GITHUB_RUN_ID). El instalador no está firmado: Windows SmartScreen mostrará un aviso. Comprueba las sumas en SHA256SUMS.txt antes de publicar."

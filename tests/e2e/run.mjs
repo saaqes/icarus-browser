@@ -9,7 +9,9 @@
  * En Linux necesita una pantalla (p. ej. `xvfb-run -a npm run test:e2e`) y un
  * usuario que no sea root (Chromium no admite su sandbox como root).
  *
- * ICARUS_E2E_INTERNET=1 añade pruebas con sitios HTTPS reales.
+ * ICARUS_E2E_INTERNET=1 añade pruebas con sitios HTTPS reales (Wikipedia, Google y
+ * YouTube, o los de ICARUS_E2E_SITES separados por comas). ICARUS_E2E_PROXY pasa
+ * un proxy a Chromium (--proxy-server); los certificados se siguen verificando.
  */
 
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -17,11 +19,12 @@ import http from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { _electron } = require('playwright-core');
 const electronPath = require('electron');
-const projectDir = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const projectDir = fileURLToPath(new URL('../..', import.meta.url));
 
 /* ------------------------------- Mini runner ------------------------------- */
 
@@ -350,10 +353,9 @@ await step('15. Historial persistente', async () => {
 });
 
 await step('16. Cerrar y volver a abrir conserva los datos', async () => {
-  await win.getByRole('button', { name: 'Personalizar', exact: true }).first().click().catch(async () => {
-    await win.keyboard.press('Control+T');
-    await win.getByRole('button', { name: 'Personalizar', exact: true }).first().click();
-  });
+  const customize = win.getByRole('button', { name: 'Personalizar', exact: true }).first();
+  if (!(await customize.isVisible())) await win.keyboard.press('Control+T');
+  await customize.click();
   await win.locator('.theme-card', { hasText: 'Panorama' }).click();
   await win.keyboard.press('Escape');
   await app.close();
@@ -369,22 +371,33 @@ await step('16. Cerrar y volver a abrir conserva los datos', async () => {
 });
 
 if (process.env.ICARUS_E2E_INTERNET === '1') {
-  for (const url of ['https://www.wikipedia.org/', 'https://www.google.com/', 'https://www.youtube.com/']) {
+  const sites = process.env.ICARUS_E2E_SITES?.split(',').filter(Boolean) ?? ['https://www.wikipedia.org/', 'https://www.google.com/', 'https://www.youtube.com/'];
+  for (const url of sites) {
     await step(`Internet: ${url}`, async () => {
       await go(url);
-      const title = await eventually(async () => {
-        const text = await activeTabText();
-        return text && !text.includes(new URL(url).hostname.replace(/^www\./, '')) ? text : null;
-      }, `No se cargó ${url}`, 30_000);
-      return title.trim();
+      const host = new URL(url).hostname;
+      const outcome = await eventually(async () => {
+        if (await win.locator('.error-page').count()) {
+          return { error: `${await win.locator('#error-page-title').innerText()} · ${await win.locator('.error-card__details').innerText()}` };
+        }
+        const title = await pageEval(host, 'document.readyState === "complete" ? document.title : ""');
+        return title && title !== '__sin_pagina__' ? { title } : null;
+      }, `No se cargó ${url}`, 45_000);
+      assert(!outcome.error, outcome.error?.replace(/\s+/g, ' '));
+      return `«${outcome.title}»`;
     });
   }
 }
 
 await app?.close().catch(() => {});
 server.close();
-rmSync(dataDir, { recursive: true, force: true });
-rmSync(downloadDir, { recursive: true, force: true });
+for (const dir of [dataDir, downloadDir]) {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+  } catch (error) {
+    console.warn(`No se pudo borrar la carpeta temporal ${dir}: ${error.message}`);
+  }
+}
 
 const failed = results.filter((result) => !result.ok);
 console.log(`\n${results.length - failed.length}/${results.length} pruebas superadas.`);
