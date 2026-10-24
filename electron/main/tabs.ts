@@ -13,6 +13,8 @@ import type { NavigateResult, NavigationErrorInfo, ShortcutAction, ViewportRect,
 import { showPageContextMenu } from './contextMenu';
 import { isAllowedPageNavigation, parseNavigableUrl, protocolOf } from './urlPolicy';
 
+const SNAPSHOT_TIMEOUT_MS = 400;
+
 interface TabRecord {
   id: string;
   view: WebContentsView;
@@ -167,8 +169,13 @@ export class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab || this.visibleId !== tabId || tab.view.webContents.isDestroyed()) return null;
     try {
-      const image = await tab.view.webContents.capturePage();
-      if (image.isEmpty()) return null;
+      // Una página que aún no ha pintado nada (p. ej. esperando credenciales) puede no
+      // devolver nunca la captura: se abandona a los 400 ms.
+      const image = await Promise.race([
+        tab.view.webContents.capturePage(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), SNAPSHOT_TIMEOUT_MS)),
+      ]);
+      if (!image || image.isEmpty()) return null;
       return `data:image/jpeg;base64,${image.toJPEG(82).toString('base64')}`;
     } catch {
       return null;

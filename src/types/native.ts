@@ -71,6 +71,25 @@ export interface PermissionRequestInfo {
   mediaTypes: Array<'audio' | 'video'>;
 }
 
+/** Solicitud de autenticación HTTP (Basic, Digest, NTLM…) de una página o de un proxy. */
+export interface AuthRequestInfo {
+  id: string;
+  tabId: string;
+  /** Origen real que pide las credenciales (o host:puerto del proxy). */
+  origin: string;
+  /** Texto que envía el sitio (realm). Lo controla el sitio: se muestra como tal. */
+  realm: string;
+  scheme: string;
+  isProxy: boolean;
+  /** Las credenciales viajarán cifradas (HTTPS). */
+  secure: boolean;
+}
+
+export interface AuthCredentials {
+  username: string;
+  password: string;
+}
+
 export type DownloadState = 'progressing' | 'paused' | 'completed' | 'cancelled' | 'interrupted';
 
 export interface DownloadItemInfo {
@@ -160,6 +179,8 @@ export type NativeEvent =
   | { type: 'navigation-blocked'; tabId: string; url: string; protocol: string }
   | { type: 'permission-request'; request: PermissionRequestInfo }
   | { type: 'permission-cancelled'; id: string }
+  | { type: 'auth-request'; request: AuthRequestInfo }
+  | { type: 'auth-cancelled'; id: string }
   | { type: 'downloads'; downloads: DownloadItemInfo[] }
   | { type: 'download-started'; id: string }
   | { type: 'history-changed' }
@@ -222,6 +243,10 @@ export interface IcarusNativeApi {
   };
   permissions: {
     respond(id: string, granted: boolean): void;
+  };
+  auth: {
+    /** Envía las credenciales, o null para cancelar. ICARUS no las guarda. */
+    respond(id: string, credentials: AuthCredentials | null): void;
   };
   preferences: {
     get(): Promise<DesktopPreferences>;

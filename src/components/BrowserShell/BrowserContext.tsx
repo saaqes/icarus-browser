@@ -40,7 +40,7 @@ import {
   sessionReducer,
 } from '../../services/tabs/tabs';
 import { resolveInput } from '../../services/url-resolution/resolveInput';
-import type { NativeEvent, PermissionRequestInfo, ShortcutAction, WebTabState } from '../../types/native';
+import type { AuthCredentials, AuthRequestInfo, NativeEvent, PermissionRequestInfo, ShortcutAction, WebTabState } from '../../types/native';
 import type { Settings } from '../../types/settings';
 import type { HistoryEntry, PageEntry, SessionState, SettingsSection, Tab } from '../../types/tabs';
 import { useToast } from '../common/Toast';
@@ -85,6 +85,9 @@ export interface BrowserController {
   focusAddressBar: () => void;
   permissionRequests: PermissionRequestInfo[];
   respondPermission: (id: string, granted: boolean) => void;
+  /** Solicitudes de autenticación HTTP pendientes (una por pestaña como mucho). */
+  authRequests: AuthRequestInfo[];
+  respondAuth: (id: string, credentials: AuthCredentials | null) => void;
 }
 
 const BrowserContext = createContext<BrowserController | null>(null);
@@ -123,6 +126,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [webState, setWebState] = useState<Record<string, WebTabState>>({});
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequestInfo[]>([]);
+  const [authRequests, setAuthRequests] = useState<AuthRequestInfo[]>([]);
   const addressBarFocus = useRef<(() => void) | null>(null);
   /** Entrada web que muestra ahora la vista de cada pestaña (tramo «vivo»). */
   const liveEntry = useRef(new Map<string, string>());
@@ -325,6 +329,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
         return next;
       });
       setPermissionRequests((requests) => requests.filter((request) => request.tabId !== tabId));
+      setAuthRequests((requests) => requests.filter((request) => request.tabId !== tabId));
       const now = services.now().getTime();
       const replacement = createTab(services.createId(), createHistoryEntry(newTabPageFor(settingsRef.current), services.createId(), now));
       dispatch({ type: 'tab/close', tabId, replacement });
@@ -438,6 +443,14 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     [native],
   );
 
+  const respondAuth = useCallback(
+    (id: string, credentials: AuthCredentials | null) => {
+      native?.auth.respond(id, credentials);
+      setAuthRequests((requests) => requests.filter((request) => request.id !== id));
+    },
+    [native],
+  );
+
   /* -------------------------- Atajos y eventos nativos ------------------------- */
 
   const runShortcut = useCallback(
@@ -494,6 +507,11 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           return setPermissionRequests((requests) => [...requests, event.request]);
         case 'permission-cancelled':
           return setPermissionRequests((requests) => requests.filter((request) => request.id !== event.id));
+        case 'auth-request':
+          // Una nueva solicitud de la misma pestaña sustituye a la anterior (p. ej. contraseña incorrecta).
+          return setAuthRequests((requests) => [...requests.filter((request) => request.tabId !== event.request.tabId), event.request]);
+        case 'auth-cancelled':
+          return setAuthRequests((requests) => requests.filter((request) => request.id !== event.id));
         default:
           return undefined;
       }
@@ -573,6 +591,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       focusAddressBar,
       permissionRequests,
       respondPermission,
+      authRequests,
+      respondAuth,
     }),
     [
       session,
@@ -604,6 +624,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       focusAddressBar,
       permissionRequests,
       respondPermission,
+      authRequests,
+      respondAuth,
     ],
   );
 

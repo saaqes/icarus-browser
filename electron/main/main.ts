@@ -15,6 +15,7 @@ import { DownloadManager } from './downloads';
 import { FaviconService } from './favicons';
 import { HistoryStore } from './history';
 import { registerIpc } from './ipc';
+import { AuthManager } from './auth';
 import { PermissionManager } from './permissions';
 import { createPreferencesFile } from './preferences';
 import { createListFetcher, ShieldService } from './shieldService';
@@ -124,6 +125,12 @@ async function start(): Promise<void> {
     (id) => emit({ type: 'permission-cancelled', id }),
   );
 
+  const auth = new AuthManager(
+    (contents) => tabs?.tabIdFor(contents) ?? null,
+    (request) => emit({ type: 'auth-request', request }),
+    (id) => emit({ type: 'auth-cancelled', id }),
+  );
+
   const downloads = new DownloadManager(
     join(dataDir, 'downloads.json'),
     () => preferencesFile.get(),
@@ -146,17 +153,22 @@ async function start(): Promise<void> {
       permissions.cancelForTab(tabId);
     },
     onTitle: (url, title) => history.updateTitle(url, title),
-    onMainFrameStart: (_tabId, contents: WebContents) => shield.resetPage(contents.id),
+    onMainFrameStart: (tabId, contents: WebContents) => {
+      shield.resetPage(contents.id);
+      auth.cancelForTab(tabId);
+    },
     shieldCount: (contents) => shield.pageBlockedCount(contents.id),
     shieldAllowed: (url) => shield.isSiteAllowed(url),
     onClosed: (tabId, contents) => {
       shield.forgetPage(contents.id);
       permissions.cancelForTab(tabId);
+      auth.cancelForTab(tabId);
     },
   });
 
   shield.attach(webSession, (contents, id) => tabs.pageUrlFor(contents, id));
   permissions.attach(webSession);
+  auth.attach(app);
   downloads.attach(webSession);
 
   const clearData = async (options: ClearDataOptions) => {
@@ -165,6 +177,8 @@ async function start(): Promise<void> {
     if (options.cache) await webSession.clearCache();
     if (options.cookies) {
       await webSession.clearStorageData();
+      // Las credenciales HTTP que Chromium recuerda en memoria también son datos de sesión.
+      await webSession.clearAuthCache();
       permissions.clearDecisions();
     }
   };
@@ -185,6 +199,7 @@ async function start(): Promise<void> {
     downloads,
     shield,
     permissions,
+    auth,
     favicons,
     getPreferences: () => preferencesFile.get(),
     setPreferences: (preferences: DesktopPreferences) => {

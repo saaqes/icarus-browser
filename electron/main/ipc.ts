@@ -9,6 +9,7 @@ import type { ClearDataOptions, DesktopPreferences } from '../../src/types/nativ
 import type { DownloadManager } from './downloads';
 import type { FaviconService } from './favicons';
 import type { HistoryStore } from './history';
+import type { AuthManager } from './auth';
 import type { PermissionManager } from './permissions';
 import { sanitizePreferences } from './preferences';
 import type { ShieldService } from './shieldService';
@@ -26,6 +27,7 @@ export interface IpcContext {
   downloads: DownloadManager;
   shield: ShieldService;
   permissions: PermissionManager;
+  auth: AuthManager;
   favicons: FaviconService;
   getPreferences: () => DesktopPreferences;
   setPreferences: (preferences: DesktopPreferences) => DesktopPreferences;
@@ -143,6 +145,15 @@ export function registerIpc(context: IpcContext): void {
   });
 
   on('icarus:permissions:respond', (id, granted) => context.permissions.respond(assertString(id, 'id', 64), assertBoolean(granted, 'granted')));
+  on('icarus:auth:respond', (id, credentials) => {
+    if (credentials !== null && !isRecord(credentials)) throw new IpcValidationError('credentials');
+    context.auth.respond(
+      assertString(id, 'id', 64),
+      credentials === null
+        ? null
+        : { username: assertString(credentials.username, 'username', 1024), password: assertString(credentials.password, 'password', 1024) },
+    );
+  });
 
   handle('icarus:prefs:get', () => context.getPreferences());
   handle('icarus:prefs:set', (preferences) => context.setPreferences(sanitizePreferences(preferences)));

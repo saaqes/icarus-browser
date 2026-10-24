@@ -83,6 +83,10 @@ const api: IcarusNativeApi = {
   permissions: {
     respond: (id, granted) => send('icarus:permissions:respond', id, granted),
   },
+  auth: {
+    respond: (id, credentials) =>
+      send('icarus:auth:respond', id, credentials ? { username: credentials.username, password: credentials.password } : null),
+  },
   preferences: {
     get: () => invoke('icarus:prefs:get'),
     set: (preferences) => invoke('icarus:prefs:set', JSON.parse(JSON.stringify(preferences))),

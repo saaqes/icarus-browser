@@ -14,6 +14,7 @@ import { NavigationControls } from '../NavigationControls/NavigationControls';
 import { NewTabPage } from '../NewTabPage/NewTabPage';
 import { SettingsPage } from '../Settings/SettingsPage';
 import { TabBar } from '../TabBar/TabBar';
+import { AuthDialog } from './AuthDialog';
 import { useBrowser } from './BrowserContext';
 import { DownloadsButton } from './DownloadsButton';
 import { Infobar } from './Infobar';
@@ -91,6 +92,8 @@ function TabContent() {
   }
 }
 
+const SNAPSHOT_FALLBACK_MS = 500;
+
 /**
  * Coloca la vista web nativa de la pestaña activa sobre el área de contenido y
  * la sustituye por una captura mientras hay menús o diálogos abiertos.
@@ -127,14 +130,19 @@ function useNativeViewport(viewportRef: React.RefObject<HTMLElement | null>) {
       return () => cancelAnimationFrame(frame);
     }
     let cancelled = false;
+    // La vista nativa se dibuja encima del HTML: si la captura no llega a tiempo (página
+    // sin pintar), se oculta igualmente para que el menú o el diálogo sean visibles.
+    const fallback = setTimeout(() => !cancelled && setSuspended(true), SNAPSHOT_FALLBACK_MS);
     void native.tabs.snapshot(visibleTab).then((image) => {
       if (cancelled) return;
+      clearTimeout(fallback);
       setSnapshot(image);
       // Se oculta la vista cuando la captura ya está pintada, para evitar parpadeos.
       requestAnimationFrame(() => requestAnimationFrame(() => !cancelled && setSuspended(true)));
     });
     return () => {
       cancelled = true;
+      clearTimeout(fallback);
     };
   }, [native, overlayActive, visibleTab]);
 
@@ -168,6 +176,7 @@ export function BrowserShell() {
         {snapshot && <img className="viewport__snapshot" src={snapshot} alt="" aria-hidden="true" />}
       </main>
       <CustomizeDrawer />
+      {native && <AuthDialog />}
     </div>
   );
 }

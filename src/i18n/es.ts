@@ -641,6 +641,17 @@ export const es = {
     allow: 'Permitir',
     block: 'Bloquear',
   },
+  auth: {
+    title: 'Iniciar sesión',
+    site: (origin: string) => `${origin} pide un usuario y una contraseña.`,
+    proxy: (origin: string) => `El proxy ${origin} pide un usuario y una contraseña.`,
+    realm: 'Mensaje del sitio',
+    insecure: 'La conexión con este sitio no es segura: el usuario y la contraseña podrían viajar sin cifrar.',
+    username: 'Usuario',
+    password: 'Contraseña',
+    submit: 'Iniciar sesión',
+    note: 'ICARUS no guarda estas credenciales. Chromium las recuerda para este sitio hasta que cierres ICARUS o borres las cookies.',
+  },
   shield: {
     name: 'ICARUS Shield',
     buttonLabel: (count: number) => `ICARUS Shield: ${count} ${count === 1 ? 'solicitud bloqueada' : 'solicitudes bloqueadas'} en esta página`,

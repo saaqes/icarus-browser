@@ -129,6 +129,13 @@ const server = http.createServer((request, response) => {
           '<script>window.pedirUbicacion = () => navigator.geolocation.getCurrentPosition(() => (window.geo = "ok"), (error) => (window.geo = "error-" + error.code));</script>',
         ),
       );
+    case '/privado':
+      if (request.headers.authorization === `Basic ${Buffer.from('icarus:secreto').toString('base64')}`) {
+        return send(200, 'text/html; charset=utf-8', page('Zona privada', '<p>Acceso concedido</p>'));
+      }
+      return send(401, 'text/html; charset=utf-8', page('Acceso denegado', '<p>Hace falta iniciar sesión</p>'), {
+        'www-authenticate': 'Basic realm="Zona de pruebas ICARUS"',
+      });
     case '/archivo.txt':
       return send(200, 'text/plain; charset=utf-8', 'Contenido de prueba de ICARUS\n', {
         'content-disposition': 'attachment; filename="informe-icarus.txt"',
@@ -548,7 +555,38 @@ await step('21. Permiso de ubicación: se pregunta con el origen real y se denie
   return text;
 });
 
-await step('22. Cerrar y volver a abrir conserva los datos', async () => {
+await step('22. Autenticación HTTP: cancelar, contraseña incorrecta y correcta', async () => {
+  const dialog = win.getByRole('dialog', { name: 'Iniciar sesión' });
+  const fill = async (username, password) => {
+    await dialog.getByLabel('Usuario').fill(username);
+    await dialog.getByLabel('Contraseña').fill(password);
+    await dialog.getByRole('button', { name: 'Iniciar sesión' }).click();
+  };
+  await go(`${local}/privado`);
+  await dialog.waitFor({ timeout: 10_000 });
+  const text = (await dialog.innerText()).replace(/\s+/g, ' ');
+  assert(text.includes(local) && text.includes('Zona de pruebas ICARUS'), `El diálogo no muestra el origen y el mensaje del sitio (${text})`);
+  assert(text.includes('no es segura'), 'No se avisa de que la conexión HTTP no está cifrada');
+  // La vista nativa se dibuja encima del HTML: con el diálogo abierto debe estar oculta.
+  await eventually(async () => !(await views()).some((view) => view.visible), 'La página tapa el diálogo de autenticación', 5_000);
+  await dialog.getByRole('button', { name: 'Cancelar' }).click();
+  await waitForActiveTab('Acceso denegado');
+
+  await win.locator('.nav-controls').getByRole('button', { name: 'Recargar' }).click();
+  await dialog.waitFor({ timeout: 10_000 });
+  await fill('icarus', 'incorrecta');
+  // Chromium vuelve a pedir las credenciales: aparece una solicitud nueva con el formulario vacío.
+  await eventually(
+    async () => (await dialog.isVisible()) && (await dialog.getByLabel('Contraseña').inputValue()) === '',
+    'No se volvió a pedir la contraseña',
+  );
+  await fill('icarus', 'secreto');
+  await waitForActiveTab('Zona privada');
+  assert(!(await dialog.isVisible()), 'El diálogo sigue abierto');
+  return 'Basic · 401 al cancelar · reintento tras contraseña incorrecta';
+});
+
+await step('23. Cerrar y volver a abrir conserva los datos', async () => {
   const customize = win.getByRole('button', { name: 'Personalizar', exact: true }).first();
   if (!(await customize.isVisible())) await win.keyboard.press('Control+T');
   await customize.click();
@@ -566,7 +604,7 @@ await step('22. Cerrar y volver a abrir conserva los datos', async () => {
   return `datos en ${dataDir}`;
 });
 
-await step('23. Borrar el historial', async () => {
+await step('24. Borrar el historial', async () => {
   await win.keyboard.press('Control+H');
   await win.getByRole('heading', { name: 'Historial' }).waitFor();
   await win.getByLabel('Borrar historial…').selectOption('all');
