@@ -32,6 +32,8 @@ export type SessionAction =
   | { type: 'tab/reload'; tabId: string }
   | { type: 'tab/loading'; tabId: string; loading: boolean }
   | { type: 'tab/mark-opened'; tabId: string; entryId: string }
+  /** Actualiza URL y título reales de una entrada web (eventos del motor). */
+  | { type: 'tab/update-web'; tabId: string; entryId: string; url?: string; title?: string }
   | { type: 'session/replace'; state: SessionState };
 
 export function getActiveTab(state: SessionState): Tab {
@@ -112,9 +114,22 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
       return updateTab(state, action.tabId, (tab) => {
         let changed = false;
         const entries = tab.entries.map((entry) => {
-          if (entry.id !== action.entryId || entry.page.kind !== 'external' || entry.page.openedExternally) return entry;
+          if (entry.id !== action.entryId || entry.page.kind !== 'web' || entry.page.openedExternally) return entry;
           changed = true;
           return { ...entry, page: { ...entry.page, openedExternally: true } };
+        });
+        return changed ? { ...tab, entries } : tab;
+      });
+    case 'tab/update-web':
+      return updateTab(state, action.tabId, (tab) => {
+        let changed = false;
+        const entries = tab.entries.map((entry) => {
+          if (entry.id !== action.entryId || entry.page.kind !== 'web') return entry;
+          const url = action.url ?? entry.page.url;
+          const title = action.title ?? entry.page.title;
+          if (url === entry.page.url && title === entry.page.title) return entry;
+          changed = true;
+          return { ...entry, page: { ...entry.page, url, title } };
         });
         return changed ? { ...tab, entries } : tab;
       });

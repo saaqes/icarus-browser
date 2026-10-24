@@ -109,8 +109,9 @@
   padding: 0 6px;
   overflow: hidden;
   white-space: nowrap;
-  cursor: text;
   font-size: var(--text-md);
+  /* Los clics atraviesan esta capa y llegan al campo, que se enfoca y selecciona la URL real. */
+  pointer-events: none;
 }
 
 .omnibox__dim {

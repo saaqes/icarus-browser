@@ -1,6 +1,5 @@
 import { useSettings } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
-import { canGoBack, canGoForward } from '../../services/tabs/tabs';
 import { Icon } from '../common/Icon';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 
@@ -8,17 +7,17 @@ import { useBrowser } from '../BrowserShell/BrowserContext';
 export function NavigationControls() {
   const m = useMessages();
   const [settings] = useSettings();
-  const { activeTab, goBack, goForward, reload, stop, goHome } = useBrowser();
+  const { activeTab, goBack, goForward, reload, stop, goHome, canGoBack, canGoForward } = useBrowser();
   return (
     <div className="nav-controls">
-      <button type="button" className="icon-btn" onClick={goBack} disabled={!canGoBack(activeTab)} aria-label={m.toolbar.back} title={m.toolbar.back}>
+      <button type="button" className="icon-btn" onClick={goBack} disabled={!canGoBack} aria-label={m.toolbar.back} title={m.toolbar.back}>
         <Icon name="back" />
       </button>
       <button
         type="button"
         className="icon-btn"
         onClick={goForward}
-        disabled={!canGoForward(activeTab)}
+        disabled={!canGoForward}
         aria-label={m.toolbar.forward}
         title={m.toolbar.forward}
       >

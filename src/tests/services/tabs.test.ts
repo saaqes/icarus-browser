@@ -17,7 +17,7 @@ import type { PageEntry } from '../../types/tabs';
 
 const home: PageEntry = { kind: 'newtab' };
 const tab = (id: string, page: PageEntry = home) => createTab(id, createHistoryEntry(page, `${id}-e0`, 0));
-const external = (url: string): PageEntry => ({ kind: 'external', url, openedExternally: true });
+const external = (url: string): PageEntry => ({ kind: 'web', url, openedExternally: true });
 
 describe('sessionReducer', () => {
   it('crea, activa y cierra pestañas', () => {
@@ -61,9 +61,9 @@ describe('sessionReducer', () => {
   });
 
   it('marca una página como abierta externamente', () => {
-    let state = createSession(tab('a', { kind: 'external', url: 'https://x.com/', openedExternally: false }));
+    let state = createSession(tab('a', { kind: 'web', url: 'https://x.com/', openedExternally: false }));
     state = sessionReducer(state, { type: 'tab/mark-opened', tabId: 'a', entryId: 'a-e0' });
-    expect(getCurrentEntry(getActiveTab(state)).page).toEqual({ kind: 'external', url: 'https://x.com/', openedExternally: true });
+    expect(getCurrentEntry(getActiveTab(state)).page).toEqual({ kind: 'web', url: 'https://x.com/', openedExternally: true });
   });
 });
 
@@ -82,13 +82,13 @@ describe('sanitizeSession', () => {
     );
     expect(restored?.tabs).toHaveLength(1);
     expect(restored?.activeTabId).toBe('a');
-    expect(restored?.tabs[0]?.entries[0]?.page).toEqual({ kind: 'external', url: 'https://x.com/', openedExternally: false });
+    expect(restored?.tabs[0]?.entries[0]?.page).toEqual({ kind: 'web', url: 'https://x.com/', openedExternally: false });
     expect(restored?.tabs[0]?.index).toBe(0);
   });
 });
 
 describe('describePage', () => {
-  const titles = { newTab: 'Nueva pestaña', blank: 'En blanco', settings: 'Configuración' };
+  const titles = { newTab: 'Nueva pestaña', blank: 'En blanco', settings: 'Configuración', history: 'Historial', downloads: 'Descargas' };
 
   it('muestra el alias sin perder la URL real', () => {
     const presentation = describePage(external('https://www.google.com/'), { rules: createDefaultAliasRules(), showAliases: true, titles });

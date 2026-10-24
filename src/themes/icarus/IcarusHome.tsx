@@ -18,7 +18,7 @@ import './icarus-home.css';
 export function IcarusHome({ layout }: HomeLayoutProps) {
   const m = useMessages();
   const now = useNow();
-  const { engine } = useServices();
+  const { engine, native } = useServices();
   const side = layout.showWidgets && layout.widgetPlacement === 'side';
 
   return (
@@ -48,8 +48,8 @@ export function IcarusHome({ layout }: HomeLayoutProps) {
       <footer className="icarus-home__footer">
         <CustomizeButton />
         <p className="icarus-home__status">
-          <span className="status-dot" aria-hidden="true" />
-          {m.externalPage.engine(engine.info.name)} · {m.app.prototype}
+          <span className={`status-dot${native ? " status-dot--ok" : ""}`} aria-hidden="true" />
+          {m.externalPage.engine(engine.info.name)} · {native ? `v${native.appVersion}` : m.app.prototype}
         </p>
       </footer>
     </div>

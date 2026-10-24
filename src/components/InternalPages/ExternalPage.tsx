@@ -13,7 +13,7 @@ import { Favicon } from '../common/Favicon';
 import { Icon } from '../common/Icon';
 import './InternalPages.css';
 
-type ExternalEntry = Extract<PageEntry, { kind: 'external' }>;
+type ExternalEntry = Extract<PageEntry, { kind: 'web' }>;
 
 export function ExternalPage({ page }: { page: ExternalEntry }) {
   const m = useMessages();

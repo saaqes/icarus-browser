@@ -17,6 +17,9 @@ function describe(suggestion: Suggestion, providerName: string, m: ReturnType<ty
   if (suggestion.kind === 'shortcut') {
     return { icon: null, main: suggestion.shortcut.title, detail: `${t.shortcut} · ${suggestion.shortcut.url}`, warn: false };
   }
+  if (suggestion.kind === 'history') {
+    return { icon: 'history' as IconName, main: suggestion.item.title || suggestion.item.url, detail: `${t.history} · ${suggestion.item.url}`, warn: false };
+  }
   if (suggestion.kind === 'alias') {
     const { rule } = suggestion;
     return { icon: 'tag' as IconName, main: rule.alias, detail: `${t.aliasRule} · ${rule.displayName} → ${rule.targetUrl}`, warn: false };

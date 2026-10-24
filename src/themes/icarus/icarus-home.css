@@ -216,3 +216,8 @@
     padding-inline: var(--space-4);
   }
 }
+
+.status-dot--ok {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}

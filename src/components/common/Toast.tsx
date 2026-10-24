@@ -13,11 +13,17 @@ interface ToastItem {
 type Notify = (kind: ToastKind, message: string) => void;
 
 const ToastContext = createContext<Notify>(() => {});
+const ToastStateContext = createContext<{ toasts: ToastItem[]; dismiss: (id: number) => void }>({ toasts: [], dismiss: () => {} });
 
 const DURATION_MS: Record<ToastKind, number> = { success: 3200, info: 4500, error: 6500 };
 
-/** Notificaciones discretas en la parte inferior. Los errores se anuncian como alerta. */
-export function ToastProvider({ children }: { children: ReactNode }) {
+/**
+ * Notificaciones discretas. Los errores se anuncian como alerta.
+ * - `floating` (versión web): flotan en la parte inferior.
+ * - Sin `floating` (escritorio): las muestra `<ToastViewport inline />` como barra
+ *   informativa bajo la barra de herramientas, para no quedar detrás de la página.
+ */
+export function ToastProvider({ children, floating = true }: { children: ReactNode; floating?: boolean }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(1);
   const timers = useRef(new Map<number, number>());
@@ -44,20 +50,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => notify, [notify]);
+  const state = useMemo(() => ({ toasts, dismiss }), [toasts, dismiss]);
 
   return (
     <ToastContext.Provider value={value}>
-      {children}
-      <ToastViewport toasts={toasts} onDismiss={dismiss} />
+      <ToastStateContext.Provider value={state}>
+        {children}
+        {floating && <ToastViewport />}
+      </ToastStateContext.Provider>
     </ToastContext.Provider>
   );
 }
 
-function ToastViewport({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss: (id: number) => void }) {
+export function ToastViewport({ inline = false }: { inline?: boolean }) {
   const m = useMessages();
+  const { toasts, dismiss: onDismiss } = useContext(ToastStateContext);
   const icon = { success: 'check', error: 'warning', info: 'info' } as const;
   return (
-    <div className="toast-viewport">
+    <div className={inline ? 'toast-viewport toast-viewport--inline' : 'toast-viewport'}>
       <div role="status" aria-live="polite" className="toast-stack">
         {toasts
           .filter((toast) => toast.kind !== 'error')

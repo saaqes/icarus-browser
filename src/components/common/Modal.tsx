@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMessages } from '../../i18n';
 import { Icon } from './Icon';
+import { useOverlayLayer } from './overlayLayer';
 import { useOverlayRoot } from './OverlayRoot';
 
 const FOCUSABLE =
@@ -41,6 +42,7 @@ export function Modal({
   const descriptionId = useId();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  useOverlayLayer(open);
 
   useEffect(() => {
     if (!open) return undefined;

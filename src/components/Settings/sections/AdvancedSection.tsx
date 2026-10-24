@@ -114,7 +114,7 @@ export function AdvancedSection() {
           ))}
         </dl>
         <ul className="notes-list">
-          {t.notes.map((note) => (
+          {(services.native ? t.notesDesktop : t.notes).map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ul>
@@ -125,7 +125,9 @@ export function AdvancedSection() {
           <Icon name={services.storage.kind === 'memory' ? 'warning' : 'database'} size={16} />
           {services.storage.kind === 'memory'
             ? t.storageMemory
-            : t.storageLocal(formatBytes(estimateUsage(services.storage, STORAGE_PREFIX), m.locale))}
+            : services.native
+              ? t.storageNative(services.native.dataDirectory)
+              : t.storageLocal(formatBytes(estimateUsage(services.storage, STORAGE_PREFIX), m.locale))}
         </p>
       </SettingsCard>
 

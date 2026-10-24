@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useDismiss } from '../../hooks/useDismiss';
 import { Icon, type IconName } from './Icon';
+import { useOverlayLayer } from './overlayLayer';
 
 export interface MenuItem {
   id: string;
@@ -29,6 +30,7 @@ export function MenuButton({ label, items, children, className, align = 'end' }:
   const menuId = useId();
   const close = useCallback(() => setOpen(false), []);
   useDismiss(rootRef, open, close);
+  useOverlayLayer(open);
 
   // El menú se coloca de forma fija respecto a la ventana para que ningún
   // contenedor con desplazamiento lo recorte; se cierra al desplazar o redimensionar.

@@ -953,3 +953,27 @@ kbd {
   line-height: 1;
   font-family: var(--font-ui);
 }
+
+/* Notificaciones como barra informativa (aplicación de escritorio). */
+.toast-viewport--inline {
+  position: static;
+  width: auto;
+  transform: none;
+  padding: 0 var(--space-2);
+  gap: 0;
+  background: var(--toolbar-bg);
+}
+
+.toast-viewport--inline .toast-stack {
+  align-items: stretch;
+  gap: 0;
+}
+
+.toast-viewport--inline .toast {
+  max-width: none;
+  margin: 0 0 6px;
+  padding: 6px 8px 6px 12px;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  animation: none;
+}

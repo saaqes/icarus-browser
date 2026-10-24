@@ -1,19 +1,26 @@
 import type { ReactNode } from 'react';
+import { useServices } from '../../app/ServicesContext';
 import { useMessages } from '../../i18n';
-import { SETTINGS_SECTIONS, type SettingsSection } from '../../types/tabs';
+import { DESKTOP_ONLY_SECTIONS, SETTINGS_SECTIONS, type SettingsSection } from '../../types/tabs';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 import { Icon, type IconName } from '../common/Icon';
 import { AboutSection } from './sections/AboutSection';
 import { AdvancedSection } from './sections/AdvancedSection';
 import { AppearanceSection } from './sections/AppearanceSection';
+import { DownloadsSection } from './sections/DownloadsSection';
 import { GeneralSection } from './sections/GeneralSection';
 import { NavigationSection } from './sections/NavigationSection';
+import { PrivacySection } from './sections/PrivacySection';
+import { ShieldSection } from './sections/ShieldSection';
 import './Settings.css';
 
 const SECTION_ICONS: Record<SettingsSection, IconName> = {
   general: 'settings',
   appearance: 'brush',
   navigation: 'globe',
+  privacy: 'lock',
+  shield: 'shield',
+  downloads: 'download',
   advanced: 'sliders',
   about: 'info',
 };
@@ -22,6 +29,9 @@ const SECTION_CONTENT: Record<SettingsSection, () => ReactNode> = {
   general: () => <GeneralSection />,
   appearance: () => <AppearanceSection />,
   navigation: () => <NavigationSection />,
+  privacy: () => <PrivacySection />,
+  shield: () => <ShieldSection />,
+  downloads: () => <DownloadsSection />,
   advanced: () => <AdvancedSection />,
   about: () => <AboutSection />,
 };
@@ -30,17 +40,21 @@ const SECTION_CONTENT: Record<SettingsSection, () => ReactNode> = {
 export function SettingsPage({ section }: { section: SettingsSection }) {
   const m = useMessages();
   const { setSettingsSection } = useBrowser();
+  const { native } = useServices();
+  // Privacidad, Shield y Descargas solo existen en la aplicación de escritorio.
+  const sections = SETTINGS_SECTIONS.filter((id) => native || !DESKTOP_ONLY_SECTIONS.includes(id));
+  const current = sections.includes(section) ? section : 'general';
   return (
     <div className="settings">
       <nav className="settings__nav" aria-label={m.settings.navLabel}>
         <h1 className="settings__title">{m.settings.title}</h1>
         <ul>
-          {SETTINGS_SECTIONS.map((id) => (
+          {sections.map((id) => (
             <li key={id}>
               <button
                 type="button"
-                className={`settings__nav-item${id === section ? ' is-active' : ''}`}
-                aria-current={id === section ? 'page' : undefined}
+                className={`settings__nav-item${id === current ? ' is-active' : ''}`}
+                aria-current={id === current ? 'page' : undefined}
                 onClick={() => setSettingsSection(id)}
               >
                 <Icon name={SECTION_ICONS[id]} size={18} />
@@ -51,8 +65,8 @@ export function SettingsPage({ section }: { section: SettingsSection }) {
         </ul>
       </nav>
       <div className="settings__content">
-        <h2 className="settings__section-title">{m.settings.sections[section]}</h2>
-        {SECTION_CONTENT[section]()}
+        <h2 className="settings__section-title">{m.settings.sections[current]}</h2>
+        {SECTION_CONTENT[current]()}
       </div>
     </div>
   );

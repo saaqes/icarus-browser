@@ -7,7 +7,7 @@
  * puede implementar esta misma interfaz sobre su almacenamiento local.
  */
 
-export type StorageKind = 'local' | 'memory';
+export type StorageKind = 'local' | 'memory' | 'native';
 
 export interface KeyValueStorage {
   readonly kind: StorageKind;

@@ -43,9 +43,10 @@ function useCrossWindowSync(services: AppServices) {
 
 function LocalizedApp() {
   const [settings] = useSettings();
+  const { native } = useServices();
   return (
     <I18nProvider language={settings.general.language}>
-      <ToastProvider>
+      <ToastProvider floating={!native}>
         <AppearanceRoot>
           <BrowserProvider>
             <BrowserShell />

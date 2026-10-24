@@ -1,3 +1,4 @@
+import { useServices } from '../../../app/ServicesContext';
 import { useSettings } from '../../../hooks/useStores';
 import { useMessages } from '../../../i18n';
 import { updateNavigation } from '../../../services/settings/settings';
@@ -11,6 +12,7 @@ export function NavigationSection() {
   const m = useMessages();
   const t = m.settings.navigation;
   const [settings, updateSettings] = useSettings();
+  const { native } = useServices();
   const navigation = settings.navigation;
   return (
     <>
@@ -27,6 +29,7 @@ export function NavigationSection() {
         />
       </SettingsCard>
 
+      {!native && (
       <SettingsCard title={t.opening}>
         <p className="info-box">
           <Icon name="info" size={16} />
@@ -43,6 +46,7 @@ export function NavigationSection() {
           ]}
         />
       </SettingsCard>
+      )}
 
       <SettingsCard title={t.shortcuts} description={t.shortcutsHint}>
         <RadioList<ShortcutOpenTarget>

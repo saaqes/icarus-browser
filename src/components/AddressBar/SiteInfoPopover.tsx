@@ -1,4 +1,5 @@
 import { useRef, type RefObject } from 'react';
+import { useServices } from '../../app/ServicesContext';
 import { useDismiss } from '../../hooks/useDismiss';
 import { useMessages } from '../../i18n';
 import type { PagePresentation } from '../../services/tabs/pages';
@@ -17,6 +18,7 @@ export function SiteInfoPopover({ presentation, anchorRef, onClose, onEdit }: Si
   const m = useMessages();
   const t = m.addressBar.info;
   const notify = useToast();
+  const { native } = useServices();
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(ref, true, onClose, anchorRef);
 
@@ -29,7 +31,7 @@ export function SiteInfoPopover({ presentation, anchorRef, onClose, onEdit }: Si
     }
   };
 
-  const external = presentation.kind === 'external';
+  const external = presentation.kind === 'web';
 
   return (
     <div ref={ref} className="site-info" role="dialog" aria-label={t.title}>
@@ -68,7 +70,7 @@ export function SiteInfoPopover({ presentation, anchorRef, onClose, onEdit }: Si
           </dl>
           <p className={`site-info__note${presentation.protocol === 'http:' ? ' is-warning' : ''}`}>
             <Icon name={presentation.protocol === 'http:' ? 'warning' : 'info'} size={14} />
-            {presentation.protocol === 'http:' ? t.http : t.https}
+            {presentation.protocol === 'http:' ? t.http : native ? t.httpsDesktop : t.https}
           </p>
           {presentation.alias && (
             <p className="site-info__note">

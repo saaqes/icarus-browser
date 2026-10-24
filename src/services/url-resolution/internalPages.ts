@@ -11,6 +11,9 @@ const SECTION_SLUGS: Record<SettingsSection, string> = {
   general: 'general',
   appearance: 'apariencia',
   navigation: 'navegacion',
+  privacy: 'privacidad',
+  shield: 'shield',
+  downloads: 'descargas',
   advanced: 'avanzado',
   about: 'acerca-de',
 };
@@ -26,7 +29,11 @@ export function internalUrlForPage(page: PageEntry): string | null {
       return BLANK_URL;
     case 'settings':
       return `icarus://configuracion/${SECTION_SLUGS[page.section]}`;
-    case 'external':
+    case 'history':
+      return 'icarus://historial';
+    case 'downloads':
+      return 'icarus://descargas';
+    case 'web':
       return null;
   }
 }
@@ -41,6 +48,8 @@ export function parseInternalUrl(text: string): PageEntry | null {
     return parts.length <= 1 ? { kind: 'newtab' } : null;
   }
   if (root === 'en-blanco') return parts.length === 1 ? { kind: 'blank' } : null;
+  if (root === 'historial') return parts.length === 1 ? { kind: 'history' } : null;
+  if (root === 'descargas') return parts.length === 1 ? { kind: 'downloads' } : null;
   if (root === 'configuracion') {
     if (parts.length === 1) return { kind: 'settings', section: 'general' };
     const section = SETTINGS_SECTIONS.find((id) => SECTION_SLUGS[id] === sub);

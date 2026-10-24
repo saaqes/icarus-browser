@@ -30,12 +30,17 @@ export interface EngineInfo {
 export interface NavigationRequest {
   tabId: string;
   url: string;
+  /**
+   * Empieza un tramo nuevo de navegación (desde una página interna): el motor
+   * descarta el historial anterior de la vista de esa pestaña.
+   */
+  newSegment?: boolean;
 }
 
 export type NavigationOutcome =
   | { status: 'opened-externally'; url: string }
   | { status: 'rendered'; url: string }
-  | { status: 'rejected'; reason: 'unsafe-url' }
+  | { status: 'rejected'; reason: 'unsafe-url' | 'blocked-protocol' | 'invalid-tab' }
   | { status: 'failed'; reason: 'open-error' };
 
 /** Eventos que emitirá un motor integrado (no los emite el motor externo). */
@@ -54,7 +59,7 @@ export interface BrowserEngine {
    */
   navigate(request: NavigationRequest): Promise<NavigationOutcome>;
   /* Métodos para motores integrados. */
-  attachTab?(tabId: string): void;
+  /** Libera la vista y el proceso de la pestaña. */
   detachTab?(tabId: string): void;
   goBack?(tabId: string): void;
   goForward?(tabId: string): void;

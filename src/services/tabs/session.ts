@@ -20,10 +20,17 @@ function readPage(raw: unknown): PageEntry | null {
       return (SETTINGS_SECTIONS as readonly unknown[]).includes(raw.section)
         ? { kind: 'settings', section: raw.section as (typeof SETTINGS_SECTIONS)[number] }
         : null;
-    case 'external': {
+    case 'history':
+      return { kind: 'history' };
+    case 'downloads':
+      return { kind: 'downloads' };
+    // «external» es el nombre que usaba la versión 0.1 para las páginas web.
+    case 'external':
+    case 'web': {
       const url = typeof raw.url === 'string' ? parseWebUrl(raw.url) : null;
-      // Al restaurar no se reabre nada automáticamente: la página queda pendiente.
-      return url ? { kind: 'external', url: url.href, openedExternally: false } : null;
+      const title = typeof raw.title === 'string' ? raw.title.slice(0, 500) : undefined;
+      // Al restaurar no se reabre nada en el navegador externo: la página queda pendiente.
+      return url ? { kind: 'web', url: url.href, title, openedExternally: false } : null;
     }
     default:
       return null;

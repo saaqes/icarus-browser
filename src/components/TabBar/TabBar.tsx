@@ -7,10 +7,14 @@ import { IcarusMark } from '../common/IcarusLogo';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 import './TabBar.css';
 
-function TabIcon({ presentation, loading }: { presentation: PagePresentation; loading: boolean }) {
+function TabIcon({ presentation, loading, favicon }: { presentation: PagePresentation; loading: boolean; favicon: string | null }) {
   const m = useMessages();
   if (loading) return <span className="tab__spinner" role="img" aria-label={m.tabs.loading} />;
   switch (presentation.icon) {
+    case 'history':
+      return <Icon name="history" size={16} />;
+    case 'downloads':
+      return <Icon name="download" size={16} />;
     case 'icarus':
       return <IcarusMark size={16} />;
     case 'settings':
@@ -18,14 +22,15 @@ function TabIcon({ presentation, loading }: { presentation: PagePresentation; lo
     case 'blank':
       return <Icon name="page" size={16} />;
     case 'site':
-      return <Favicon url={presentation.realUrl} label={presentation.title} size={16} />;
+      // Icono real del sitio informado por el motor; si no hay, el de /favicon.ico o una inicial.
+      return favicon ? <img className="favicon" src={favicon} alt="" width={16} height={16} /> : <Favicon url={presentation.realUrl} label={presentation.title} size={16} />;
   }
 }
 
 /** Barra superior de pestañas visuales. */
 export function TabBar() {
   const m = useMessages();
-  const { session, describe, activateTab, closeTab, newTab } = useBrowser();
+  const { session, describe, activateTab, closeTab, newTab, webState } = useBrowser();
 
   return (
     <div className="tabstrip">
@@ -38,7 +43,7 @@ export function TabBar() {
           const active = tab.id === session.activeTabId;
           const tooltip = presentation.alias
             ? `${presentation.title}\n${presentation.alias.rule.alias} · ${presentation.realUrl}`
-            : presentation.kind === 'external'
+            : presentation.kind === 'web'
               ? `${presentation.title}\n${presentation.realUrl}`
               : presentation.title;
           return (
@@ -54,7 +59,7 @@ export function TabBar() {
                 }}
               >
                 <span className="tab__icon">
-                  <TabIcon presentation={presentation} loading={tab.loading} />
+                  <TabIcon presentation={presentation} loading={tab.loading} favicon={webState[tab.id]?.favicon ?? null} />
                 </span>
                 <span className="tab__title">{presentation.title}</span>
                 {presentation.alias && <span className="tab__alias-dot" aria-hidden="true" />}

@@ -9,11 +9,13 @@
  */
 
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useHistoryItems } from '../../hooks/useNative';
 import { useAliasRules, useSettings, useShortcuts } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
 import { getSearchProvider } from '../../services/search/providers';
 import { splitUrlForDisplay } from '../../services/url-resolution/urlUtils';
 import { Icon } from '../common/Icon';
+import { useOverlayLayer } from '../common/overlayLayer';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 import { SiteInfoPopover } from './SiteInfoPopover';
 import { SuggestionList } from './SuggestionList';
@@ -26,6 +28,7 @@ export function AddressBar() {
   const [settings] = useSettings();
   const [rules] = useAliasRules();
   const [shortcuts] = useShortcuts();
+  const { items: history } = useHistoryItems();
   const presentation = describe(currentEntry.page);
   const provider = getSearchProvider(settings.general.searchProvider);
   const editable = presentation.kind === 'newtab' ? '' : presentation.realUrl;
@@ -68,7 +71,7 @@ export function AddressBar() {
   }, [focusInput, registerAddressBar]);
 
   const suggestions: Suggestion[] =
-    editing && dirty ? buildSuggestions(value, { providerId: provider.id, rules, shortcuts }) : [];
+    editing && dirty ? buildSuggestions(value, { providerId: provider.id, rules, shortcuts, history }) : [];
   const listOpen = suggestions.length > 0;
   const activeIndex = Math.min(highlight, Math.max(0, suggestions.length - 1));
 
@@ -81,6 +84,9 @@ export function AddressBar() {
     if (!suggestion || suggestion.kind === 'primary') done = navigateInput(value);
     else if (suggestion.kind === 'shortcut') {
       openUrl(suggestion.shortcut.url);
+      done = true;
+    } else if (suggestion.kind === 'history') {
+      openUrl(suggestion.item.url);
       done = true;
     } else {
       openUrl(suggestion.rule.targetUrl);
@@ -110,10 +116,11 @@ export function AddressBar() {
   };
 
   const display = splitUrlForDisplay(presentation.realUrl);
-  const isExternal = presentation.kind === 'external';
+  const isExternal = presentation.kind === 'web';
   const showInfoButton = !editing && presentation.kind !== 'newtab';
   const infoIcon = presentation.alias ? 'tag' : presentation.protocol === 'http:' ? 'warning' : 'info';
   const hintVisible = editing && !dirty && Boolean(presentation.alias);
+  useOverlayLayer(listOpen || hintVisible || infoOpen);
 
   return (
     <div className={`omnibox${editing ? ' is-editing' : ''}${listOpen || hintVisible ? ' is-open' : ''}`}>
@@ -178,7 +185,7 @@ export function AddressBar() {
             onKeyDown={onKeyDown}
           />
           {!editing && presentation.kind !== 'newtab' && (
-            <div className="omnibox__display" aria-hidden="true" onMouseDown={(event) => { event.preventDefault(); focusInput(); }}>
+            <div className="omnibox__display" aria-hidden="true">
               {presentation.alias ? (
                 <>
                   <span className="alias-chip">

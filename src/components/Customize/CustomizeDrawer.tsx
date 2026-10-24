@@ -4,6 +4,7 @@ import { useSettings } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 import { Icon } from '../common/Icon';
+import { useOverlayLayer } from '../common/overlayLayer';
 import { useOverlayRoot } from '../common/OverlayRoot';
 import {
   AccentControl,
@@ -23,6 +24,7 @@ export function CustomizeDrawer() {
   const { customizeOpen, setCustomizeOpen, openSettings } = useBrowser();
   const panelRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setCustomizeOpen(false), [setCustomizeOpen]);
+  useOverlayLayer(customizeOpen);
 
   useEffect(() => {
     if (!customizeOpen) return undefined;
