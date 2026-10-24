@@ -467,7 +467,7 @@ class MainActivity : Activity(), TabHost {
                 tab.webView?.let { if (it.parent != webHolder) attachWebView(it) }
             }
         }
-        omnibox.setUrl(if (tab.showingNewTab) InternalPage.NEW_TAB.url else tab.url)
+        omnibox.setUrl(error?.url ?: if (tab.showingNewTab) InternalPage.NEW_TAB.url else tab.url)
         updateChrome()
     }
 

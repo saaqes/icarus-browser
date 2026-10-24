@@ -279,7 +279,8 @@ class BrowserTab(private val host: TabHost, initialUrl: String?) {
         override fun onPageFinished(view: WebView, finishedUrl: String) {
             loading = false
             progress = 100
-            if (!showingNewTab) {
+            // Tras un error, WebView informa de la página anterior: se conserva la dirección que falló.
+            if (!showingNewTab && error == null) {
                 url = view.url ?: finishedUrl
                 title = view.title.orEmpty()
                 app.history.updateTitle(url, title)

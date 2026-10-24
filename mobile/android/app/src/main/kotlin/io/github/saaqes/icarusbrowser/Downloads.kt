@@ -1,5 +1,6 @@
 package io.github.saaqes.icarusbrowser
 
+import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -58,7 +59,13 @@ class DownloadsStore(private val app: IcarusApp) {
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
         // El aviso lo envía el proveedor de descargas del sistema (otra app).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) app.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-        else app.registerReceiver(receiver, filter)
+        else registerLegacy(filter)
+    }
+
+    /** Android 10–12 no tiene los indicadores RECEIVER_EXPORTED / RECEIVER_NOT_EXPORTED. */
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private fun registerLegacy(filter: IntentFilter) {
+        app.registerReceiver(receiver, filter)
     }
 
     fun addListener(listener: () -> Unit) = listeners.add(listener)

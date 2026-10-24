@@ -148,6 +148,7 @@ class BrowserSmokeTest {
             if (InstrumentationRegistry.getArguments().getString("internet") == "1") {
                 onMain(scenario) { it.submitAddress("https://self-signed.badssl.com/") }
                 waitFor(scenario, "error de certificado", 45_000) { it.currentTab?.error?.kind == PageError.Kind.CERTIFICATE }
+                waitFor(scenario, "la barra muestra el sitio que falló") { it.addressText == "self-signed.badssl.com" }
                 screenshot("certificado-no-valido")
             }
 
