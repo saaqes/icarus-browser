@@ -77,6 +77,22 @@ export class PermissionManager {
 
     // Compartir pantalla requiere un selector propio que aún no existe: se deniega.
     webSession.setDisplayMediaRequestHandler((_request, callback) => callback({}));
+
+    // Dispositivos USB, HID y serie: tampoco hay selector, así que se cancelan
+    // todas las solicitudes en lugar de dejar que Electron elija uno.
+    webSession.setDevicePermissionHandler(() => false);
+    webSession.on('select-hid-device', (event, _details, callback) => {
+      event.preventDefault();
+      callback();
+    });
+    webSession.on('select-usb-device', (event, _details, callback) => {
+      event.preventDefault();
+      callback();
+    });
+    webSession.on('select-serial-port', (event, _ports, _contents, callback) => {
+      event.preventDefault();
+      callback('');
+    });
   }
 
   respond(id: string, granted: boolean): void {

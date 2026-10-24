@@ -43,6 +43,11 @@ if (!app.requestSingleInstanceLock()) {
     // Ninguna página puede crear <webview> ni ventanas nuevas por su cuenta.
     contents.on('will-attach-webview', (event) => event.preventDefault());
     contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    // Sin este manejador Electron conectaría el primer dispositivo Bluetooth disponible.
+    contents.on('select-bluetooth-device', (event, _devices, callback) => {
+      event.preventDefault();
+      callback('');
+    });
   });
   app.whenReady().then(start).catch((error) => {
     console.error('No se pudo iniciar ICARUS:', error);
