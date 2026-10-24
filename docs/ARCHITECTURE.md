@@ -1,13 +1,13 @@
 # Arquitectura de ICARUS Browser
 
-Este documento describe cómo está organizado el prototipo y qué decisiones lo preparan para crecer hacia un navegador de escritorio y móvil.
+Este documento describe cómo está organizada la interfaz de ICARUS, que es la misma en la aplicación de escritorio (Electron + Chromium) y en el prototipo web. La parte específica del motor de escritorio (procesos, IPC, pestañas reales, persistencia en disco) está en [ENGINE_INTEGRATION.md](ENGINE_INTEGRATION.md); la seguridad, en [SECURITY.md](SECURITY.md); el bloqueador, en [SHIELD.md](SHIELD.md).
 
 ## Principios
 
 1. **Lógica pura separada de la interfaz.** Todo lo que se puede probar sin React (validación, resolución de URL, reglas de alias, reducer de pestañas, persistencia) vive en `src/services` y no importa componentes.
 2. **Componentes compartidos, estilos específicos.** Los estilos visuales no duplican componentes: cada uno organiza de forma distinta las mismas piezas (`SearchBox`, `ShortcutGrid`, `WidgetPanel`) y redefine los tokens CSS.
-3. **Servicios inyectables.** `createAppServices()` compone almacenamiento, stores y motor de navegación. Las pruebas inyectan memoria, un `window.open` simulado y un reloj fijo; un host nativo inyectará su almacenamiento y su motor.
-4. **Honestidad del prototipo.** Ninguna parte de la interfaz simula navegación integrada, seguridad o servicios que no existen. Las capacidades del motor se leen de `engine.info.capabilities` y se muestran en Configuración → Avanzado.
+3. **Servicios inyectables.** `createAppServices()` compone almacenamiento, stores y motor de navegación. En escritorio recibe el puente `window.icarusNative` y usa `createNativeEngine()` y `createNativeStorage()`; en la web, LocalStorage y `ExternalBrowserEngine`. Las pruebas inyectan memoria, un `window.open` simulado y un reloj fijo.
+4. **Honestidad.** Ninguna parte de la interfaz simula navegación, seguridad, bloqueo o servicios que no existen: el contador de Shield, el estado de carga, el título y el icono proceden de Chromium. Las capacidades del motor se leen de `engine.info.capabilities` y se muestran en Configuración → Avanzado.
 
 ## Capas
 
@@ -27,7 +27,11 @@ Este documento describe cómo está organizado el prototipo y qué decisiones lo
 ├────────────────────────────────────────────────────────────────────┤
 │ Persistencia (services/persistence)    │ Motor (services/navigation)│
 │   KeyValueStorage → documentos         │   BrowserEngine            │
-│   versionados → PersistentStore        │   ExternalBrowserEngine    │
+│   versionados → PersistentStore        │   nativeEngine (Chromium)  │
+│   (nativeStorage o LocalStorage)       │   ExternalBrowserEngine    │
+├────────────────────────────────────────┴───────────────────────────┤
+│ Escritorio: window.icarusNative (preload) ⇄ IPC ⇄ proceso principal │
+│   TabManager · ShieldService · descargas · historial · permisos     │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -38,24 +42,24 @@ Este documento describe cómo está organizado el prototipo y qué decisiones lo
 3. `BrowserContext.navigateInput()`:
    - muestra un aviso para los casos bloqueados o sin resolver;
    - para páginas internas, añade una entrada al historial de la pestaña;
-   - para páginas web, añade una entrada `{ kind: 'external', url }` y, si la apertura es automática, llama a `engine.navigate()`.
-4. `ExternalBrowserEngine` vuelve a validar el protocolo y llama a `window.open(url, '_blank', 'noopener,noreferrer')` **de forma síncrona** (los navegadores solo permiten ventanas nuevas durante un gesto del usuario).
-5. La pestaña muestra `ExternalPage`, que explica que la página se abrió fuera de ICARUS y enseña la URL real y, si existe, el alias.
+   - para páginas web, añade una entrada `{ kind: 'web', url }` y llama a `engine.navigate()`.
+4. **Escritorio**: `nativeEngine` pide al proceso principal que cargue la URL en la `WebContentsView` de la pestaña (`newSegment: true`). Chromium informa después de la URL, el título, el icono, la carga y los errores con eventos `tab-state`, que actualizan la entrada (`tab/update-web`). `WebArea` reserva el área de la vista o muestra la página de error.
+5. **Web**: `ExternalBrowserEngine` vuelve a validar el protocolo y llama a `window.open(url, '_blank', 'noopener,noreferrer')` de forma síncrona; la pestaña muestra `ExternalPage`, que explica que la página se abrió fuera de ICARUS.
 
 ## Pestañas e historial
 
 - `services/tabs/tabs.ts` es un reducer puro (`sessionReducer`). Los identificadores y marcas de tiempo llegan en las acciones, por lo que el reducer es determinista.
-- Cada `Tab` tiene `entries` e `index` (historial propio), `loading` y `reloadToken`.
+- Cada `Tab` tiene `entries` e `index` (historial propio), `loading` y `reloadToken`. En escritorio, una entrada `web` agrupa todas las navegaciones de Chromium dentro de ese tramo; atrás y adelante usan primero el historial de Chromium (ver ENGINE_INTEGRATION.md).
 - `describePage()` calcula título, icono y texto de la barra para una entrada, aplicando las reglas de alias solo como presentación (`realUrl` nunca cambia).
-- La sesión se guarda en `icarus.session` solo si el usuario elige «Restaurar las pestañas»; al restaurar, las páginas web quedan pendientes de abrir.
+- La sesión se guarda en `icarus.session` solo si el usuario elige «Restaurar las pestañas». En escritorio, cada pestaña restaurada carga su página al activarse; en la web quedan pendientes de abrir.
 
 ## Persistencia
 
-- `KeyValueStorage` abstrae el almacenamiento. `createBrowserStorage()` comprueba LocalStorage y, si falla, usa memoria (`storage.kind === 'memory'`).
+- `KeyValueStorage` abstrae el almacenamiento. En escritorio, `createNativeStorage()` parte de la copia de `ui-storage.json` que el preload entrega al arrancar y envía cada cambio al proceso principal (migrando una vez lo que hubiera en LocalStorage). En la web, `createBrowserStorage()` comprueba LocalStorage y, si falla, usa memoria (`storage.kind === 'memory'`).
 - `DocumentSchema<T>` define clave, versión, valores predeterminados, saneamiento y migraciones (`migrations[n]` lleva de la versión `n` a `n + 1`; los datos sin sobre se tratan como versión 0).
 - `loadDocument()` devuelve `{ value, status, issues }` con estado `empty`, `ok`, `migrated`, `repaired`, `corrupt` o `newer-version`. Los campos simplemente ausentes se completan en silencio para no alarmar al añadir preferencias nuevas.
 - `PersistentStore<T>` es un store observable (para `useSyncExternalStore`) que guarda en cada cambio y notifica los errores (cuota llena, almacenamiento no disponible) para mostrarlos en la interfaz.
-- Las ventanas del mismo navegador se sincronizan con el evento `storage`.
+- En la web, las ventanas del mismo navegador se sincronizan con el evento `storage`.
 
 ## Preferencias y estilos
 
