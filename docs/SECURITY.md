@@ -37,6 +37,14 @@ Resumen de las medidas de la aplicación de Electron y de sus límites conocidos
 
 Las solicitudes pendientes se cancelan al cerrar o navegar la pestaña.
 
+## Autenticación HTTP
+
+- Solo las páginas de las pestañas pueden pedir credenciales (`auth.ts`); las solicitudes internas (iconos, listas de Shield) se cancelan sin diálogo.
+- El diálogo muestra el origen real (o el proxy) y, aparte y entre comillas, el mensaje del sitio (realm), recortado a 150 caracteres porque lo controla el sitio. Si la conexión no es HTTPS, avisa de que las credenciales podrían viajar sin cifrar.
+- Las credenciales van de la interfaz al proceso principal por un canal IPC validado (máximo 1024 caracteres) y se entregan a Chromium; ICARUS no las escribe en disco. Chromium las recuerda en memoria para ese origen hasta cerrar ICARUS; «Cookies y datos de sitios» en Configuración → Privacidad también borra esa caché.
+- La solicitud se cancela si la pestaña navega a otra página o se cierra.
+- Mientras el diálogo está abierto, la vista de la página se oculta (la vista nativa se dibuja por encima del HTML) para que nada pueda tapar el diálogo.
+
 ## Descargas
 
 - Se guardan en la carpeta Descargas del sistema o en la elegida, con nombres saneados y sin sobrescribir archivos (`(1)`, `(2)`…).
@@ -65,6 +73,5 @@ El ejecutable no contiene claves, tokens ni credenciales de ningún servicio. **
 
 - Sin actualizaciones automáticas: las correcciones de seguridad de Chromium llegan al publicar una versión nueva de ICARUS con un Electron más reciente.
 - Sin Navegación segura (Safe Browsing) ni comprobación de reputación de descargas.
-- Sin autenticación HTTP básica o NTLM (el diálogo de inicio de sesión no está implementado; esas páginas fallan).
 - Sin Widevine: los servicios con DRM (Netflix, Disney+…) no reproducen vídeo.
 - Algunos proveedores (p. ej. el inicio de sesión de Google) pueden rechazar navegadores integrados que no reconocen.
