@@ -1,5 +1,6 @@
 package io.github.saaqes.icarusbrowser
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.util.Base64
 import android.util.Log
@@ -164,6 +165,21 @@ class BrowserSmokeTest {
             waitFor(scenario, "página en Panorama") { it.currentTab?.title == "Prueba ICARUS" && it.currentTab?.loading == false }
             screenshot("panorama-pagina")
         }
+    }
+
+    /** Las pantallas secundarias abren sin errores (se capturan para revisarlas). */
+    @Test
+    fun pantallasSecundarias() {
+        setLook(ThemeId.ICARUS, ColorMode.LIGHT)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val settings = { section: String? ->
+            Intent(context, SettingsActivity::class.java).apply { if (section != null) putExtra(SettingsActivity.EXTRA_SECTION, section) }
+        }
+        ActivityScenario.launch<SettingsActivity>(settings(null)).use { screenshot("configuracion") }
+        ActivityScenario.launch<SettingsActivity>(settings("shield")).use { screenshot("configuracion-shield") }
+        ActivityScenario.launch<SettingsActivity>(settings("aliases")).use { screenshot("cambiar-nombre-url") }
+        ActivityScenario.launch(HistoryActivity::class.java).use { screenshot("historial") }
+        ActivityScenario.launch(DownloadsActivity::class.java).use { screenshot("descargas") }
     }
 
     companion object {

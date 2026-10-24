@@ -83,6 +83,8 @@ jobs:
           shot esencial-pagina -icarus.theme google-inspired -icarus.mode light -icarus.open https://example.com/
           shot panorama-nueva-pestana -icarus.theme edge-inspired -icarus.mode light
           shot certificado-no-valido -icarus.theme icarus -icarus.mode dark -icarus.open https://self-signed.badssl.com/
+          shot configuracion -icarus.theme icarus -icarus.mode light -icarus.open icarus://configuracion
+          shot historial -icarus.theme icarus -icarus.mode light -icarus.open icarus://historial
       - name: Compilar para iPhone (sin firmar)
         working-directory: mobile/ios/App
         run: |

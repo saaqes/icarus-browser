@@ -80,17 +80,17 @@ struct BrowserScreen: View {
         }
         .overlay(alignment: .bottom) { noticeView }
         .sheet(item: $sheet) { sheetView($0) }
-        .onChange(of: browser.internalSheet) { page in
-            guard let page else { return }
-            sheet = page == .history ? .history : page == .downloads ? .downloads : .settings
-            browser.internalSheet = nil
-        }
+        .onChange(of: browser.internalSheet) { _ in presentInternalPage() }
         .onChange(of: addressFocused) { focused in
             addressText = focused ? (tab.showingNewTab ? "" : (tab.error?.url ?? tab.url)) : displayText
         }
         .onChange(of: tab.url) { _ in if !addressFocused { addressText = displayText } }
         .onChange(of: services.revision) { _ in if !addressFocused { addressText = displayText } }
-        .onAppear { addressText = displayText }
+        .onAppear {
+            addressText = displayText
+            // Una página interna pedida al arrancar (icarus://configuracion) no dispara onChange.
+            presentInternalPage()
+        }
         .onChange(of: tab.id) { _ in addressText = displayText }
         .onChange(of: tab.request?.id) { _ in
             fieldOne = ""
@@ -102,6 +102,12 @@ struct BrowserScreen: View {
         } message: { request in
             Text(requestMessage(request))
         }
+    }
+
+    private func presentInternalPage() {
+        guard let page = browser.internalSheet else { return }
+        sheet = page == .history ? .history : page == .downloads ? .downloads : .settings
+        browser.internalSheet = nil
     }
 
     private var displayText: String {
