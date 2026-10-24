@@ -45,7 +45,10 @@ jobs:
           sudo chown root:root node_modules/electron/dist/chrome-sandbox
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - run: npm run build
-      - run: xvfb-run -a -s "-screen 0 1440x900x24" npm run test:e2e
+      - name: Pruebas E2E (incluye Wikipedia, Google y YouTube por HTTPS)
+        run: xvfb-run -a -s "-screen 0 1440x900x24" npm run test:e2e
+        env:
+          ICARUS_E2E_INTERNET: '1'
       - name: Empaquetar y probar el ejecutable de Linux
         run: |
           npx electron-builder --dir --publish never

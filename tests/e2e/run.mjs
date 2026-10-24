@@ -14,8 +14,10 @@
  * un proxy a Chromium (--proxy-server); los certificados se siguen verificando.
  */
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import http from 'node:http';
+import https from 'node:https';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -43,6 +45,11 @@ async function step(name, fn) {
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
+/** Paso que no puede ejecutarse en este entorno: se informa, no cuenta como superado. */
+function skip(name, reason) {
+  results.push({ name, ok: true, skipped: true, note: reason });
+  console.log(`  – ${name} (omitida: ${reason})`);
+}
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function eventually(fn, message, timeout = 15_000) {
   const end = Date.now() + timeout;
@@ -62,6 +69,9 @@ async function eventually(fn, message, timeout = 15_000) {
 /* ---------------------------- Servidor de pruebas --------------------------- */
 
 const hits = { a: 0 };
+const slowResponses = new Set();
+// PNG de 1×1 píxeles usado como favicon de prueba.
+const ICON_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const page = (title, body) =>
   `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${title}</title></head><body><h1>${title}</h1>${body}</body></html>`;
 const server = http.createServer((request, response) => {
@@ -88,6 +98,37 @@ const server = http.createServer((request, response) => {
       return send(200, 'text/javascript', 'window.appLoaded = true;');
     case '/ads/banner.js':
       return send(200, 'text/javascript', 'window.adLoaded = true;');
+    case '/icono.html':
+      // Chromium solo tiene en cuenta los <link rel="icon"> del <head>.
+      return send(
+        200,
+        'text/html; charset=utf-8',
+        '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Con icono</title><link rel="icon" href="/icono.png"></head><body><p>Icono propio</p></body></html>',
+      );
+    case '/icono.png':
+      return send(200, 'image/png', Buffer.from(ICON_PNG, 'base64'));
+    case '/lento.html':
+      // Envía el principio del documento y deja la respuesta abierta para que la pestaña siga cargando.
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      response.write('<!doctype html><title>Página lenta</title><p>Cargando…');
+      slowResponses.add(response);
+      response.on('close', () => slowResponses.delete(response));
+      return undefined;
+    case '/enlaces.html':
+      return send(
+        200,
+        'text/html; charset=utf-8',
+        page('Enlaces', '<a id="mail" href="mailto:prueba@example.com">Correo</a> <a id="file" href="file:///etc/hosts">Archivo local</a>'),
+      );
+    case '/ubicacion.html':
+      return send(
+        200,
+        'text/html; charset=utf-8',
+        page(
+          'Ubicación',
+          '<script>window.pedirUbicacion = () => navigator.geolocation.getCurrentPosition(() => (window.geo = "ok"), (error) => (window.geo = "error-" + error.code));</script>',
+        ),
+      );
     case '/archivo.txt':
       return send(200, 'text/plain; charset=utf-8', 'Contenido de prueba de ICARUS\n', {
         'content-disposition': 'attachment; filename="informe-icarus.txt"',
@@ -98,6 +139,34 @@ const server = http.createServer((request, response) => {
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
+// El mismo servidor con otro host: la regla de alias del paso 12 solo coincide con 127.0.0.1.
+const local = base.replace('127.0.0.1', 'localhost');
+
+/**
+ * Servidor HTTPS con un certificado autofirmado creado con openssl, para comprobar
+ * que ICARUS rechaza certificados no válidos. Devuelve null si no hay openssl.
+ */
+async function startSelfSignedServer() {
+  const dir = mkdtempSync(join(tmpdir(), 'icarus-tls-'));
+  const candidates = process.platform === 'win32' ? ['openssl', 'C:\\Program Files\\Git\\usr\\bin\\openssl.exe'] : ['openssl'];
+  const args = ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'];
+  for (const command of candidates) {
+    const result = spawnSync(command, [...args, '-keyout', join(dir, 'key.pem'), '-out', join(dir, 'cert.pem')], {
+      stdio: 'ignore',
+      // Evita que el openssl de Git para Windows convierta «/CN=…» en una ruta.
+      env: { ...process.env, MSYS2_ARG_CONV_EXCL: '*' },
+    });
+    if (result.status !== 0) continue;
+    const tls = https.createServer({ key: readFileSync(join(dir, 'key.pem')), cert: readFileSync(join(dir, 'cert.pem')) }, (_request, response) => {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      response.end('<!doctype html><title>No debería mostrarse</title>');
+    });
+    await new Promise((resolve) => tls.listen(0, '127.0.0.1', resolve));
+    return { tls, dir };
+  }
+  rmSync(dir, { recursive: true, force: true });
+  return null;
+}
 
 /* ------------------------------ Utilidades app ------------------------------ */
 
@@ -365,7 +434,121 @@ await step('15. Historial persistente', async () => {
   await eventually(async () => (await win.locator('.history-row__title', { hasText: 'Página A' }).count()) > 0, 'El historial no lista Página A');
 });
 
-await step('16. Cerrar y volver a abrir conserva los datos', async () => {
+await step('16. Icono real del sitio y detener la carga', async () => {
+  await go(`${local}/icono.html`);
+  await waitForActiveTab('Con icono');
+  const icon = await eventually(
+    () => win.evaluate(() => document.querySelector('[role="tab"][aria-selected="true"] img.favicon')?.getAttribute('src') ?? null),
+    'La pestaña no muestra el icono real del sitio',
+  );
+  assert(icon.startsWith('data:image/png;base64,'), `El icono no procede del sitio (${icon.slice(0, 30)})`);
+
+  await go(`${local}/lento.html`);
+  const controls = win.locator('.nav-controls');
+  await controls.getByRole('button', { name: 'Detener' }).click({ timeout: 10_000 });
+  await controls.getByRole('button', { name: 'Recargar' }).waitFor({ timeout: 10_000 });
+  const loading = await app.evaluate(({ webContents }) =>
+    webContents.getAllWebContents().some((wc) => !wc.isDestroyed() && wc.getURL().includes('/lento.html') && wc.isLoading()),
+  );
+  assert(!loading, 'Chromium sigue cargando la página después de detenerla');
+  return 'icono data:image/png · carga detenida';
+});
+
+await step('17. Atajos: Ctrl+L desde la página, Ctrl+W, Ctrl+Mayús+T y Ctrl+Tab', async () => {
+  await go(`${local}/b.html`);
+  await waitForActiveTab('Página B');
+  // Ctrl+L con el foco dentro de la página web: lo intercepta el proceso principal.
+  await app.evaluate(({ webContents }, url) => {
+    const contents = webContents.getAllWebContents().find((wc) => !wc.isDestroyed() && wc.getURL() === url);
+    contents.focus();
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'L', modifiers: ['control'] });
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'L', modifiers: ['control'] });
+  }, `${local}/b.html`);
+  await eventually(
+    () =>
+      win.evaluate(() => {
+        const bar = document.querySelector('.toolbar input[role="combobox"]');
+        return document.activeElement === bar && bar.value.length > 0 && bar.selectionStart === 0 && bar.selectionEnd === bar.value.length;
+      }),
+    'Ctrl+L no seleccionó toda la dirección',
+  );
+
+  const tabs = win.locator('[role="tab"]');
+  const before = await tabs.count();
+  await win.keyboard.press('Escape');
+  await win.keyboard.press('Control+W');
+  await eventually(async () => (await tabs.count()) === before - 1, 'Ctrl+W no cerró la pestaña');
+  await win.keyboard.press('Control+Shift+T');
+  await eventually(async () => (await tabs.count()) === before, 'Ctrl+Mayús+T no reabrió la pestaña');
+  await waitForActiveTab('Página B');
+  await eventually(async () => (await addressBar().inputValue()) === `${local}/b.html`, 'La pestaña reabierta no conserva su URL');
+  const active = await activeTabText();
+  await win.keyboard.press('Control+Tab');
+  await eventually(async () => (await activeTabText()) !== active, 'Ctrl+Tab no cambió de pestaña');
+  return `${before} pestañas`;
+});
+
+await step('18. El alias se retira cuando la regla deja de coincidir', async () => {
+  const display = () => win.evaluate(() => document.querySelector('.omnibox__display')?.textContent ?? '');
+  await go(`${base}/b.html`);
+  await waitForActiveTab('Servidor local');
+  await eventually(async () => (await display()).includes('local.icarus'), 'No se aplicó el alias');
+  await go(`${local}/b.html`);
+  await waitForActiveTab('Página B');
+  await eventually(async () => !(await display()).includes('local.icarus'), 'El alias sigue visible en una dirección que no coincide');
+  assert((await addressBar().inputValue()) === `${local}/b.html`, 'La barra no muestra la URL real nueva');
+  return '127.0.0.1 → alias · localhost → sin alias';
+});
+
+await step('19. Protocolos peligrosos bloqueados (barra y enlaces)', async () => {
+  await go(`${local}/enlaces.html`);
+  await waitForActiveTab('Enlaces');
+  await go('javascript:alert(1)');
+  await win.getByText(/no abre direcciones «javascript:?»/).first().waitFor({ timeout: 10_000 });
+  for (const id of ['mail', 'file']) await pageEval('/enlaces.html', `document.getElementById('${id}').click(); true`);
+  await win.getByText(/El protocolo «mailto:?» no es compatible/).first().waitFor({ timeout: 10_000 });
+  await sleep(1000);
+  const urls = (await views()).map((view) => view.url ?? '');
+  assert(urls.includes(`${local}/enlaces.html`), 'La pestaña salió de la página de enlaces');
+  assert(!urls.some((url) => /^(mailto|file|javascript):/i.test(url)), `Una vista cargó un protocolo bloqueado (${urls.join(', ')})`);
+  return 'javascript:, mailto: y file: no se abren';
+});
+
+const tlsServer = await startSelfSignedServer();
+if (!tlsServer) {
+  skip('20. Certificado no válido: error sin opción de omitirlo', 'no hay openssl para crear el certificado de prueba');
+} else {
+  await step('20. Certificado no válido: error sin opción de omitirlo', async () => {
+    const url = `https://127.0.0.1:${tlsServer.tls.address().port}/`;
+    await go(url);
+    await win.getByRole('heading', { name: 'La conexión no es segura' }).waitFor({ timeout: 15_000 });
+    const details = await win.locator('.error-card__details').innerText();
+    assert(/ERR_CERT_/.test(details), `El error no es de certificado (${details})`);
+    const buttons = await win.locator('.error-card__actions button').allInnerTexts();
+    assert(!buttons.some((text) => /omitir|continuar|de todos modos|acceder/i.test(text)), `Hay un botón para omitir el error: ${buttons.join(', ')}`);
+    assert(!(await views()).some((view) => view.visible && view.url?.startsWith(url)), 'Se muestra la página con el certificado no válido');
+    return details.match(/ERR_CERT_\w+/)?.[0];
+  });
+}
+
+await step('21. Permiso de ubicación: se pregunta con el origen real y se deniega', async () => {
+  await go(`${local}/ubicacion.html`);
+  await waitForActiveTab('Ubicación');
+  await pageEval('/ubicacion.html', 'window.pedirUbicacion(); true');
+  const request = win.getByRole('alertdialog');
+  await request.waitFor({ timeout: 10_000 });
+  const text = (await request.innerText()).replace(/\s+/g, ' ').trim();
+  assert(text.includes(local) && text.includes('ubicación'), `La solicitud no muestra el origen real (${text})`);
+  await request.getByRole('button', { name: 'Bloquear' }).click();
+  await eventually(async () => (await pageEval('/ubicacion.html', 'window.geo')) === 'error-1', 'La página no recibió la denegación');
+  // La decisión se recuerda durante la sesión: no se vuelve a preguntar.
+  await pageEval('/ubicacion.html', 'window.geo = undefined; window.pedirUbicacion(); true');
+  await eventually(async () => (await pageEval('/ubicacion.html', 'window.geo')) === 'error-1', 'La segunda solicitud no se denegó');
+  assert(!(await request.isVisible()), 'Se volvió a preguntar por el mismo permiso');
+  return text;
+});
+
+await step('22. Cerrar y volver a abrir conserva los datos', async () => {
   const customize = win.getByRole('button', { name: 'Personalizar', exact: true }).first();
   if (!(await customize.isVisible())) await win.keyboard.press('Control+T');
   await customize.click();
@@ -383,6 +566,16 @@ await step('16. Cerrar y volver a abrir conserva los datos', async () => {
   return `datos en ${dataDir}`;
 });
 
+await step('23. Borrar el historial', async () => {
+  await win.keyboard.press('Control+H');
+  await win.getByRole('heading', { name: 'Historial' }).waitFor();
+  await win.getByLabel('Borrar historial…').selectOption('all');
+  await win.getByRole('button', { name: 'Borrar', exact: true }).click();
+  await win.getByText('Todavía no hay páginas en el historial.').waitFor({ timeout: 10_000 });
+  const items = await win.evaluate(() => window.icarusNative.history.list());
+  assert(items.length === 0, `Quedan ${items.length} entradas en el historial`);
+});
+
 if (process.env.ICARUS_E2E_INTERNET === '1') {
   const sites = process.env.ICARUS_E2E_SITES?.split(',').filter(Boolean) ?? ['https://www.wikipedia.org/', 'https://www.google.com/', 'https://www.youtube.com/'];
   for (const url of sites) {
@@ -397,13 +590,20 @@ if (process.env.ICARUS_E2E_INTERNET === '1') {
         return title && title !== '__sin_pagina__' ? { title } : null;
       }, `No se cargó ${url}`, 45_000);
       assert(!outcome.error, outcome.error?.replace(/\s+/g, ' '));
-      return `«${outcome.title}»`;
+      const finalUrl = (await views()).find((view) => view.visible)?.url ?? '';
+      assert(finalUrl.startsWith('https://'), `La página no se cargó por HTTPS (${finalUrl})`);
+      return `«${outcome.title}» · ${new URL(finalUrl).host}`;
     });
   }
 }
 
 await app?.close().catch(() => {});
+for (const response of slowResponses) response.destroy();
 server.close();
+if (tlsServer) {
+  tlsServer.tls.close();
+  rmSync(tlsServer.dir, { recursive: true, force: true });
+}
 for (const dir of [dataDir, downloadDir]) {
   try {
     rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
@@ -413,5 +613,7 @@ for (const dir of [dataDir, downloadDir]) {
 }
 
 const failed = results.filter((result) => !result.ok);
-console.log(`\n${results.length - failed.length}/${results.length} pruebas superadas.`);
+const skipped = results.filter((result) => result.skipped);
+const run = results.length - skipped.length;
+console.log(`\n${run - failed.length}/${run} pruebas superadas${skipped.length ? ` · ${skipped.length} omitida(s)` : ''}.`);
 process.exit(failed.length ? 1 : 0);

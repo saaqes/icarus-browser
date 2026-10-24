@@ -114,7 +114,10 @@ jobs:
       - run: npm run build
       - name: Arrancar ICARUS sin Playwright (diagnóstico)
         run: node tests/e2e/smoke-packaged.mjs node_modules/electron/dist/electron.exe .
-      - run: npm run test:e2e
+      - name: Pruebas E2E (incluye Wikipedia, Google y YouTube por HTTPS)
+        run: npm run test:e2e
+        env:
+          ICARUS_E2E_INTERNET: '1'
 
   draft-release:
     name: Borrador de versión (sin publicar)
