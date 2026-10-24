@@ -106,7 +106,14 @@ const downloadDir = mkdtempSync(join(tmpdir(), 'icarus-descargas-'));
 
 async function launch() {
   // ELECTRON_ENABLE_LOGGING añade los mensajes de Chromium al registro si el arranque falla.
-  const env = { ...process.env, ICARUS_USER_DATA_DIR: dataDir, ICARUS_SHIELD_AUTO_UPDATE: '0', ELECTRON_ENABLE_LOGGING: '1' };
+  // ICARUS_STARTUP_DELAY_MS deja que Playwright termine de conectarse antes de que se cree la ventana.
+  const env = {
+    ...process.env,
+    ICARUS_USER_DATA_DIR: dataDir,
+    ICARUS_SHIELD_AUTO_UPDATE: '0',
+    ICARUS_STARTUP_DELAY_MS: '2000',
+    ELECTRON_ENABLE_LOGGING: '1',
+  };
   delete env.NODE_OPTIONS;
   delete env.ELECTRON_RUN_AS_NODE;
   const extraArgs = process.env.ICARUS_E2E_PROXY ? [`--proxy-server=${process.env.ICARUS_E2E_PROXY}`] : [];

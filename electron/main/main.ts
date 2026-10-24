@@ -49,10 +49,18 @@ if (!app.requestSingleInstanceLock()) {
       callback('');
     });
   });
-  app.whenReady().then(start).catch((error) => {
-    console.error('No se pudo iniciar ICARUS:', error);
-    app.exit(1);
-  });
+  // Solo sin empaquetar: retrasa la creación de la ventana para que Playwright termine de
+  // conectarse al protocolo DevTools antes de que exista ninguna vista (pruebas E2E en
+  // Windows, donde conectarse mientras se crea la ventana puede quedarse esperando).
+  const startupDelay = app.isPackaged ? 0 : Math.min(Number(process.env.ICARUS_STARTUP_DELAY_MS) || 0, 10_000);
+  app
+    .whenReady()
+    .then(() => new Promise((done) => setTimeout(done, startupDelay)))
+    .then(start)
+    .catch((error) => {
+      console.error('No se pudo iniciar ICARUS:', error);
+      app.exit(1);
+    });
 }
 
 function isUiUrl(url: string): boolean {
