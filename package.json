@@ -26,7 +26,8 @@
     "test:smoke": "node tests/e2e/smoke-packaged.mjs",
     "typecheck": "tsc -b",
     "dist:win": "npm run build && electron-builder --win --x64 --publish never",
-    "dist:dir": "npm run build && electron-builder --dir --publish never"
+    "dist:dir": "npm run build && electron-builder --dir --publish never",
+    "update:psl": "node scripts/update-public-suffix-list.mjs"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.2",

@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_LIST_TEXT } from './builtinList';
-import { getRegistrableDomain, isThirdParty } from './domains';
+import { getPublicSuffix, getRegistrableDomain, isThirdParty } from './domains';
+import { PUBLIC_SUFFIX_RULE_COUNT } from './publicSuffixList';
 import { FilterEngine } from './engine';
 import { looksLikeHtml, parseFilter, parseFilterList, type NetworkFilter } from './filters';
 
@@ -125,12 +126,44 @@ describe('listas', () => {
   });
 });
 
-describe('dominios', () => {
-  it('calcula el dominio registrable aproximado', () => {
+describe('dominios (Public Suffix List)', () => {
+  it('calcula el dominio registrable con sufijos de varios niveles', () => {
     expect(getRegistrableDomain('a.b.example.com')).toBe('example.com');
     expect(getRegistrableDomain('www.bbc.co.uk')).toBe('bbc.co.uk');
-    expect(getRegistrableDomain('192.168.1.1')).toBe('192.168.1.1');
+    expect(getRegistrableDomain('tienda.ejemplo.com.mx')).toBe('ejemplo.com.mx');
+    expect(getRegistrableDomain('www.example.com.')).toBe('example.com');
     expect(isThirdParty('cdn.example.com', 'www.example.com')).toBe(false);
     expect(isThirdParty('tracker.net', 'www.example.com')).toBe(true);
+  });
+
+  it('trata los dominios privados de la lista como sitios distintos', () => {
+    expect(getRegistrableDomain('usuario.github.io')).toBe('usuario.github.io');
+    expect(getRegistrableDomain('github.io')).toBe('github.io');
+    expect(isThirdParty('otro.github.io', 'usuario.github.io')).toBe(true);
+    expect(isThirdParty('assets.usuario.github.io', 'usuario.github.io')).toBe(false);
+  });
+
+  it('aplica reglas comodín y de excepción', () => {
+    // *.ck y !www.ck
+    expect(getPublicSuffix('a.b.ck')).toBe('b.ck');
+    expect(getRegistrableDomain('a.b.ck')).toBe('a.b.ck');
+    expect(getRegistrableDomain('www.ck')).toBe('www.ck');
+    expect(getRegistrableDomain('x.www.ck')).toBe('www.ck');
+    // *.kawasaki.jp y !city.kawasaki.jp
+    expect(getRegistrableDomain('foo.bar.kawasaki.jp')).toBe('foo.bar.kawasaki.jp');
+    expect(getRegistrableDomain('a.city.kawasaki.jp')).toBe('city.kawasaki.jp');
+  });
+
+  it('usa la regla implícita «*» para sufijos desconocidos y respeta IP y punycode', () => {
+    expect(getRegistrableDomain('a.b.ejemplo.icarusprueba')).toBe('ejemplo.icarusprueba');
+    expect(getRegistrableDomain('localhost')).toBe('localhost');
+    expect(getRegistrableDomain('192.168.1.1')).toBe('192.168.1.1');
+    expect(getRegistrableDomain('[::1]')).toBe('[::1]');
+    // 公司.cn llega como xn--55qx5d.cn en las URL.
+    expect(getRegistrableDomain('www.ejemplo.xn--55qx5d.cn')).toBe('ejemplo.xn--55qx5d.cn');
+  });
+
+  it('incluye la lista completa', () => {
+    expect(PUBLIC_SUFFIX_RULE_COUNT).toBeGreaterThan(5000);
   });
 });
