@@ -265,15 +265,18 @@ Resumen (completo en [docs/SECURITY.md](docs/SECURITY.md)):
 
 ## Pruebas
 
-| Conjunto | Qué comprueba | Resultado en el entorno de desarrollo |
-| --- | --- | --- |
-| `npm run test` (109 pruebas, 13 archivos) | Servicios, componentes, filtros de Shield, dominios, rutas seguras, archivos JSON | 109/109 |
-| `npm run test:e2e` (16 pasos) | Ver abajo | 16/16 en Linux con Xvfb |
-| `npm run test:smoke` | Ejecutable empaquetado: arranque, página dentro de la pestaña, sin puente nativo en la web, datos en disco | Superada en Linux |
+| Conjunto | Qué comprueba | Linux (local y CI) | Windows (GitHub Actions, `windows-latest`) |
+| --- | --- | --- | --- |
+| `npm run test` (109 pruebas, 13 archivos) | Servicios, componentes, filtros de Shield, dominios, rutas seguras, archivos JSON | 109/109 | 109/109 |
+| `npm run test:e2e` (16 pasos) | Ver abajo | 16/16 (Xvfb) | 16/16 |
+| `npm run test:smoke` | Ejecutable empaquetado: arranque, página dentro de la pestaña, sin puente nativo en la web, datos en disco | Superada | Superada (sin instalar y ya instalado) |
+| Instalación silenciosa | `Setup.exe /S`, prueba de humo del navegador instalado y desinstalación silenciosa | — | Superada |
 
 Pasos E2E con Electron real y un servidor HTTP local: 1 iniciar · 2 abrir una página dentro de la pestaña · 3 buscar desde la barra · 4 volver atrás · 5 dos pestañas y cambiar · 6 atrás y adelante · 7 recargar · 8 `target=_blank` como pestaña · 9 cerrar y crear pestañas libera vistas · 10 los tres estilos · 11 menús sobre la página · 12 alias con navegación real · 13 Shield bloquea una solicitud real y el contador lo refleja · 14 descarga real a disco · 15 historial · 16 cerrar, reabrir y conservar datos.
 
-`ICARUS_E2E_INTERNET=1` añade sitios reales (Wikipedia, Google y YouTube por defecto, o `ICARUS_E2E_SITES`). En el entorno donde se desarrolló esta versión, la red solo permitía algunos dominios: **github.com cargó dentro de ICARUS con TLS verificado**, mientras que Wikipedia, Google, YouTube y easylist.to estaban bloqueados por el proxy del entorno (`CONNECT 403`), así que esas páginas y la descarga de EasyList no pudieron probarse allí. Tampoco había una máquina Windows: las pruebas en Windows se ejecutan en GitHub Actions.
+`ICARUS_E2E_INTERNET=1` añade sitios reales (Wikipedia, Google y YouTube por defecto, o `ICARUS_E2E_SITES`). En el entorno donde se desarrolló esta versión, la red solo permitía algunos dominios: **github.com cargó dentro de ICARUS con TLS verificado**, mientras que Wikipedia, Google, YouTube y easylist.to estaban bloqueados por el proxy del entorno (`CONNECT 403`), así que esas páginas y la descarga de EasyList no pudieron probarse allí. En GitHub Actions, sin esas restricciones, el paso 3 sí cargó la búsqueda real de Google. No hubo una máquina Windows física: las pruebas de Windows son las de los ejecutores de GitHub Actions.
+
+La prueba de humo habla directamente el protocolo DevTools, porque el ejecutable empaquetado tiene desactivado `--inspect`. En Windows, Playwright se quedaba esperando a veces si se conectaba mientras Electron creaba la ventana; por eso las pruebas E2E usan `ICARUS_STARTUP_DELAY_MS=2000`, que retrasa la ventana dos segundos solo en la versión sin empaquetar.
 
 ## Integración continua y publicación
 
