@@ -1,82 +1,110 @@
-# Integración de un motor de navegación real
+# Motor de navegación
 
-Hoy ICARUS usa `ExternalBrowserEngine`, que entrega cada URL al navegador del sistema. Este documento describe cómo sustituirlo por un motor integrado en cada plataforma sin rehacer la interfaz.
+ICARUS tiene dos modos con la **misma interfaz** (`src/`):
 
-## Contrato existente
+| Modo | Motor | Cómo se elige |
+| --- | --- | --- |
+| Escritorio (Electron) | `createNativeEngine()` → Chromium, una `WebContentsView` por pestaña | Existe `window.icarusNative` con `apiVersion` 1 (lo expone el preload) |
+| Web (prototipo, HTML autocontenido) | `ExternalBrowserEngine` → `window.open` en el navegador del sistema | No hay puente nativo |
 
-`src/services/navigation/engine.ts` define `BrowserEngine`:
+`src/app/services.ts` (`getNativeApi()`) decide el modo al arrancar. No hay detección por agente de usuario ni por plataforma.
 
-```ts
-interface BrowserEngine {
-  readonly info: EngineInfo;               // id, nombre, tipo y capacidades
-  navigate(request): Promise<NavigationOutcome>;
-  attachTab?(tabId): void;                 // crear la vista web de una pestaña
-  detachTab?(tabId): void;                 // destruirla al cerrar la pestaña
-  goBack?(tabId): void;
-  goForward?(tabId): void;
-  reload?(tabId): void;
-  stop?(tabId): void;
-  subscribe?(listener: (event: EngineEvent) => void): () => void;
-}
+## Por qué Electron y no CEF o WebView2
+
+- **Electron** incluye Chromium y Node en el proceso principal, `WebContentsView` (varias vistas en una ventana), sesiones y perfiles, `webRequest` para Shield, descargas, permisos y un empaquetador maduro (electron-builder) con instalador NSIS. Todo el código es TypeScript, igual que la interfaz.
+- **CEF** exigía un host en C++ o .NET y reimplementar empaquetado, descargas y permisos.
+- **WebView2** depende del runtime de Edge instalado y no permite controlar la versión de Chromium que se distribuye.
+
+Versión actual: Electron 44.9.3 con Chromium 152.0.7977.167.
+
+## Procesos
+
+```
+┌──────────────────────────────── BrowserWindow (proceso principal) ─────────────────────────────┐
+│  Interfaz de ICARUS  ·  icarus-app://ui/index.html  ·  sesión «icarus-ui» (en memoria)        │
+│  preload mínimo → window.icarusNative                                                            │
+│  ┌─────────────────────────── #icarus-viewport ───────────────────────────┐                     │
+│  │  WebContentsView de la pestaña activa (sesión «persist:icarus-web»)    │  una por pestaña   │
+│  │  sandbox · contextIsolation · sin preload · sin Node                   │  web abierta       │
+│  └────────────────────────────────────────────────────────────────────────┘                     │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Capacidades (`EngineCapabilities`) que un motor integrado debe declarar:
+- La interfaz informa del rectángulo de `#icarus-viewport` (`tabs.setBounds`) con un `ResizeObserver`; el proceso principal coloca ahí la vista activa.
+- Cuando se abre un menú, el panel «Personalizar» o un diálogo, la interfaz pide una captura de la página (`tabs.snapshot`), la muestra como imagen y oculta la vista nativa, porque una vista nativa siempre se dibuja por encima del HTML. Al cerrarse, vuelve la vista real.
+- La interfaz nunca recibe contenido de las páginas, y las páginas nunca reciben `window.icarusNative`.
 
-| Capacidad | Significado | Efecto en la interfaz |
+## Contrato IPC
+
+Los tipos están en `src/types/native.ts` y los compilan tanto Vite como `tsc`. Resumen:
+
+| Grupo | Métodos | Canal |
 | --- | --- | --- |
-| `embeddedRendering` | Las páginas se dibujan dentro de ICARUS. | La pestaña deja de mostrar `ExternalPage` y reserva el área para la vista nativa. |
-| `isolatedTabSessions` | Cookies y almacenamiento propios por pestaña (o perfil). | Se puede anunciar en la interfaz. |
-| `nativeHistory` | El motor gestiona atrás/adelante/recargar. | Los botones llaman a `engine.goBack()` etc. en lugar del reducer. |
-| `pageEvents` | El motor informa de URL, título, icono y carga. | El reducer se actualiza desde `subscribe()`. |
+| `storage` | `snapshot`, `setItem`, `removeItem` | `icarus:bootstrap` (síncrono, al arrancar), `icarus:storage:*` |
+| `tabs` | `navigate`, `goBack`, `goForward`, `reload`, `stop`, `close`, `show`, `setBounds`, `snapshot` | `icarus:tabs:*` |
+| `history` | `list`, `remove` | `icarus:history:*` |
+| `downloads` | `list`, `cancel`, `open`, `showInFolder`, `clear`, `chooseDirectory` | `icarus:downloads:*` |
+| `shield` | `getState`, `setEnabled`, `setListEnabled`, `addList`, `removeList`, `updateLists`, `setCustomRules`, `setSiteAllowed` | `icarus:shield:*` |
+| `privacy`, `permissions`, `preferences`, `favicons`, `window` | borrar datos, responder permisos, preferencias de escritorio, iconos, colores de la barra de título | `icarus:*` |
+| `onEvent` | `tab-state`, `open-in-new-tab`, `shortcut`, `permission-request`, `downloads`, `history-changed`, `shield`… | `icarus:event` |
 
-Eventos (`EngineEvent`): `url-changed`, `title-changed`, `favicon-changed`, `loading-changed`.
+`electron/main/ipc.ts` comprueba en cada mensaje que el remitente es la `webContents` de la interfaz y que la URL del marco es `icarus-app://ui/`, y valida cada argumento (`electron/main/validate.ts`); un argumento inválido rechaza la llamada.
 
-## Pasos comunes a todas las plataformas
+## Pestañas e historial
 
-1. **Puente de mensajes.** El host nativo expone un objeto (por ejemplo `window.icarusNative`) con `postMessage` y un canal de eventos. Un `NativeBridgeEngine` implementa `BrowserEngine` sobre ese puente; `createAppServices({ engine })` lo recibe si el puente existe y, si no, sigue usando el motor externo.
-2. **Pestañas.** `BrowserContext` llamará a `attachTab` al crear una pestaña y a `detachTab` al cerrarla. Cada `Tab.id` se asocia a una instancia de navegación del motor.
-3. **Eventos → estado.** Nuevas acciones del reducer (`tab/engine-url`, `tab/engine-title`, `tab/engine-favicon`) actualizan la entrada actual. `describePage()` ya admite títulos derivados; habrá que añadir campos opcionales `title` y `faviconUrl` a la entrada externa.
-4. **Alias.** Las reglas se aplican igual que hoy, pero sobre la URL que informa el motor en `url-changed`. Nunca se reescribe la URL que carga el motor ni se intercepta la resolución DNS; el alias sigue siendo solo presentación en la barra nativa o web.
-5. **Seguridad real.** Con un motor integrado sí podrá mostrarse el estado del certificado, pero solo a partir de la información del motor (nunca simulada). Los avisos de seguridad del motor deben tener prioridad sobre cualquier alias.
-6. **Persistencia.** Implementar `KeyValueStorage` sobre el almacenamiento nativo (ver abajo) y migrar una vez los datos de LocalStorage leyendo las mismas claves `icarus.*`. Los esquemas y migraciones actuales se reutilizan sin cambios.
+El estado de pestañas sigue en el reducer de la interfaz (`src/services/tabs/tabs.ts`), que guarda una lista de entradas por pestaña: páginas internas (`newtab`, `settings`, `history`, `downloads`…) y entradas `web`. Cada entrada `web` es un **tramo** de navegación dentro de Chromium:
 
-## Windows: CEF / Chromium
+1. Al abrir una URL desde la barra se crea una entrada `web` y se llama a `tabs.navigate(tabId, url, { newSegment: true })`. El proceso principal crea la vista si no existe y, al confirmarse la primera navegación del tramo, borra el historial anterior de Chromium.
+2. Los clics en enlaces, redirecciones y navegaciones de la propia página quedan en el historial de Chromium y llegan como eventos `tab-state` (URL, título, carga, `canGoBack`, `canGoForward`, icono, error y contador de Shield). La acción `tab/update-web` actualiza la URL y el título de la entrada actual.
+3. Atrás y Adelante usan primero el historial de Chromium; cuando se acaba, pasan a la entrada anterior o siguiente de ICARUS (por ejemplo, de vuelta a la página de nueva pestaña).
+4. Al cerrar una pestaña se destruye su vista (`tabs.close`) y Chromium libera el proceso del renderizador. Ctrl+Mayús+T reabre las pestañas cerradas recientemente en la última página que mostraban (sin su historial de atrás y adelante).
+5. Con «Restaurar las pestañas», las entradas `web` restauradas se cargan cuando se activa su pestaña, no todas al arrancar.
 
-Opciones evaluadas:
+Errores de navegación: `did-fail-load` se clasifica en `network`, `certificate` (códigos −200 a −299), `blocked` o `crashed` y se muestra una página de error de ICARUS con el código real de Chromium. No hay botón para omitir errores de certificado.
 
-- **CEF (Chromium Embedded Framework)** con C++ o mediante CefSharp (.NET). Permite una vista por pestaña, perfiles (`CefRequestContext`) para aislar sesiones y eventos de carga, título, icono y URL.
-- **WebView2** (Edge/Chromium del sistema) es más sencillo de distribuir; también encaja en el contrato, aunque ata la aplicación al runtime de Microsoft.
+### Perfiles y sesiones
 
-Propuesta: una ventana nativa con dos capas: la interfaz de ICARUS (esta aplicación compilada en `dist/`, servida desde un esquema local como `icarus-app://`) para pestañas, barra y páginas internas, y una vista CEF por pestaña situada en el área `#icarus-viewport`. El host informa del rectángulo del área cada vez que cambia el tamaño.
+**Todas las pestañas comparten un único perfil** (`persist:icarus-web`): las mismas cookies, `localStorage`, IndexedDB y caché. Iniciar sesión en un sitio en una pestaña te deja con la sesión iniciada en las demás, como en una ventana normal de Chrome. Cada pestaña sí tiene su propio proceso de renderizador con sandbox (aislamiento de procesos de Chromium), pero eso no aísla los datos. Por eso `isolatedTabSessions` es `false` y la interfaz no anuncia sesiones independientes.
 
-Persistencia: archivo JSON o SQLite en `%APPDATA%\ICARUS\`.
+La interfaz usa otra sesión (`icarus-ui`, en memoria) que no comparte nada con las páginas.
 
-## Android: Kotlin
+## Alias de URL
 
-- Vista nativa con `WebView` (o GeckoView si se quiere independencia del motor del sistema).
-- La interfaz puede ser nativa (Jetpack Compose) reutilizando los mismos esquemas (exportados como JSON) y reglas, o una vista web con esta interfaz adaptada a móvil.
-- Persistencia: Jetpack DataStore. Las reglas de alias y la validación pueden portarse a Kotlin a partir de las pruebas existentes, que sirven como especificación.
+Los alias se aplican en la interfaz sobre la URL que informa Chromium en cada evento `tab-state`:
 
-## iPhone: Swift + WKWebView
+- La vista carga siempre la URL real; Chromium valida su certificado como en cualquier otra página.
+- Escribir `buscar.icarus` solo navega a la URL de destino de una regla activa; nunca se crea un dominio, un registro DNS ni un certificado falso.
+- Cuando la URL real deja de coincidir con la regla (la página redirige o el usuario sigue un enlace), la barra muestra la URL real nueva sin alias.
+- El panel de información de la página muestra la URL real, el alias y la regla por separado.
 
-- En iOS los navegadores deben usar WebKit (`WKWebView`) salvo en las regiones donde Apple permite motores alternativos con autorización específica; hay que revisar las condiciones vigentes de la App Store antes de distribuir.
-- Una `WKWebView` por pestaña; `WKWebsiteDataStore` no persistente o separado para sesiones aisladas.
-- Persistencia: archivos en el contenedor de la aplicación o `UserDefaults` para preferencias pequeñas. Nunca guardar secretos fuera del Llavero (Keychain).
+## Persistencia en escritorio
 
-## Servicios: FastAPI + PostgreSQL (futuro)
+Todo se guarda en la carpeta de datos de usuario de Electron (`%APPDATA%\ICARUS Browser` en Windows; `ICARUS_USER_DATA_DIR` la cambia, lo usan las pruebas):
 
-Solo cuando existan cuentas o sincronización:
+| Archivo | Contenido |
+| --- | --- |
+| `ui-storage.json` | Las claves `icarus.*` de la interfaz (preferencias, accesos directos, alias, widgets, fondo, sesión) |
+| `preferences.json` | Descargas (preguntar dónde guardar, carpeta) y privacidad (borrar al salir) |
+| `history.json` | Historial (máximo 10 000 visitas) |
+| `downloads.json` | Lista de descargas |
+| `shield/` | Configuración y listas de ICARUS Shield ([SHIELD.md](SHIELD.md)) |
+| `window-state.json` | Tamaño, posición y estado maximizado de la ventana |
+| `Partitions/icarus-web/` | Cookies, caché y almacenamiento de los sitios (gestionado por Chromium) |
 
-- API FastAPI con autenticación (OAuth 2.1 / OIDC), endpoints para preferencias, accesos directos y reglas de alias usando los mismos esquemas versionados (`version` + `data`).
-- PostgreSQL con columnas JSONB por documento y control de versiones para resolver conflictos de sincronización.
-- Las funciones de IA, si se añaden, deben anunciarse solo cuando estén implementadas y detallar qué datos salen del dispositivo.
+- Cada archivo tiene el sobre `{ version, savedAt, data }`, se escribe en un archivo temporal y se renombra (no queda a medias si se corta la luz), y se sanea al leerlo. Un archivo dañado se conserva como `<archivo>.corrupt-<fecha>` y se usan los valores predeterminados.
+- **Migración desde LocalStorage**: al primer arranque, si `ui-storage.json` está vacío, la interfaz copia las claves `icarus.*` que hubiera en el LocalStorage de su origen (versión preliminar anterior) y a partir de ahí solo usa el archivo. Los esquemas y migraciones de versión de cada documento son los mismos que en la versión web.
+- Al actualizar ICARUS con un instalador nuevo, la carpeta de datos no se toca. El desinstalador tampoco la borra (`deleteAppDataOnUninstall: false`).
 
-## Lista de comprobación para el primer motor integrado
+## Preparado, pero no implementado
 
-- [ ] `NativeBridgeEngine` implementa `BrowserEngine` con todas las capacidades a `true` que realmente soporte.
-- [ ] `ExternalPage` solo se muestra cuando `embeddedRendering` es `false`.
-- [ ] Atrás/adelante/recargar delegan en el motor si `nativeHistory` es `true`.
-- [ ] Los eventos del motor actualizan título, icono, URL y carga de la pestaña.
-- [ ] Las reglas de alias se aplican a `url-changed` sin alterar la URL cargada.
-- [ ] `KeyValueStorage` nativo con migración desde LocalStorage.
-- [ ] Pruebas del puente con un motor simulado, igual que hoy se simula `window.open`.
+Estas piezas **no existen** en esta versión y la interfaz no las muestra como disponibles:
+
+| Función | Qué hay preparado | Qué falta |
+| --- | --- | --- |
+| Perfiles aislados | Las vistas reciben la sesión desde `TabManager`; añadir perfiles es crear más particiones `persist:<perfil>`. | Interfaz de perfiles, ventana por perfil y migración de datos. |
+| Sincronización y cuentas | Todos los datos están en documentos versionados `{ version, data }`, aptos para enviarse a un servicio. | Servicio (p. ej. FastAPI + PostgreSQL con JSONB), autenticación OAuth 2.1/OIDC y cifrado de extremo a extremo. Ninguna credencial se incluye en el ejecutable. |
+| Funciones de IA | Nada en el ejecutable. | Antes de añadirlas: qué datos salen del equipo, consentimiento explícito y claves gestionadas por un servicio, nunca dentro de la aplicación. |
+| Actualizaciones automáticas | El instalador NSIS genera `.blockmap`, que usa electron-updater. | Firma de código y un canal de publicación. Hoy se actualiza instalando la versión nueva encima. |
+| Android | — | Aplicación propia (Kotlin + WebView o GeckoView). El instalador de Windows no sirve en Android. |
+| iPhone | — | Aplicación propia con WKWebView según las normas de la App Store. El instalador de Windows no sirve en iOS. |
+| macOS y Linux | El código es multiplataforma y `electron-builder.yml` tiene objetivos `dir`; las pruebas E2E se ejecutan en Linux. | Instaladores (dmg/AppImage), firma y notarización. |
