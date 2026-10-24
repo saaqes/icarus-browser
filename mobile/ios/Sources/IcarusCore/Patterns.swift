@@ -40,7 +40,7 @@ struct Pattern {
 }
 
 extension String {
-    func removingSuffix(_ suffix: String) -> String { hasSuffix(suffix) ? String(dropLast(suffix.count)) : self }
-    func removingPrefix(_ prefix: String) -> String { hasPrefix(prefix) ? String(dropFirst(prefix.count)) : self }
-    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
+    public func removingSuffix(_ suffix: String) -> String { hasSuffix(suffix) ? String(dropLast(suffix.count)) : self }
+    public func removingPrefix(_ prefix: String) -> String { hasPrefix(prefix) ? String(dropFirst(prefix.count)) : self }
+    public var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }
