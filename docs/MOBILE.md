@@ -53,14 +53,15 @@ Las pruebas de Kotlin (`mobile/android/core`) y de Swift (`mobile/ios/Tests`) le
 - **`App/`**: SwiftUI + `WKWebView`, iOS 16 o posterior, proyecto generado con XcodeGen (`project.yml`).
   - **Motor**: WebKit, el único que iOS permite a los navegadores fuera de la Unión Europea (en la UE hay requisitos adicionales que esta versión no cumple).
   - **Shield**: WebKit no permite inspeccionar las solicitudes, así que los filtros se **convierten en reglas de contenido de WebKit** (`ContentBlocker.swift`) y las aplica WebKit:
-    - la página principal nunca se bloquea (los marcos internos sí, con `load-context: child-frame`);
+    - cada filtro es **una** regla (subrecursos y marcos internos); una última regla (`ignore-previous-rules` para `document` con `load-context: top-frame`) deja pasar siempre la página principal, como en escritorio;
     - las excepciones `@@` van después de todos los bloqueos (`ignore-previous-rules`), así que siempre ganan, como en escritorio;
     - `$document` se convierte en una excepción para todo el sitio (`if-domain`);
     - las expresiones regulares se traducen al subconjunto de WebKit (`\d` → `[0-9]`…); las que usan `|`, `{n}` o `\s` no se pueden expresar y se cuentan como omitidas;
     - las excepciones por sitio del usuario no recompilan nada: antes de cada navegación se quitan o se añaden las reglas a la pestaña;
-    - las reglas compiladas se guardan en WebKit y se reutilizan mientras no cambien las listas.
+    - las reglas compiladas se guardan en WebKit y se reutilizan mientras no cambien las listas;
+    - WebKit admite como máximo 150 000 reglas por lista. Si las listas activas no caben, se quedan fuera filtros de bloqueo completos empezando por el final de la última lista (las reglas propias van primero y las excepciones entran siempre), y la interfaz dice cuántos.
 
-    **No hay contador**: WebKit no informa de lo que bloquea, e ICARUS no muestra cifras inventadas. La interfaz indica cuántos filtros están activos.
+    **No hay contador**: WebKit no informa de lo que bloquea, e ICARUS no muestra cifras inventadas. La interfaz indica cuántos filtros aplica WebKit, cuántos no se pueden expresar y cuántos no caben en el máximo.
   - **TLS**: los certificados los valida WebKit; un error de certificado muestra la página de error sin opción de continuar. `NSAllowsArbitraryLoadsInWebContent` solo permite abrir sitios `http://` dentro de la web, no desactiva la validación de certificados.
   - **Descargas** con `WKDownload` en `Documentos/Descargas` (visibles en la app Archivos); completadas solo cuando WebKit llama a `downloadDidFinish`.
   - **Permisos**: cámara y micrófono por origen; la ubicación la pregunta WebKit con su propio aviso.
@@ -73,10 +74,10 @@ Las pruebas de Kotlin (`mobile/android/core`) y de Swift (`mobile/ios/Tests`) le
 | --- | --- | --- |
 | `./gradlew -p core test` (25 pruebas) | Local y CI | Vectores compartidos, validación de alias y accesos, perfil, historial, listas de Shield (con un servidor HTTP local para el descargador) y deducción de tipos de recurso |
 | Prueba instrumentada (`BrowserSmokeTest`) | Emulador de Android 14 en CI | La app real abre una página local con un anuncio y un rastreador: Shield cancela exactamente 2 solicitudes; alias en la barra y al escribirlo; `javascript:` y `file:` bloqueados; búsqueda; certificado no válido real (`self-signed.badssl.com`) con la barra mostrando el sitio que falló; los tres estilos sin perder pestañas. Captura cada pantalla |
-| `swift test` (16 pruebas) | Linux local (Swift 6.1) y macOS en CI | Los mismos vectores; la conversión a reglas de WebKit se comprueba con un evaluador de la semántica de las reglas, que debe bloquear las mismas 28 solicitudes que escritorio |
-| `ShieldWebKitTests` (4 pruebas) | Simulador de iOS en CI | Con WebKit real: las reglas compilan; un rastreador real se cancela con las reglas y carga sin ellas; EasyList real se convierte (57 182 de 57 201 filtros) y WebKit la compila; alias en la barra |
+| `swift test` (18 pruebas) | Linux local (Swift 6.1) y macOS en CI | Los mismos vectores; la conversión a reglas de WebKit se comprueba con un evaluador de la semántica de las reglas, que debe bloquear las mismas 28 solicitudes que escritorio, no bloquear nunca la página principal (sí los marcos internos) y, si no cabe todo, dejar fuera filtros completos del final |
+| `ShieldWebKitTests` (5 pruebas) | Simulador de iOS en CI | Con WebKit real: las reglas compilan; un rastreador real se cancela con las reglas y carga sin ellas; una página principal que coincide con un filtro se abre igualmente; EasyList y EasyPrivacy reales se descargan, caben juntas en una lista sin superar el máximo y WebKit la compila; alias en la barra |
 
-Para comprobar las conversiones con filtros reales, también se convirtieron localmente 65 098 filtros de red de los archivos fuente de EasyList y EasyPrivacy: 65 074 se pudieron expresar en WebKit (24 omitidos), en 128 133 reglas, por debajo del máximo de 150 000.
+Con las listas completas de EasyList (57 251 filtros de red) y EasyPrivacy (56 333), montadas el 24 de octubre de 2026 desde sus archivos fuente, más la lista básica: WebKit aplica 113 624 filtros, 26 no se pueden expresar (expresiones regulares con `|`, `{n}` o `\s`) y todo cabe en 113 625 reglas, por debajo del máximo de 150 000. La primera versión de la conversión usaba dos reglas por filtro: con estas listas necesitaba unas 224 000, superaba el máximo y dejaba fuera parte de EasyPrivacy y las reglas propias.
 
 ## Lo que no hacen las apps móviles
 

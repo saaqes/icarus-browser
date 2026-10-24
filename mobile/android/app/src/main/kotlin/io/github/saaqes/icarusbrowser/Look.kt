@@ -82,6 +82,9 @@ fun WindowInsets.safeArea(): Insets {
 /** Dibuja la ventana de borde a borde y ajusta el color de los iconos de las barras del sistema. */
 @Suppress("DEPRECATION")
 fun Activity.applySystemBars(look: Look) {
+    // Crea la DecorView si aún no existe (antes de setContentView): sin ella,
+    // window.insetsController lanza NullPointerException.
+    val decor = window.decorView
     window.setDecorFitsSystemWindowsCompat()
     window.statusBarColor = Color.TRANSPARENT
     window.navigationBarColor = Color.TRANSPARENT
@@ -95,11 +98,11 @@ fun Activity.applySystemBars(look: Look) {
         val mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
         window.insetsController?.setSystemBarsAppearance(if (lightBars) mask else 0, mask)
     } else {
-        var flags = window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+        var flags = decor.systemUiVisibility or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
             View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
         val lightFlags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         flags = if (lightBars) flags or lightFlags else flags and lightFlags.inv()
-        window.decorView.systemUiVisibility = flags
+        decor.systemUiVisibility = flags
     }
 }
 

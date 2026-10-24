@@ -197,16 +197,16 @@ public final class ShieldLists {
         }
     }
 
-    /// Filtros de las listas activas y de las reglas propias.
+    /// Filtros de las reglas propias y de las listas activas. Las reglas propias van
+    /// primero: si no cabe todo en WebKit, se quedan fuera las últimas de las listas.
     public func activeFilters() -> [NetworkFilter] {
         let snapshot = lock.locked { config }
-        var filters: [NetworkFilter] = []
+        var filters = Filters.parseList(snapshot.customRules).filters
         for list in snapshot.lists where list.enabled {
             let text = list.id == ShieldLists.builtinId ? builtinText : (try? String(contentsOf: listPath(list.id), encoding: .utf8))
             guard let text else { continue }
             filters.append(contentsOf: Filters.parseList(text).filters)
         }
-        filters.append(contentsOf: Filters.parseList(snapshot.customRules).filters)
         return filters
     }
 
@@ -227,7 +227,7 @@ public final class ShieldLists {
     /// reglas propias). Si no cambia, la app reutiliza las reglas que WebKit ya compiló.
     public var fingerprint: String {
         let snapshot = lock.locked { config }
-        var parts = ["v1", "builtin:\(ShieldLists.fnv1a(builtinText))", "custom:\(ShieldLists.fnv1a(snapshot.customRules))"]
+        var parts = ["v2", "builtin:\(ShieldLists.fnv1a(builtinText))", "custom:\(ShieldLists.fnv1a(snapshot.customRules))"]
         for list in snapshot.lists where list.enabled {
             let updated = snapshot.meta[list.id]?.lastUpdated?.timeIntervalSince1970 ?? 0
             parts.append("\(list.id):\(updated):\(hasCachedText(list.id))")

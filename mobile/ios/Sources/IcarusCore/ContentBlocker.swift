@@ -3,7 +3,8 @@ import Foundation
 /// Conversión de los filtros de ICARUS Shield al formato de reglas de contenido de
 /// WebKit (`WKContentRuleList`). En iPhone es WebKit quien bloquea las solicitudes,
 /// con la misma semántica que escritorio:
-/// - La página principal nunca se bloquea (solo subrecursos y marcos internos).
+/// - La página principal nunca se bloquea (solo subrecursos y marcos internos): cada
+///   filtro es una sola regla y una última regla anula los bloqueos de la página principal.
 /// - Las excepciones (@@) se colocan después de todos los bloqueos, así que siempre ganan.
 /// - Las excepciones $document desactivan el bloqueo en todo el sitio.
 ///
@@ -18,11 +19,20 @@ public enum ContentBlocker {
         /// JSON listo para `WKContentRuleListStore.compileContentRuleList`.
         public let json: String
         public let rules: [[String: Any]]
-        /// Filtros convertidos (cada uno puede generar más de una regla).
+        /// Filtros que aplica WebKit.
         public let convertedFilters: Int
         /// Filtros que WebKit no puede expresar.
         public let skippedFilters: Int
+        /// Filtros que se pueden expresar pero no caben en el máximo de reglas de WebKit.
+        public let overLimitFilters: Int
     }
+
+    /// Anula los bloqueos anteriores para la página principal (marco superior), que
+    /// escritorio nunca bloquea. Los marcos internos siguen bloqueándose.
+    static let mainFrameRule: [String: Any] = [
+        "trigger": ["url-filter": ".*", "resource-type": ["document"], "load-context": ["top-frame"]],
+        "action": ["type": "ignore-previous-rules"],
+    ]
 
     /// Tipos de recurso de WebKit para cada tipo de ICARUS (sin la página principal).
     static func webKitTypes(_ type: ResourceType) -> [String] {
@@ -39,11 +49,13 @@ public enum ContentBlocker {
 
     static let subresourceTypes: Set<ResourceType> = Set(ResourceType.allCases).subtracting([.document])
 
-    public static func convert(_ filters: [NetworkFilter]) -> Result {
-        var blocks: [[String: Any]] = []
+    /// Convierte los filtros en orden. Si no caben todos en `maxRules`, se quedan fuera
+    /// filtros de bloqueo completos empezando por el final (las excepciones siempre entran).
+    public static func convert(_ filters: [NetworkFilter], maxRules: Int = ContentBlocker.maxRules) -> Result {
+        // Reglas de cada filtro de bloqueo (una, o dos si anula sus dominios excluidos).
+        var blocks: [[[String: Any]]] = []
         var exceptions: [[String: Any]] = []
         var documentExceptions: [[String: Any]] = []
-        var converted = 0
         var skipped = 0
 
         for filter in filters {
@@ -53,7 +65,6 @@ public enum ContentBlocker {
                     continue
                 }
                 documentExceptions.append(["trigger": ["url-filter": ".*", "if-domain": ["*\(domain)"]], "action": ["type": "ignore-previous-rules"]])
-                converted += 1
                 continue
             }
             guard let urlFilter = urlFilter(for: filter), var base = trigger(filter, urlFilter: urlFilter) else {
@@ -78,49 +89,45 @@ public enum ContentBlocker {
                     }
                 }
                 exceptions.append(["trigger": trigger, "action": ["type": "ignore-previous-rules"]])
-                converted += 1
                 continue
             }
 
             let types = effectiveTypes(filter, defaultTypes: subresourceTypes) ?? subresourceTypes
             let (subresources, frames) = split(types)
-            var produced: [[String: Any]] = []
-            if !subresources.isEmpty {
-                var trigger = base
-                trigger["resource-type"] = subresources
-                produced.append(["trigger": trigger, "action": ["type": "block"]])
-            }
-            if frames {
-                var trigger = base
-                trigger["resource-type"] = ["document"]
-                trigger["load-context"] = ["child-frame"]
-                produced.append(["trigger": trigger, "action": ["type": "block"]])
-            }
-            if produced.isEmpty {
+            if subresources.isEmpty && !frames {
                 skipped += 1
                 continue
             }
+            // «document» incluye la página principal: la anula mainFrameRule al final.
+            var trigger = base
+            trigger["resource-type"] = subresources + (frames ? ["document"] : [])
+            var produced: [[String: Any]] = [["trigger": trigger, "action": ["type": "block"]]]
             if bothDomainKinds, let exclude = domains?.exclude {
                 // WebKit no admite if-domain y unless-domain juntos: se anula en los dominios excluidos.
                 var trigger = base
                 trigger["if-domain"] = exclude.compactMap { Punycode.toASCII($0) }.map { "*\($0)" }
                 produced.append(["trigger": trigger, "action": ["type": "ignore-previous-rules"]])
             }
-            blocks.append(contentsOf: produced)
-            converted += 1
+            blocks.append(produced)
         }
 
-        var rules = blocks + exceptions + documentExceptions
-        if rules.count > maxRules {
-            // Se conservan todas las excepciones; se descartan los últimos bloqueos.
-            let keep = max(0, maxRules - exceptions.count - documentExceptions.count)
-            skipped += blocks.count - keep
-            rules = Array(blocks.prefix(keep)) + exceptions + documentExceptions
+        var room = maxRules - exceptions.count - documentExceptions.count - (blocks.isEmpty ? 0 : 1)
+        var kept: [[String: Any]] = []
+        var keptFilters = 0
+        for group in blocks {
+            guard group.count <= room else { break }
+            kept.append(contentsOf: group)
+            room -= group.count
+            keptFilters += 1
         }
+        var rules = kept + exceptions + documentExceptions
+        if !kept.isEmpty { rules.append(mainFrameRule) }
         // WebKit rechaza una lista vacía: una regla inocua que nunca coincide.
         let output = rules.isEmpty ? [["trigger": ["url-filter": "^icarus-sin-reglas:"], "action": ["type": "block"]]] : rules
         let data = (try? JSONSerialization.data(withJSONObject: output, options: [.sortedKeys])) ?? Data("[]".utf8)
-        return Result(json: String(decoding: data, as: UTF8.self), rules: output, convertedFilters: converted, skippedFilters: skipped)
+        return Result(json: String(decoding: data, as: UTF8.self), rules: output,
+                      convertedFilters: keptFilters + exceptions.count + documentExceptions.count,
+                      skippedFilters: skipped, overLimitFilters: blocks.count - keptFilters)
     }
 
     /// Lista que desactiva todo lo anterior en los sitios que el usuario excluyó de Shield.

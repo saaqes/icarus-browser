@@ -72,6 +72,12 @@ jobs:
 
           Cada plataforma es un paquete distinto: el instalador de Windows no sirve en Android ni en iPhone. Las sumas SHA-256 están en los archivos \`SHA256SUMS*.txt\`. Instrucciones detalladas en el README.
           EOF
-          gh release create "$tag" release/* --draft --prerelease --target "$GITHUB_SHA" \
-            --title "ICARUS Browser $tag (Windows, macOS, Android, iPhone)" --notes-file notes.md
+          if ! gh release create "$tag" release/* --draft --prerelease --target "$GITHUB_SHA" \
+            --title "ICARUS Browser $tag (Windows, macOS, Android, iPhone)" --notes-file notes.md; then
+            # El token del flujo no puede crear una versión en un commit cuyos archivos de
+            # .github/workflows difieren de los de la rama (por ejemplo, si se subió otro commit
+            # que los cambia mientras esta ejecución compilaba).
+            echo "::error::GitHub no dejó crear el borrador. Si durante esta ejecución se subió un commit que cambia .github/workflows, vuelve a lanzar «Versión preliminar» sobre el último commit."
+            exit 1
+          fi
           echo "Borrador creado: $tag"

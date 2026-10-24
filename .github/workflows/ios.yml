@@ -49,7 +49,7 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild test -project IcarusBrowser.xcodeproj -scheme ICARUS -destination "id=${{ steps.sim.outputs.udid }}" \
-            -derivedDataPath ../build/test CODE_SIGNING_ALLOWED=NO 2>&1 | tee ../build-test.log | grep -E "Test Case|Test Suite|error:|EasyList:|skipped|\*\* TEST" || true
+            -derivedDataPath ../build/test CODE_SIGNING_ALLOWED=NO 2>&1 | tee ../build-test.log | grep -E "Test Case|Test Suite|error:|EasyList:|EasyPrivacy:|Juntas:|skipped|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" ../build-test.log
       - name: Compilar para el simulador
         working-directory: mobile/ios/App

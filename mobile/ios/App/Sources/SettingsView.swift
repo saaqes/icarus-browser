@@ -327,8 +327,8 @@ struct ShieldSettings: View {
         if list.updating { return "Actualizando…" }
         var parts: [String] = []
         if list.builtIn && list.url == nil { parts.append("Incluida en ICARUS") }
-        if list.ruleCount > 0 { parts.append("\(list.ruleCount) reglas") }
-        if list.skippedCount > 0 { parts.append("\(list.skippedCount) no compatibles con WebKit") }
+        if list.ruleCount > 0 { parts.append("\(list.ruleCount.formatted()) reglas") }
+        if list.skippedCount > 0 { parts.append("\(list.skippedCount.formatted()) no se pueden expresar en WebKit") }
         if let date = list.lastUpdated { parts.append("Actualizada \(date.formatted(date: .abbreviated, time: .omitted))") }
         if list.url != nil && list.lastUpdated == nil && list.error == nil { parts.append("Aún no descargada") }
         if let error = list.error { parts.append(services.text("shieldListErrors", error.rawValue)) }

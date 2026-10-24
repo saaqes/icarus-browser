@@ -70,16 +70,65 @@ final class ShieldTests: XCTestCase {
         let result = ContentBlocker.convert(parsed.filters)
         XCTAssertEqual(result.skippedFilters, 0)
         XCTAssertEqual(result.convertedFilters, parsed.ruleCount)
-        // JSON válido con reglas de bloqueo y nunca la página principal sin contexto.
+        XCTAssertEqual(result.overLimitFilters, 0)
+        // JSON válido: una regla por filtro y, al final, la que deja pasar la página principal.
         let decoded = try JSONSerialization.jsonObject(with: Data(result.json.utf8)) as! [[String: Any]]
         XCTAssertEqual(decoded.count, result.rules.count)
+        XCTAssertEqual(decoded.count, parsed.ruleCount + 1)
+        let last = decoded.last!["trigger"] as! [String: Any]
+        XCTAssertEqual(last["load-context"] as? [String], ["top-frame"])
+        XCTAssertEqual(last["resource-type"] as? [String], ["document"])
+        XCTAssertEqual((decoded.last!["action"] as! [String: Any])["type"] as? String, "ignore-previous-rules")
         for rule in decoded {
             let trigger = rule["trigger"] as! [String: Any]
-            if let types = trigger["resource-type"] as? [String], types.contains("document"), (rule["action"] as! [String: Any])["type"] as? String == "block" {
-                XCTAssertEqual(trigger["load-context"] as? [String], ["child-frame"])
-            }
             XCTAssertTrue(ContentBlocker.isWebKitCompatible(trigger["url-filter"] as! String))
         }
+    }
+
+    func testLaPaginaPrincipalNuncaSeBloqueaPeroLosMarcosSi() {
+        let rules = ContentBlocker.convert(Filters.parseList("||anuncios.com^\n||marcos.com^$subdocument").filters).rules
+        let blocks = { (url: String, type: ResourceType) in
+            WebKitRuleEvaluator.blocks(rules, url: url, type: type, pageURL: "https://noticias.com/", suffixes: Shared.suffixes)
+        }
+        XCTAssertFalse(blocks("https://anuncios.com/", .document))
+        XCTAssertTrue(blocks("https://anuncios.com/marco.html", .subdocument))
+        XCTAssertTrue(blocks("https://anuncios.com/a.js", .script))
+        XCTAssertFalse(blocks("https://marcos.com/", .document))
+        XCTAssertTrue(blocks("https://marcos.com/", .subdocument))
+        XCTAssertFalse(blocks("https://marcos.com/a.js", .script))
+    }
+
+    func testSiNoCabeTodoSeQuedanFueraFiltrosCompletosDelFinal() {
+        let list = """
+        ||propia.com^
+        ||uno.com^
+        ||dos.com^$domain=a.com|~b.a.com
+        ||tres.com^
+        @@||uno.com/permitido^
+        @@||sitio.com^$document
+        /\\s/
+        """
+        let filters = Filters.parseList(list).filters
+        // Sin límite: 4 bloqueos (5 reglas), 2 excepciones y la regla de la página principal.
+        let full = ContentBlocker.convert(filters)
+        XCTAssertEqual(full.rules.count, 8)
+        XCTAssertEqual(full.convertedFilters, 6)
+        XCTAssertEqual(full.skippedFilters, 1)
+        XCTAssertEqual(full.overLimitFilters, 0)
+        // Con 6 reglas: entran las excepciones, la regla final y los dos primeros bloqueos;
+        // el tercero ocupa dos reglas y no cabe, así que tampoco entra el cuarto.
+        let limited = ContentBlocker.convert(filters, maxRules: 6)
+        XCTAssertEqual(limited.rules.count, 5)
+        XCTAssertEqual(limited.convertedFilters, 4)
+        XCTAssertEqual(limited.skippedFilters, 1)
+        XCTAssertEqual(limited.overLimitFilters, 2)
+        let blocks = { (url: String) in
+            WebKitRuleEvaluator.blocks(limited.rules, url: url, type: .script, pageURL: "https://a.com/", suffixes: Shared.suffixes)
+        }
+        XCTAssertTrue(blocks("https://propia.com/x.js"))
+        XCTAssertTrue(blocks("https://uno.com/x.js"))
+        XCTAssertFalse(blocks("https://uno.com/permitido"))
+        XCTAssertFalse(blocks("https://tres.com/x.js"))
     }
 
     func testConversionDePatrones() {

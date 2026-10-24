@@ -25,6 +25,7 @@ final class AppServices: ObservableObject {
     @Published private(set) var shieldCompileError: String?
     @Published private(set) var shieldConverted = 0
     @Published private(set) var shieldSkipped = 0
+    @Published private(set) var shieldOverLimit = 0
     @Published private(set) var shieldCompiling = false
 
     private init() {
@@ -94,6 +95,7 @@ final class AppServices: ObservableObject {
         shieldRules = list
         shieldConverted = saved["converted"] as? Int ?? 0
         shieldSkipped = saved["skipped"] as? Int ?? 0
+        shieldOverLimit = saved["overLimit"] as? Int ?? 0
         compiledFingerprint = fingerprint
         revision += 1
     }
@@ -110,10 +112,11 @@ final class AppServices: ObservableObject {
             shieldRules = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: AppServices.ruleListId, encodedContentRuleList: result.json)
             shieldConverted = result.convertedFilters
             shieldSkipped = result.skippedFilters
+            shieldOverLimit = result.overLimitFilters
             shieldCompileError = nil
             compiledFingerprint = fingerprint
-            UserDefaults.standard.set(["fingerprint": fingerprint, "converted": result.convertedFilters, "skipped": result.skippedFilters],
-                                      forKey: AppServices.compiledKey)
+            UserDefaults.standard.set(["fingerprint": fingerprint, "converted": result.convertedFilters, "skipped": result.skippedFilters,
+                                       "overLimit": result.overLimitFilters], forKey: AppServices.compiledKey)
         } catch {
             // Si WebKit rechaza las listas descargadas, Shield sigue funcionando con la lista básica y las reglas propias.
             shieldCompileError = error.localizedDescription
@@ -122,6 +125,7 @@ final class AppServices: ObservableObject {
                 shieldRules = rules
                 shieldConverted = fallback.convertedFilters
                 shieldSkipped = fallback.skippedFilters
+                shieldOverLimit = fallback.overLimitFilters
             }
             compiledFingerprint = nil
             UserDefaults.standard.removeObject(forKey: AppServices.compiledKey)
@@ -134,8 +138,11 @@ final class AppServices: ObservableObject {
     var shieldStatus: String {
         guard shield.enabled else { return "Actívalo en Configuración" }
         guard shieldRules != nil else { return "Preparando las reglas de WebKit…" }
-        let skipped = shieldSkipped > 0 ? " (\(shieldSkipped) no compatibles con WebKit)" : ""
-        return "\(shieldConverted.formatted()) filtros de anuncios y rastreadores aplicados por WebKit\(skipped)"
+        var notes: [String] = []
+        if shieldSkipped > 0 { notes.append("\(shieldSkipped.formatted()) no se pueden expresar en WebKit") }
+        if shieldOverLimit > 0 { notes.append("\(shieldOverLimit.formatted()) no caben en el máximo de \(ContentBlocker.maxRules.formatted()) reglas de WebKit") }
+        let detail = notes.isEmpty ? "" : " (\(notes.joined(separator: "; ")))"
+        return "\(shieldConverted.formatted()) filtros de anuncios y rastreadores aplicados por WebKit\(detail)"
     }
 
     var settings: Settings { profile.settings }

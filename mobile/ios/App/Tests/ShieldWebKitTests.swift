@@ -72,16 +72,50 @@ final class ShieldWebKitTests: XCTestCase {
         if withoutShield["tracker"] != "load" { throw XCTSkip("google-analytics.com no responde desde el simulador.") }
     }
 
-    /// EasyList real (si hay Internet): la conversión debe ser aceptada por WebKit.
-    func testEasyListRealCompilaEnWebKit() async throws {
-        guard case .ok(let text) = await ShieldLists.httpFetch("https://easylist.to/easylist/easylist.txt") else {
-            throw XCTSkip("No se pudo descargar EasyList desde el simulador.")
+    /// Las listas reales predeterminadas (si hay Internet): todas caben en una sola lista
+    /// de WebKit y WebKit la acepta.
+    func testEasyListYEasyPrivacyRealesCompilanEnWebKit() async throws {
+        let basic = try String(contentsOf: XCTUnwrap(Bundle.main.url(forResource: "shield-basic.txt", withExtension: nil)), encoding: .utf8)
+        var filters = Filters.parseList(basic).filters
+        for (name, url) in [("EasyList", "https://easylist.to/easylist/easylist.txt"), ("EasyPrivacy", "https://easylist.to/easylist/easyprivacy.txt")] {
+            guard case .ok(let text) = await ShieldLists.httpFetch(url) else {
+                throw XCTSkip("No se pudo descargar \(name) desde el simulador.")
+            }
+            let parsed = Filters.parseList(text)
+            let alone = ContentBlocker.convert(parsed.filters)
+            print("\(name): \(parsed.ruleCount) filtros de red, \(alone.convertedFilters) convertidos, \(alone.skippedFilters) omitidos, \(alone.rules.count) reglas de WebKit")
+            XCTAssertGreaterThan(alone.convertedFilters, parsed.ruleCount * 9 / 10, "casi toda la lista debe poder expresarse en WebKit")
+            filters += parsed.filters
         }
-        let parsed = Filters.parseList(text)
-        let result = ContentBlocker.convert(parsed.filters)
-        print("EasyList: \(parsed.ruleCount) filtros de red, \(result.convertedFilters) convertidos, \(result.skippedFilters) omitidos, \(result.rules.count) reglas de WebKit")
-        XCTAssertGreaterThan(result.convertedFilters, parsed.ruleCount * 8 / 10, "la mayoría de EasyList debe poder expresarse en WebKit")
-        _ = try await compile(result.json, id: "icarus-prueba-easylist")
+        let result = ContentBlocker.convert(filters)
+        print("Juntas: \(result.convertedFilters) filtros aplicados, \(result.skippedFilters) omitidos, \(result.overLimitFilters) fuera del límite, \(result.rules.count) reglas de WebKit")
+        XCTAssertEqual(result.overLimitFilters, 0, "las listas predeterminadas deben caber en el máximo de reglas de WebKit")
+        _ = try await compile(result.json, id: "icarus-prueba-listas-reales")
+    }
+
+    /// Una dirección que coincide con un filtro se abre igualmente como página principal
+    /// (como en escritorio, Shield solo cancela subrecursos y marcos internos).
+    func testLaPaginaPrincipalNoSeBloquea() async throws {
+        guard try await loadExample(rules: nil) == "Example Domain" else {
+            throw XCTSkip("example.com no responde desde el simulador.")
+        }
+        let rules = try await compile(ContentBlocker.convert(Filters.parseList("||example.com^").filters).json, id: "icarus-prueba-principal")
+        let title = try await loadExample(rules: rules)
+        XCTAssertEqual(title, "Example Domain")
+    }
+
+    /// Abre example.com como página principal y devuelve su título (nil si no cargó).
+    private func loadExample(rules: WKContentRuleList?) async throws -> String? {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        if let rules { configuration.userContentController.add(rules) }
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 600), configuration: configuration)
+        webView.load(URLRequest(url: URL(string: "https://example.com/?icarus=\(UUID().uuidString)")!))
+        for _ in 0..<80 {
+            try await Task.sleep(nanoseconds: 250_000_000)
+            if let title = webView.title, !title.isEmpty { return title }
+        }
+        return nil
     }
 
     func testLaBarraMuestraAliasYResuelveComoEnEscritorio() {
