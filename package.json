@@ -1,20 +1,31 @@
 {
   "name": "icarus-browser",
+  "productName": "ICARUS Browser",
   "private": true,
-  "version": "0.1.0",
-  "description": "ICARUS Browser: interfaz de navegador personalizable (prototipo web de escritorio preparado para integrar un motor de navegación real).",
+  "version": "0.2.0",
+  "description": "ICARUS Browser: navegador de escritorio con Chromium integrado, tres estilos visuales, alias de URL y bloqueo de anuncios ICARUS Shield.",
+  "author": "saaqes",
+  "homepage": "https://github.com/saaqes/icarus-browser",
+  "license": "UNLICENSED",
   "type": "module",
+  "main": "dist-electron/electron/main/main.js",
   "engines": {
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:single": "npm run build && node scripts/build-single-file.mjs",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite",
+    "build": "tsc -b && vite build && node scripts/electron-postbuild.mjs",
+    "build:web": "tsc -b && vite build",
+    "build:single": "vite build && node scripts/build-single-file.mjs",
+    "start": "electron .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b"
+    "test:e2e": "node tests/e2e/run.mjs",
+    "typecheck": "tsc -b",
+    "dist:win": "npm run build && electron-builder --win --x64 --publish never",
+    "dist:dir": "npm run build && electron-builder --dir --publish never"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -29,7 +40,10 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "electron": "44.9.3",
+    "electron-builder": "26.15.3",
     "jsdom": "^29.1.1",
+    "playwright-core": "^1.64.1",
     "typescript": "~5.9.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
