@@ -100,7 +100,7 @@ export function AdvancedSection() {
         </div>
       </SettingsCard>
 
-      <SettingsCard title={t.experimental}>
+      <SettingsCard title={services.native ? t.experimentalDesktop : t.experimental}>
         <dl className="capabilities">
           <div className="capabilities__row">
             <dt>{t.engine}</dt>

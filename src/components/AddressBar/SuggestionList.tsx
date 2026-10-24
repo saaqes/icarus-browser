@@ -1,3 +1,4 @@
+import { useServices } from '../../app/ServicesContext';
 import { useMessages } from '../../i18n';
 import { Favicon } from '../common/Favicon';
 import { Icon, type IconName } from '../common/Icon';
@@ -12,7 +13,7 @@ interface SuggestionListProps {
   onSelect: (suggestion: Suggestion) => void;
 }
 
-function describe(suggestion: Suggestion, providerName: string, m: ReturnType<typeof useMessages>) {
+function describe(suggestion: Suggestion, providerName: string, m: ReturnType<typeof useMessages>, desktop: boolean) {
   const t = m.addressBar.suggestion;
   if (suggestion.kind === 'shortcut') {
     return { icon: null, main: suggestion.shortcut.title, detail: `${t.shortcut} · ${suggestion.shortcut.url}`, warn: false };
@@ -27,9 +28,9 @@ function describe(suggestion: Suggestion, providerName: string, m: ReturnType<ty
   const { resolution, text } = suggestion;
   switch (resolution.kind) {
     case 'url':
-      return { icon: 'globe' as IconName, main: resolution.url, detail: t.url, warn: false };
+      return { icon: 'globe' as IconName, main: resolution.url, detail: desktop ? t.urlDesktop : t.url, warn: false };
     case 'search':
-      return { icon: 'search' as IconName, main: text, detail: t.search(providerName), warn: false };
+      return { icon: 'search' as IconName, main: text, detail: desktop ? t.searchDesktop(providerName) : t.search(providerName), warn: false };
     case 'alias':
       return { icon: 'tag' as IconName, main: resolution.rule.alias, detail: t.alias(resolution.url), warn: false };
     case 'alias-unresolved':
@@ -47,11 +48,12 @@ function describe(suggestion: Suggestion, providerName: string, m: ReturnType<ty
 
 export function SuggestionList({ id, suggestions, activeIndex, providerName, onHover, onSelect }: SuggestionListProps) {
   const m = useMessages();
+  const desktop = Boolean(useServices().native);
   return (
     <div className="omnibox__dropdown">
       <ul id={id} role="listbox" aria-label={m.addressBar.suggestions} className="suggestions">
         {suggestions.map((suggestion, index) => {
-          const info = describe(suggestion, providerName, m);
+          const info = describe(suggestion, providerName, m, desktop);
           return (
             <li
               key={suggestion.id}

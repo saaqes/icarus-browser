@@ -36,6 +36,7 @@ export const es = {
     name: 'ICARUS',
     fullName: 'ICARUS Browser',
     prototype: 'Prototipo',
+    preview: 'Versión preliminar',
   },
   common: {
     save: 'Guardar',
@@ -103,6 +104,8 @@ export const es = {
     suggestion: {
       url: 'Abrir en el navegador externo',
       search: (provider: string) => `Buscar en ${provider} · se abre en el navegador externo`,
+      urlDesktop: 'Abrir dirección',
+      searchDesktop: (provider: string) => `Buscar en ${provider}`,
       alias: (target: string) => `Alias de ICARUS → ${target}`,
       aliasUnresolved: 'Este alias no tiene una regla activa',
       internal: 'Página de ICARUS',
@@ -138,6 +141,7 @@ export const es = {
     providerChanged: (provider: string) => `Proveedor de búsqueda: ${provider}`,
     submit: 'Buscar',
     externalNote: 'Los resultados se abren en el navegador del sistema.',
+    desktopNote: 'Los resultados se abren en esta pestaña de ICARUS.',
   },
   navigationNotices: {
     blocked: (protocol: string) => `ICARUS no abre direcciones «${protocol}» por seguridad.`,
@@ -352,6 +356,7 @@ export const es = {
         'restore-session': 'Restaurar las pestañas de la sesión anterior',
       },
       startupHint: 'Las páginas web restauradas no se vuelven a abrir automáticamente.',
+      startupHintDesktop: 'Cada pestaña restaurada vuelve a cargar su página cuando la seleccionas.',
       homePage: 'Página principal',
       homeNewTab: 'Página de nueva pestaña de ICARUS',
       homeUrl: 'Una dirección concreta',
@@ -427,6 +432,7 @@ export const es = {
       importRepaired: 'Algunos valores del archivo no eran válidos y se sustituyeron por los predeterminados.',
       exportDone: 'Archivo de configuración generado.',
       experimental: 'Funciones experimentales y estado del prototipo',
+      experimentalDesktop: 'Estado del motor de navegación',
       engine: 'Motor de navegación',
       capabilities: {
         embeddedRendering: 'Mostrar páginas dentro de ICARUS',
@@ -455,7 +461,15 @@ export const es = {
       version: (version: string) => `Versión ${version}`,
       description:
         'ICARUS Browser es un navegador en desarrollo con identidad propia. Esta versión es un prototipo web de la interfaz de escritorio, preparado para integrar un motor de navegación real.',
+      descriptionDesktop:
+        'ICARUS Browser es un navegador con identidad propia construido sobre Chromium mediante Electron. Las páginas se cargan dentro de la aplicación con el motor de Chromium; esta es una versión preliminar en desarrollo.',
       platforms: 'Plataformas previstas',
+      platformListDesktop: [
+        'Windows x64: aplicación de escritorio con Electron y Chromium (esta versión).',
+        'Linux y macOS: el código es multiplataforma, pero todavía no se publican instaladores.',
+        'Android e iPhone: necesitarán aplicaciones propias; este instalador no funciona en móviles.',
+        'Servicios: cuentas y sincronización (previsto, no incluido).',
+      ],
       platformList: [
         'Windows: CEF/Chromium (en estudio).',
         'Android: Kotlin con WebView/GeckoView.',
@@ -472,7 +486,14 @@ export const es = {
         ['Ctrl + Tab / Ctrl + Mayús + Tab', 'Cambiar de pestaña'],
         ['Alt + ← / Alt + →', 'Atrás / Adelante'],
       ] as ReadonlyArray<readonly [string, string]>,
+      keyboardDesktop: [
+        ['Ctrl + Mayús + T', 'Reabrir la última pestaña cerrada'],
+        ['Ctrl + R / F5', 'Recargar la página'],
+        ['Ctrl + H', 'Historial'],
+        ['Ctrl + J', 'Descargas'],
+      ] as ReadonlyArray<readonly [string, string]>,
       keyboardNote: 'En la versión web, el navegador anfitrión puede reservar algunos atajos.',
+      keyboardNoteDesktop: 'Los atajos funcionan también mientras el foco está en una página web.',
     },
   },
   aliasManager: {

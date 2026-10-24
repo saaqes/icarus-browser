@@ -19,6 +19,7 @@ export function GeneralSection() {
   const notify = useToast();
   const [settings, updateSettings] = useSettings();
   const { setSettingsSection } = useBrowser();
+  const { native } = useServices();
   const general = settings.general;
   const [homeUrl, setHomeUrl] = useState(general.homePage.kind === 'url' ? general.homePage.url : '');
   const [homeMode, setHomeMode] = useState<'new-tab' | 'url'>(general.homePage.kind);
@@ -56,7 +57,7 @@ export function GeneralSection() {
         </label>
       </SettingsCard>
 
-      <SettingsCard title={t.startup} description={t.startupHint}>
+      <SettingsCard title={t.startup} description={native ? t.startupHintDesktop : t.startupHint}>
         <RadioList<StartupBehavior>
           label={t.startup}
           hideLabel

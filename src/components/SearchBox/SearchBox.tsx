@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { useServices } from '../../app/ServicesContext';
 import { useSettings } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
 import { getSearchProvider, SEARCH_PROVIDERS } from '../../services/search/providers';
@@ -18,6 +19,7 @@ export function SearchBox({ variant }: { variant: SearchBoxVariant }) {
   const [value, setValue] = useState('');
   const provider = getSearchProvider(settings.general.searchProvider);
   const noteId = useId();
+  const { native } = useServices();
 
   return (
     <div className={`searchbox searchbox--${variant}`}>
@@ -69,8 +71,8 @@ export function SearchBox({ variant }: { variant: SearchBoxVariant }) {
         )}
       </form>
       <p id={noteId} className="searchbox__note">
-        <Icon name="external" size={12} />
-        {m.search.externalNote}
+        <Icon name={native ? 'search' : 'external'} size={12} />
+        {native ? m.search.desktopNote : m.search.externalNote}
       </p>
     </div>
   );
