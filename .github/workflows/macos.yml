@@ -1,0 +1,90 @@
+name: macOS
+
+# Compila la versión de escritorio para macOS (Apple Silicon e Intel), genera el
+# .dmg y el .zip con firma ad hoc, comprueba que la app empaquetada arranca, la
+# instala desde el .dmg y ejecuta las pruebas de extremo a extremo.
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: .dmg, firma ad hoc e instalación
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+      - name: Generar .dmg y .zip (arm64 y x64)
+        # Sin Developer ID: firma ad hoc, sin notarización (Gatekeeper avisará).
+        run: npx electron-builder --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Comprobar los archivos y la firma
+        run: |
+          ls -l release
+          for app in "release/mac-arm64/ICARUS Browser.app" "release/mac/ICARUS Browser.app"; do
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign -dv "$app" 2>&1 | grep -E "Signature|Identifier|Format"
+            lipo -archs "$app/Contents/MacOS/ICARUS Browser"
+          done
+          cd release
+          ls ICARUS-Browser-*-mac-arm64.dmg ICARUS-Browser-*-mac-x64.dmg ICARUS-Browser-*-mac-arm64.zip ICARUS-Browser-*-mac-x64.zip
+          shasum -a 256 ICARUS-Browser-*-mac-*.dmg ICARUS-Browser-*-mac-*.zip | tee SHA256SUMS-mac.txt
+      - name: Prueba de humo de la app empaquetada (Apple Silicon)
+        run: node tests/e2e/smoke-packaged.mjs "release/mac-arm64/ICARUS Browser.app/Contents/MacOS/ICARUS Browser"
+      - name: Instalar desde el .dmg y probar la app instalada
+        run: |
+          dmg=$(ls release/ICARUS-Browser-*-mac-arm64.dmg)
+          hdiutil attach "$dmg" -mountpoint /Volumes/ICARUS-prueba -nobrowse -quiet
+          test -L "/Volumes/ICARUS-prueba/Applications" || echo "Aviso: el .dmg no incluye el acceso a Aplicaciones"
+          cp -R "/Volumes/ICARUS-prueba/ICARUS Browser.app" "$RUNNER_TEMP/"
+          hdiutil detach /Volumes/ICARUS-prueba -quiet
+          node tests/e2e/smoke-packaged.mjs "$RUNNER_TEMP/ICARUS Browser.app/Contents/MacOS/ICARUS Browser"
+          rm -rf "$RUNNER_TEMP/ICARUS Browser.app"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: icarus-browser-macos
+          path: |
+            release/ICARUS-Browser-*-mac-*.dmg
+            release/ICARUS-Browser-*-mac-*.zip
+            release/SHA256SUMS-mac.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  e2e:
+    name: Pruebas de extremo a extremo (Electron en macOS)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run build
+      - name: Pruebas E2E (incluye Wikipedia, Google y YouTube por HTTPS)
+        run: npm run test:e2e
+        env:
+          ICARUS_E2E_INTERNET: '1'

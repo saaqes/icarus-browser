@@ -3,7 +3,6 @@ name: Android
 on:
   push:
     branches: [main, 'claude/**']
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
   workflow_call:
@@ -12,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-${{ github.ref }}-${{ github.event_name }}
+  group: android-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

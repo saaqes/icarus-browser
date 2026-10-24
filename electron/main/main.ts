@@ -9,8 +9,9 @@
  */
 
 import { join, resolve } from 'node:path';
-import { app, net, session, webContents, type WebContents } from 'electron';
+import { app, Menu, net, session, webContents, type WebContents } from 'electron';
 import type { ClearDataOptions, DesktopPreferences, NativeEvent } from '../../src/types/native';
+import { macMenuTemplate } from './appMenu';
 import { DownloadManager } from './downloads';
 import { FaviconService } from './favicons';
 import { HistoryStore } from './history';
@@ -70,6 +71,7 @@ function isUiUrl(url: string): boolean {
 }
 
 async function start(): Promise<void> {
+  if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate(macMenuTemplate(app.name)));
   const dataDir = app.getPath('userData');
   const uiSession = session.fromPartition(UI_PARTITION);
   const webSession = session.fromPartition(WEB_PARTITION);

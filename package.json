@@ -27,6 +27,7 @@
     "typecheck": "tsc -b",
     "dist:win": "npm run build && electron-builder --win --x64 --publish never",
     "dist:dir": "npm run build && electron-builder --dir --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
     "update:psl": "node scripts/update-public-suffix-list.mjs"
   },
   "devDependencies": {

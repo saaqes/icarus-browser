@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { EventEmitter } from 'node:events';
 import type { App, AuthInfo, WebContents } from 'electron';
 import { describe, expect, it, vi } from 'vitest';
+import { macMenuTemplate } from './appMenu';
 import { AuthManager, describeAuthRequest } from './auth';
 import { JsonFile } from './jsonFile';
 import { isAllowedPageNavigation, isDangerousFile, parseNavigableUrl, protocolOf, sanitizeFileName } from './urlPolicy';
@@ -109,5 +110,22 @@ describe('autenticación HTTP', () => {
     manager.cancelForTab('pestaña-1');
     expect(second.callback).toHaveBeenCalledWith();
     expect(cancelled).toEqual([requests[1]]);
+  });
+});
+
+describe('menú de macOS', () => {
+  const roles = (template: ReturnType<typeof macMenuTemplate>): string[] =>
+    template.flatMap((item) => [item.role ?? '', ...(Array.isArray(item.submenu) ? roles(item.submenu) : [])]).filter(Boolean) as string[];
+
+  it('no ocupa los atajos del navegador (⌘W, ⌘R, ⌘T…)', () => {
+    const used = roles(macMenuTemplate('ICARUS Browser'));
+    for (const role of ['close', 'reload', 'forceReload', 'toggleDevTools', 'viewMenu', 'fileMenu']) expect(used).not.toContain(role);
+    const accelerators = macMenuTemplate('ICARUS Browser').flatMap((item) => (Array.isArray(item.submenu) ? item.submenu : [])).map((item) => item.accelerator);
+    expect(accelerators.filter(Boolean)).toEqual([]);
+  });
+
+  it('incluye Edición para copiar y pegar y Salir', () => {
+    const used = roles(macMenuTemplate('ICARUS Browser'));
+    for (const role of ['copy', 'paste', 'cut', 'selectAll', 'undo', 'quit', 'hide']) expect(used).toContain(role);
   });
 });

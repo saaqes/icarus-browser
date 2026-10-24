@@ -4,27 +4,21 @@ name: Windows
 # paquete portátil, comprueba que el instalador se instala y que el navegador
 # instalado arranca, y sube ambos como artefactos de la ejecución.
 #
-# Nunca publica una versión estable: solo crea un BORRADOR (privado hasta que
-# alguien lo revise y lo publique a mano) al subir una etiqueta v* o al lanzar
-# el flujo manualmente con «draft_release».
+# Los borradores de versión (nunca publicados automáticamente) los crea
+# release.yml, que llama a este flujo y a los de macOS, Android e iPhone.
 
 on:
   push:
     branches: [main, 'claude/**']
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
-    inputs:
-      draft_release:
-        description: Crear un borrador de versión con el instalador (no se publica)
-        type: boolean
-        default: false
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: windows-${{ github.ref }}
+  group: windows-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -118,27 +112,3 @@ jobs:
         run: npm run test:e2e
         env:
           ICARUS_E2E_INTERNET: '1'
-
-  draft-release:
-    name: Borrador de versión (sin publicar)
-    needs: [package, e2e]
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.draft_release)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: icarus-browser-windows-x64
-          path: release
-      - name: Crear el borrador con los archivos de Windows
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          VERSION: ${{ needs.package.outputs.version }}
-        run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then tag="$GITHUB_REF_NAME"; else tag="v$VERSION-preview.$GITHUB_RUN_NUMBER"; fi
-          gh release create "$tag" release/* \
-            --draft --prerelease --target "$GITHUB_SHA" \
-            --title "ICARUS Browser $tag" \
-            --notes "Versión preliminar para Windows x64 generada por GitHub Actions (ejecución $GITHUB_RUN_ID). El instalador no está firmado: Windows SmartScreen mostrará un aviso. Comprueba las sumas en SHA256SUMS.txt antes de publicar."

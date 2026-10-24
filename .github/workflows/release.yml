@@ -1,0 +1,77 @@
+name: Versión preliminar
+
+# Compila y prueba las cuatro plataformas (Windows, macOS, Android, iPhone/iPad)
+# y reúne sus paquetes en un BORRADOR de versión preliminar. Nunca publica nada:
+# el borrador es privado hasta que alguien lo revise y lo publique a mano.
+#
+# Se lanza al subir una etiqueta v* o manualmente desde Actions.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    uses: ./.github/workflows/windows.yml
+  macos:
+    uses: ./.github/workflows/macos.yml
+  android:
+    uses: ./.github/workflows/android.yml
+    secrets: inherit
+  ios:
+    uses: ./.github/workflows/ios.yml
+
+  draft:
+    name: Borrador de versión (sin publicar)
+    needs: [windows, macos, android, ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: icarus-browser-*
+          path: release
+          merge-multiple: true
+      - name: Comprobar los paquetes
+        run: |
+          cd release
+          ls -l
+          for pattern in 'ICARUS-Browser-Setup-*.exe' 'ICARUS-Browser-*-win-x64.zip' 'ICARUS-Browser-*-mac-arm64.dmg' 'ICARUS-Browser-*-mac-x64.dmg' \
+                         'ICARUS-Browser-*-android.apk' 'ICARUS-Browser-*-ios-sin-firmar.ipa' 'ICARUS-Browser-*-ios-simulador.zip'; do
+            ls $pattern >/dev/null || { echo "Falta $pattern"; exit 1; }
+          done
+          cat SHA256SUMS*.txt
+      - name: Crear el borrador
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then tag="$GITHUB_REF_NAME"; else tag="v$version-preview.$(date -u +%Y%m%d).$GITHUB_RUN_NUMBER"; fi
+          cat > notes.md <<EOF
+          Versión preliminar de ICARUS Browser $version para todas las plataformas, generada y probada por GitHub Actions (ejecución $GITHUB_RUN_ID, commit $GITHUB_SHA).
+
+          | Plataforma | Archivo | Firma |
+          | --- | --- | --- |
+          | Windows 10/11 x64 | \`ICARUS-Browser-Setup-$version.exe\` (instalador) o \`ICARUS-Browser-$version-win-x64.zip\` (portátil) | Sin firmar: SmartScreen muestra un aviso. |
+          | macOS (Apple Silicon) | \`ICARUS-Browser-$version-mac-arm64.dmg\` | Firma ad hoc, sin notarizar: la primera vez, clic derecho → Abrir (o Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente). |
+          | macOS (Intel) | \`ICARUS-Browser-$version-mac-x64.dmg\` | Igual que Apple Silicon. |
+          | Android 10 o posterior | \`ICARUS-Browser-$version-android.apk\` | Firmado con la clave de depuración de CI salvo que el repositorio tenga secretos de firma: sirve para instalarlo a mano, no para Google Play. |
+          | iPhone/iPad (iOS 16+) | \`ICARUS-Browser-$version-ios-sin-firmar.ipa\` | Sin firmar: hay que firmarlo con tu Apple ID (Sideloadly, AltStore o Xcode). Con una cuenta gratuita caduca a los 7 días. |
+          | Simulador de iOS | \`ICARUS-Browser-$version-ios-simulador.zip\` | Para probar en el simulador de Xcode en un Mac. |
+
+          Cada plataforma es un paquete distinto: el instalador de Windows no sirve en Android ni en iPhone. Las sumas SHA-256 están en los archivos \`SHA256SUMS*.txt\`. Instrucciones detalladas en el README.
+          EOF
+          gh release create "$tag" release/* --draft --prerelease --target "$GITHUB_SHA" \
+            --title "ICARUS Browser $tag (Windows, macOS, Android, iPhone)" --notes-file notes.md
+          echo "Borrador creado: $tag"

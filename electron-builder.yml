@@ -1,5 +1,6 @@
 # Empaquetado de ICARUS Browser con electron-builder.
 # Windows: instalador NSIS (.exe) y paquete portátil (.zip), ambos x64.
+# macOS: imagen de disco (.dmg) y .zip para Apple Silicon (arm64) e Intel (x64).
 appId: io.github.saaqes.icarusbrowser
 productName: ICARUS Browser
 copyright: Copyright © 2026 ICARUS Browser
@@ -41,8 +42,28 @@ linux:
   icon: build/icon.png
   category: Network
 mac:
-  target: [dir]
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
   icon: build/icon.png
+  category: public.app-category.productivity
+  # Firma ad hoc («-»): Apple Silicon no ejecuta binarios sin firmar. No hay firma de
+  # Developer ID ni notarización (requieren una cuenta de desarrollador de Apple), así
+  # que macOS avisa la primera vez que se abre (ver README → macOS).
+  identity: "-"
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  artifactName: ICARUS-Browser-${version}-mac-${arch}.${ext}
+  extendInfo:
+    NSCameraUsageDescription: Algunos sitios web piden la cámara (por ejemplo, para videollamadas). ICARUS te pregunta antes de permitirlo.
+    NSMicrophoneUsageDescription: Algunos sitios web piden el micrófono (por ejemplo, para videollamadas). ICARUS te pregunta antes de permitirlo.
+    NSLocationUsageDescription: Algunos sitios web piden tu ubicación (por ejemplo, mapas). ICARUS te pregunta antes de compartirla.
+    NSLocationWhenInUseUsageDescription: Algunos sitios web piden tu ubicación (por ejemplo, mapas). ICARUS te pregunta antes de compartirla.
+dmg:
+  title: ICARUS Browser ${version}
+  artifactName: ICARUS-Browser-${version}-mac-${arch}.${ext}
 # Endurecimiento del ejecutable de Electron.
 electronFuses:
   runAsNode: false
