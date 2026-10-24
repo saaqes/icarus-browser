@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- La interfaz se dibuja en código con las paletas de mobile/shared/themes.json.
+         El tema solo fija el fondo de la ventana y el modo claro/oscuro del sistema
+         (WebView lo usa para prefers-color-scheme). -->
+    <style name="Theme.Icarus" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/icarus_window</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:colorAccent">#6D28D9</item>
+    </style>
+</resources>

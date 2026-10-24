@@ -36,6 +36,8 @@ data class Settings(
     val saveHistory: Boolean = true,
     val restoreSession: Boolean = true,
     val showShortcuts: Boolean = true,
+    /** «Aplicar alias de URL en la interfaz» (Configuración → Avanzado en escritorio). */
+    val showAliases: Boolean = true,
 )
 
 data class Shortcut(val id: String, val title: String, val url: String)
@@ -212,7 +214,8 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
                     .put("searchProvider", settings.searchProvider.id)
                     .put("saveHistory", settings.saveHistory)
                     .put("restoreSession", settings.restoreSession)
-                    .put("showShortcuts", settings.showShortcuts),
+                    .put("showShortcuts", settings.showShortcuts)
+                    .put("showAliases", settings.showAliases),
             )
             .put("shortcuts", JSONArray().also { array -> data.shortcuts.forEach { array.put(JSONObject().put("id", it.id).put("title", it.title).put("url", it.url)) } })
             .put("aliasRules", AliasRule.listToJson(data.aliasRules))
@@ -233,6 +236,7 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
             saveHistory = raw.optBoolean("saveHistory", true),
             restoreSession = raw.optBoolean("restoreSession", true),
             showShortcuts = raw.optBoolean("showShortcuts", true),
+            showAliases = raw.optBoolean("showAliases", true),
         )
         val shortcuts = json.optJSONArray("shortcuts")?.let { array ->
             (0 until array.length()).mapNotNull { index ->

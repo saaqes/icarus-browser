@@ -29,20 +29,23 @@ import { es } from '../../src/i18n/es';
 import { ACCENT_COLORS, THEME_ACCENTS } from '../../src/themes/accents';
 import { THEME_IDS } from '../../src/types/settings';
 
-const SHARED_DIR = fileURLToPath(new URL('../../mobile/shared/', import.meta.url));
+const MOBILE_DIR = fileURLToPath(new URL('../../mobile/', import.meta.url));
 const UPDATE = process.env.UPDATE_MOBILE_SHARED === '1';
 
-function expectShared(name: string, content: string): void {
-  const path = join(SHARED_DIR, name);
+/** Comprueba (o escribe, con UPDATE_MOBILE_SHARED=1) un archivo generado dentro de mobile/. */
+function expectMobile(relativePath: string, content: string): void {
+  const path = join(MOBILE_DIR, relativePath);
   if (UPDATE) {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, content);
     return;
   }
-  const hint = `mobile/shared/${name} no está al día: ejecuta UPDATE_MOBILE_SHARED=1 npx vitest run electron/shared`;
+  const hint = `mobile/${relativePath} no está al día: ejecuta UPDATE_MOBILE_SHARED=1 npx vitest run electron/shared`;
   expect(existsSync(path), hint).toBe(true);
   expect(readFileSync(path, 'utf8') === content, hint).toBe(true);
 }
+
+const expectShared = (name: string, content: string) => expectMobile(`shared/${name}`, content);
 
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 const EPOCH = new Date('2026-01-01T00:00:00.000Z');
@@ -290,6 +293,81 @@ function themePalettes() {
   return { description: 'Colores de cada estilo, generados desde src/styles/tokens.css y src/themes/*/theme.css.', themes, accents };
 }
 
+/* ---------------------------------- Iconos ---------------------------------- */
+
+const ANDROID_DRAWABLES = 'android/app/src/main/res/drawable';
+
+/** Lee los iconos de trazo de src/components/common/Icon.tsx: nombre → elementos SVG. */
+function desktopIcons(): Map<string, Array<{ tag: string; attrs: Record<string, string> }>> {
+  const source = readSource('src/components/common/Icon.tsx');
+  const body = source.slice(source.indexOf('const ICONS = {'), source.indexOf('} satisfies'));
+  const icons = new Map<string, Array<{ tag: string; attrs: Record<string, string> }>>();
+  const entries = [...body.matchAll(/^ {2}(\w+): /gm)];
+  entries.forEach((entry, index) => {
+    const chunk = body.slice(entry.index, entries[index + 1]?.index ?? body.length);
+    const elements = [...chunk.matchAll(/<(path|circle|rect|ellipse)\s+([^>]*?)\s*\/>/g)].map((element) => ({
+      tag: element[1],
+      attrs: Object.fromEntries([...element[2].matchAll(/([\w-]+)="([^"]*)"/g)].map((attr) => [attr[1], attr[2]])),
+    }));
+    if (elements.length === 0) throw new Error(`Icono sin elementos: ${entry[1]}`);
+    icons.set(entry[1], elements);
+  });
+  return icons;
+}
+
+/** Convierte un elemento SVG en pathData de VectorDrawable (los arcos se admiten). */
+function toPathData({ tag, attrs }: { tag: string; attrs: Record<string, string> }): string {
+  const n = (name: string) => Number(attrs[name] ?? 0);
+  const f = (value: number) => String(Math.round(value * 1000) / 1000);
+  switch (tag) {
+    case 'path':
+      return attrs.d;
+    case 'circle':
+    case 'ellipse': {
+      const rx = tag === 'circle' ? n('r') : n('rx');
+      const ry = tag === 'circle' ? n('r') : n('ry');
+      return `M${f(n('cx') - rx)},${f(n('cy'))}a${f(rx)},${f(ry)} 0 1,0 ${f(2 * rx)},0a${f(rx)},${f(ry)} 0 1,0 ${f(-2 * rx)},0z`;
+    }
+    case 'rect': {
+      const [x, y, w, h, r] = [n('x'), n('y'), n('width'), n('height'), n('rx')];
+      if (!r) return `M${f(x)},${f(y)}h${f(w)}v${f(h)}h${f(-w)}z`;
+      const arc = (dx: number, dy: number) => `a${f(r)},${f(r)} 0 0,1 ${f(dx)},${f(dy)}`;
+      return `M${f(x + r)},${f(y)}h${f(w - 2 * r)}${arc(r, r)}v${f(h - 2 * r)}${arc(-r, r)}h${f(-(w - 2 * r))}${arc(-r, -r)}v${f(-(h - 2 * r))}${arc(r, -r)}z`;
+    }
+    default:
+      throw new Error(`Elemento no admitido: ${tag}`);
+  }
+}
+
+const snakeCase = (name: string) => name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+
+function androidVector(name: string, elements: Array<{ tag: string; attrs: Record<string, string> }>): string {
+  const paths = elements.map((element) => {
+    const filled = element.attrs.fill === 'currentColor';
+    return [
+      '    <path',
+      `        android:fillColor="${filled ? '#FF000000' : '#00000000'}"`,
+      `        android:pathData="${toPathData(element)}"`,
+      '        android:strokeColor="#FF000000"',
+      '        android:strokeLineCap="round"',
+      '        android:strokeLineJoin="round"',
+      '        android:strokeWidth="1.8" />',
+    ].join('\n');
+  });
+  return [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    `<!-- Icono «${name}» generado desde src/components/common/Icon.tsx (electron/shared/mobileShared.test.ts). -->`,
+    '<vector xmlns:android="http://schemas.android.com/apk/res/android"',
+    '    android:width="24dp"',
+    '    android:height="24dp"',
+    '    android:viewportWidth="24"',
+    '    android:viewportHeight="24">',
+    ...paths,
+    '</vector>',
+    '',
+  ].join('\n');
+}
+
 describe('datos compartidos con las apps móviles', () => {
   it('vectores de la barra de direcciones', () => {
     const providers: SearchProviderId[] = ['google', 'bing', 'duckduckgo'];
@@ -341,6 +419,37 @@ describe('datos compartidos con las apps móviles', () => {
         cases: REGISTRABLE_HOSTS.map((host) => ({ host, domain: getRegistrableDomain(host) })),
       }),
     );
+  });
+
+  it('textos compartidos', () => {
+    const { form } = es.aliasManager;
+    expectShared(
+      'strings.json',
+      json({
+        description: 'Textos de escritorio (src/i18n/es.ts) que reutilizan las apps móviles.',
+        aliasErrors: es.aliasManager.errors,
+        shortcutErrors: es.shortcuts.errors,
+        shieldListErrors: es.shield.settings.errors,
+        aliasManager: {
+          title: es.aliasManager.title,
+          subtitle: es.aliasManager.subtitle,
+          priorityNote: es.aliasManager.priorityNote,
+          matchTypes: form.matchTypes,
+          matchHints: form.matchHints,
+          patternPlaceholders: form.patternPlaceholders,
+          aliasHint: form.aliasHint,
+          targetHint: form.targetHint,
+          displayNameHint: form.displayNameHint,
+        },
+        shield: { intro: es.shield.settings.intro, listsHint: es.shield.settings.listsHint, customHint: es.shield.settings.customHint },
+      }),
+    );
+  });
+
+  it('iconos de Android', () => {
+    const icons = desktopIcons();
+    expect(icons.size).toBeGreaterThan(40);
+    for (const [name, elements] of icons) expectMobile(`${ANDROID_DRAWABLES}/icarus_${snakeCase(name)}.xml`, androidVector(name, elements));
   });
 
   it('paletas de los estilos', () => {

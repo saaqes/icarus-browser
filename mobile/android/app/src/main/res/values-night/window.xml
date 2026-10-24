@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="icarus_window">@color/icarus_window_dark</color>
+</resources>

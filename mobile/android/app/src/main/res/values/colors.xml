@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fondo del logotipo (public/icarus.svg). -->
+    <color name="icarus_launcher_background">#16141C</color>
+    <color name="icarus_window_light">#ECE8F5</color>
+    <color name="icarus_window_dark">#0E0D12</color>
+</resources>

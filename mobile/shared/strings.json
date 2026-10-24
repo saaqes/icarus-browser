@@ -1,0 +1,60 @@
+{
+  "description": "Textos de escritorio (src/i18n/es.ts) que reutilizan las apps móviles.",
+  "aliasErrors": {
+    "required": "Este campo es obligatorio.",
+    "too-long": "El texto es demasiado largo.",
+    "invalid-url": "Introduce una URL web válida (http o https).",
+    "unsafe-protocol": "Solo se admiten direcciones http:// o https://.",
+    "invalid-host": "Introduce un nombre de host válido, por ejemplo www.ejemplo.com o *.ejemplo.com.",
+    "alias-format": "El alias debe terminar en .icarus y usar letras, números o guiones (ej. buscar.icarus).",
+    "alias-duplicate": "Ya existe una regla activa con este alias.",
+    "pattern-is-alias": "El patrón debe ser una dirección real, no un alias .icarus.",
+    "target-is-alias": "El destino debe ser una URL real; un alias no puede apuntar a otro alias.",
+    "insecure-target": "El destino no puede usar HTTP si el patrón no es HTTP: una regla no puede convertir HTTPS en HTTP."
+  },
+  "shortcutErrors": {
+    "required": "Este campo es obligatorio.",
+    "too-long": "El nombre admite como máximo 40 caracteres.",
+    "invalid-url": "Introduce una dirección web válida, por ejemplo ejemplo.com.",
+    "unsafe-protocol": "Solo se admiten direcciones http:// o https://.",
+    "alias-url": "Usa la URL real del sitio. Los alias .icarus se aplican automáticamente.",
+    "duplicate-url": "Ya existe un acceso directo con esta dirección."
+  },
+  "shieldListErrors": {
+    "network": "No se pudo descargar (sin conexión o servidor no disponible).",
+    "http": "El servidor respondió con un error.",
+    "too-large": "La lista supera el tamaño máximo (15 MB).",
+    "not-a-list": "La dirección no devuelve una lista de filtros (parece una página web).",
+    "empty": "La lista no contiene reglas válidas.",
+    "invalid-url": "Introduce una dirección https:// válida.",
+    "duplicate": "Esa lista ya está añadida."
+  },
+  "aliasManager": {
+    "title": "Cambiar nombre de URL",
+    "subtitle": "Define cómo se muestran ciertas direcciones dentro de ICARUS. Un alias es una etiqueta visual interna: la URL real se conserva y siempre se puede consultar.",
+    "priorityNote": "Prioridad: coincidencia exacta > prefijo más largo > host concreto > host con comodín. En empate se aplica la regla más antigua.",
+    "matchTypes": {
+      "exact": "URL exacta",
+      "prefix": "Empieza por",
+      "host": "Sitio (host)"
+    },
+    "matchHints": {
+      "exact": "Solo la dirección indicada (se ignora el fragmento #).",
+      "prefix": "La dirección indicada y las rutas que cuelgan de ella.",
+      "host": "Todas las páginas del host. Usa *.dominio.com para incluir subdominios."
+    },
+    "patternPlaceholders": {
+      "exact": "https://www.ejemplo.com/",
+      "prefix": "https://www.ejemplo.com/docs",
+      "host": "www.ejemplo.com"
+    },
+    "aliasHint": "Etiqueta interna terminada en .icarus. No es un dominio de Internet.",
+    "targetHint": "Dirección que se abre al escribir el alias en la barra de direcciones.",
+    "displayNameHint": "Se usa como título de la pestaña."
+  },
+  "shield": {
+    "intro": "Shield bloquea las solicitudes de red de anuncios y rastreadores antes de que se descarguen, usando listas de filtros con sintaxis de Adblock Plus.",
+    "listsHint": "Las listas se descargan desde sus fuentes oficiales y se actualizan cada 4 días.",
+    "customHint": "Una regla por línea, con sintaxis de Adblock Plus (p. ej. ||anuncios.ejemplo.com^ o @@||sitio.com^ para permitir)."
+  }
+}
