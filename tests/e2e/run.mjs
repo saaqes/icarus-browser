@@ -404,7 +404,8 @@ await step('11. Menús sobre la página: captura y ocultación de la vista', asy
   await eventually(async () => (await views()).some((v) => v.visible && v.url?.endsWith('/a.html')), 'a.html no visible');
   await win.getByRole('button', { name: 'Menú de ICARUS' }).click();
   await eventually(async () => !(await views()).some((v) => v.visible), 'La vista no se ocultó con el menú abierto');
-  assert(await win.locator('.viewport__snapshot').isVisible(), 'No se muestra la captura de la página');
+  // Si la captura tarda más que la reserva de 500 ms, la vista se oculta antes y la captura aparece al llegar.
+  await eventually(() => win.locator('.viewport__snapshot').isVisible(), 'No se muestra la captura de la página', 5_000);
   await win.keyboard.press('Escape');
   await eventually(async () => (await views()).some((v) => v.visible && v.url?.endsWith('/a.html')), 'La vista no volvió a mostrarse');
 });
