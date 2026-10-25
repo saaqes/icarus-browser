@@ -9,7 +9,7 @@
  */
 
 import { join, resolve } from 'node:path';
-import { app, Menu, net, session, webContents, type WebContents } from 'electron';
+import { app, Menu, net, session, shell, webContents, type WebContents } from 'electron';
 import type { ClearDataOptions, DesktopPreferences, NativeEvent } from '../../src/types/native';
 import { macMenuTemplate } from './appMenu';
 import { DownloadManager } from './downloads';
@@ -23,6 +23,10 @@ import { createListFetcher, ShieldService } from './shieldService';
 import { TabManager } from './tabs';
 import { registerUiScheme, serveUi, UI_ENTRY, UI_ORIGIN } from './uiProtocol';
 import { UiStorage } from './uiStorage';
+import { electronFetch } from './updateFetch';
+import { launchMacSwap, launchWindowsInstaller, planInstall, stageMacUpdate, verifyWindowsInstaller } from './updateInstall';
+import { UpdateService, type UpdateInstaller } from './updates';
+import { readBuildInfo, updateConfig } from './updateSetup';
 import { createMainWindow } from './window';
 
 // Carpeta de datos alternativa (pruebas automáticas o instalación portátil).
@@ -186,6 +190,8 @@ async function start(): Promise<void> {
     }
   };
 
+  const updates = createUpdateService(dataDir, emit);
+
   registerIpc({
     window,
     isUiUrl,
@@ -210,6 +216,7 @@ async function start(): Promise<void> {
       return preferencesFile.get();
     },
     clearData,
+    updates,
     setTitleBarColors: (color, symbolColor) => {
       if (process.platform !== 'darwin' && !window.isDestroyed()) window.setTitleBarOverlay({ color, symbolColor });
     },
@@ -223,6 +230,8 @@ async function start(): Promise<void> {
 
   if (devServerUrl) await window.loadURL(devServerUrl);
   else await window.loadURL(UI_ENTRY);
+
+  updates.start();
 
   // Actualiza en segundo plano las listas de Shield caducadas.
   if (process.env.ICARUS_SHIELD_AUTO_UPDATE !== '0') {
@@ -239,6 +248,8 @@ async function start(): Promise<void> {
       downloads.flush();
       shield.flush();
       preferencesFile.flush();
+      // Con «Instalar al cerrar ICARUS», el instalador empieza cuando todo está guardado.
+      updates.onQuit();
     };
     if (!clearOnExit.history && !clearOnExit.cookies && !clearOnExit.cache) {
       flushAll();
@@ -252,6 +263,52 @@ async function start(): Promise<void> {
         flushAll();
         app.quit();
       });
+  });
+}
+
+/** Actualizador de la aplicación: modo según la plataforma y dónde está instalada. */
+function createUpdateService(dataDir: string, emit: (event: NativeEvent) => void): UpdateService {
+  const config = updateConfig(readBuildInfo(join(__dirname, '..', '..')));
+  const plan = planInstall({
+    platform: process.platform,
+    arch: process.arch,
+    execPath: process.execPath,
+    runningUnderArm64Translation: app.runningUnderARM64Translation,
+  });
+  const installer: UpdateInstaller =
+    process.platform === 'win32'
+      ? {
+          prepare: async (file) => {
+            await verifyWindowsInstaller(file, process.execPath);
+            return file;
+          },
+          launch: (prepared, relaunch) => launchWindowsInstaller(prepared, relaunch),
+          reveal: (file) => shell.showItemInFolder(file),
+        }
+      : process.platform === 'darwin'
+        ? {
+            prepare: (file, _asset, manifest) => stageMacUpdate(file, join(dataDir, 'updates', manifest.version, 'app'), manifest.version, plan.bundlePath!),
+            launch: (prepared, relaunch) => launchMacSwap(join(dataDir, 'updates'), plan.bundlePath!, prepared, relaunch),
+            // El .dmg verificado se abre para que el usuario arrastre la app a Aplicaciones.
+            reveal: (file) => void shell.openPath(file),
+          }
+        : { prepare: async (file) => file, launch: () => undefined, reveal: (file) => shell.showItemInFolder(file) };
+
+  return new UpdateService({
+    dataDir,
+    currentVersion: app.getVersion(),
+    plan,
+    publicKey: config.publicKey,
+    isPackaged: app.isPackaged || config.testFeed,
+    fetch: electronFetch,
+    source: config.source,
+    installer,
+    emit: (state) => emit({ type: 'update-state', state }),
+    // La interfaz guarda la sesión antes de reiniciar (responde por IPC, como mucho 2 s).
+    requestRestart: () => emit({ type: 'update-restart' }),
+    quit: () => app.quit(),
+    headers: { 'User-Agent': `ICARUS-Browser/${app.getVersion()} (${process.platform}; ${process.arch})` },
+    firstCheckDelayMs: config.firstCheckDelayMs,
   });
 }
 

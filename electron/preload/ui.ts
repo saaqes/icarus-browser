@@ -96,6 +96,17 @@ const api: IcarusNativeApi = {
   favicons: {
     get: (pageUrl) => invoke('icarus:favicons:get', pageUrl),
   },
+  updates: {
+    getState: () => invoke('icarus:updates:get'),
+    check: () => invoke('icarus:updates:check'),
+    download: (options) => send('icarus:updates:download', options.install === true),
+    cancel: () => send('icarus:updates:cancel'),
+    install: (when) => send('icarus:updates:install', when),
+    postpone: () => send('icarus:updates:postpone'),
+    setChannel: (channel) => send('icarus:updates:channel', channel),
+    acknowledge: () => send('icarus:updates:acknowledge'),
+    readyToRestart: () => send('icarus:updates:restart-ready'),
+  },
   onEvent: (listener) => {
     const wrapped = (_event: unknown, payload: NativeEvent) => listener(payload);
     ipcRenderer.on('icarus:event', wrapped);

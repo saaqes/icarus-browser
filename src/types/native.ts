@@ -181,6 +181,71 @@ export interface ClearDataOptions {
   downloads: boolean;
 }
 
+/* ------------------------------- Actualizaciones ------------------------------- */
+
+export type UpdateChannel = 'stable' | 'preview';
+
+/**
+ * Cómo se aplica una actualización en esta instalación:
+ * - automatic: ICARUS la descarga, la verifica, la instala y se reinicia (instalador
+ *   NSIS en Windows; sustitución de la app en macOS cuando su carpeta es escribible).
+ * - manual-dmg / manual-portable: se descarga y verifica, pero el usuario la coloca
+ *   (macOS sin permisos sobre la app, versión portátil de Windows).
+ * - manual-release: solo se avisa y se abre la página de la versión (Linux).
+ * - unsupported: compilación de desarrollo o sin clave para verificar actualizaciones.
+ */
+export type UpdateInstallMode = 'automatic' | 'manual-dmg' | 'manual-portable' | 'manual-release' | 'unsupported';
+
+export type UpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'verifying' | 'ready' | 'installing' | 'error';
+
+export type UpdateErrorCode =
+  | 'network'
+  | 'rate-limited'
+  | 'not-found'
+  | 'signature'
+  | 'invalid-manifest'
+  | 'no-asset'
+  | 'hash-mismatch'
+  | 'size-mismatch'
+  | 'interrupted'
+  | 'disk-space'
+  | 'write'
+  | 'verification-failed'
+  | 'install-failed';
+
+export interface UpdateInfo {
+  version: string;
+  releasedAt: string;
+  notes: string;
+  /** Paquete que se descargará (null si en esta plataforma solo se avisa). */
+  file: string | null;
+  size: number | null;
+  releasePage: string;
+}
+
+export interface UpdateState {
+  currentVersion: string;
+  channel: UpdateChannel;
+  mode: UpdateInstallMode;
+  /** Por qué no hay actualizaciones integradas (modo unsupported). */
+  unsupportedReason: 'development' | 'no-key' | null;
+  status: UpdateStatus;
+  lastCheckedAt: string | null;
+  available: UpdateInfo | null;
+  progress: { received: number; total: number } | null;
+  error: { code: UpdateErrorCode; detail: string | null } | null;
+  /** Versión que el usuario pidió recordar más tarde (no se vuelve a avisar de ella). */
+  postponedVersion: string | null;
+  /** La instalación se hará al cerrar ICARUS. */
+  installOnQuit: boolean;
+  /** Ruta del paquete descargado cuando hay que colocarlo a mano. */
+  manualFile: string | null;
+  /** Actualización aplicada en este arranque (para confirmarla al usuario). */
+  justUpdated: { from: string; to: string } | null;
+  /** Versión cuya instalación falló (no se reintenta sola). */
+  failedVersion: string | null;
+}
+
 export type NativeEvent =
   | { type: 'tab-state'; state: WebTabState }
   | { type: 'open-in-new-tab'; url: string; background: boolean }
@@ -195,7 +260,10 @@ export type NativeEvent =
   | { type: 'downloads'; downloads: DownloadItemInfo[] }
   | { type: 'download-started'; id: string }
   | { type: 'history-changed' }
-  | { type: 'shield'; state: ShieldState };
+  | { type: 'shield'; state: ShieldState }
+  | { type: 'update-state'; state: UpdateState }
+  /** ICARUS va a reiniciarse para actualizarse: la interfaz guarda la sesión y lo confirma. */
+  | { type: 'update-restart' };
 
 export interface IcarusNativeApi {
   apiVersion: number;
@@ -271,6 +339,21 @@ export interface IcarusNativeApi {
   };
   favicons: {
     get(pageUrl: string): Promise<string | null>;
+  };
+  updates: {
+    getState(): Promise<UpdateState>;
+    /** Busca ahora (también si el usuario había pospuesto la versión). */
+    check(): Promise<UpdateState>;
+    /** Descarga y verifica; con `install` instala y reinicia al terminar. */
+    download(options: { install: boolean }): void;
+    cancel(): void;
+    install(when: 'now' | 'on-quit'): void;
+    postpone(): void;
+    setChannel(channel: UpdateChannel): void;
+    /** Oculta la confirmación «ICARUS se ha actualizado». */
+    acknowledge(): void;
+    /** Respuesta a `update-restart`: la sesión ya está guardada. */
+    readyToRestart(): void;
   };
   onEvent(listener: (event: NativeEvent) => void): () => void;
 }

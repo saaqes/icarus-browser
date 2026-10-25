@@ -15,6 +15,7 @@ import { sanitizePreferences } from './preferences';
 import type { ShieldService } from './shieldService';
 import type { TabManager } from './tabs';
 import type { UiStorage } from './uiStorage';
+import type { UpdateService } from './updates';
 import { assertBoolean, assertColor, assertId, assertOneOf, assertRect, assertString, IpcValidationError, isRecord } from './validate';
 
 export interface IpcContext {
@@ -32,12 +33,15 @@ export interface IpcContext {
   getPreferences: () => DesktopPreferences;
   setPreferences: (preferences: DesktopPreferences) => DesktopPreferences;
   clearData: (options: ClearDataOptions) => Promise<void>;
+  updates: UpdateService;
   setTitleBarColors: (color: string, symbolColor: string) => void;
 }
 
 const TAB_COMMANDS = ['back', 'forward', 'reload', 'stop', 'close'] as const;
 const DOWNLOAD_COMMANDS = ['cancel', 'show-in-folder'] as const;
 const RANGES = ['hour', 'day', 'week', 'all'] as const;
+const UPDATE_CHANNELS = ['stable', 'preview'] as const;
+const INSTALL_WHEN = ['now', 'on-quit'] as const;
 
 export function registerIpc(context: IpcContext): void {
   const fromUi = (event: IpcMainEvent | IpcMainInvokeEvent) => {
@@ -167,4 +171,14 @@ export function registerIpc(context: IpcContext): void {
   handle('icarus:prefs:set', (preferences) => context.setPreferences(sanitizePreferences(preferences)));
 
   handle('icarus:favicons:get', (pageUrl) => context.favicons.forPage(assertString(pageUrl, 'pageUrl', 8192)));
+
+  handle('icarus:updates:get', () => context.updates.getState());
+  handle('icarus:updates:check', () => context.updates.check(true));
+  on('icarus:updates:download', (install) => context.updates.download(assertBoolean(install, 'install')));
+  on('icarus:updates:cancel', () => context.updates.cancel());
+  on('icarus:updates:install', (when) => void context.updates.install(assertOneOf(when, INSTALL_WHEN, 'when')));
+  on('icarus:updates:postpone', () => context.updates.postpone());
+  on('icarus:updates:channel', (channel) => context.updates.setChannel(assertOneOf(channel, UPDATE_CHANNELS, 'channel')));
+  on('icarus:updates:acknowledge', () => context.updates.acknowledge());
+  on('icarus:updates:restart-ready', () => context.updates.readyToRestart());
 }
