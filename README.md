@@ -300,11 +300,11 @@ Las apps móviles tienen interfaz nativa (vistas de Android en Kotlin; SwiftUI e
 
 ![ICARUS para Android en un emulador de Android 14](docs/screenshots/android.webp)
 
-<sub>Capturas de la prueba en el emulador de Android 14 (GitHub Actions): nueva pestaña del estilo ICARUS; una página local con 2 solicitudes canceladas por Shield; certificado no válido real (`self-signed.badssl.com`) sin opción de continuar; Esencial; Panorama; y la misma página mostrada con su alias `prueba.icarus`.</sub>
+<sub>Capturas de la prueba en el emulador de Android 14 (GitHub Actions): nueva pestaña del estilo ICARUS; una página local (`127.0.0.1`, HTTP: icono «No seguro») con 2 solicitudes canceladas por Shield; la misma página con la dirección personalizada `miweb.com`; certificado no válido real (`self-signed.badssl.com`) sin opción de continuar y con la dirección real en la barra; Esencial; y Panorama mostrando `miweb.com/pagina.html`.</sub>
 
 ![Pantallas secundarias de ICARUS para Android](docs/screenshots/android-pantallas.webp)
 
-<sub>Android: Configuración, ICARUS Shield (con el contador real, aún a cero en esa prueba, y EasyList descargándose), «Cambiar nombre de URL», Historial y Descargas, capturadas por la prueba que comprueba que cada pantalla abre sin cerrarse.</sub>
+<sub>Android: Configuración, ICARUS Shield, Direcciones personalizadas (vacía en esa prueba), Historial y Descargas, capturadas por la prueba que comprueba que cada pantalla abre sin cerrarse.</sub>
 
 ![ICARUS para iPhone en el simulador de iOS](docs/screenshots/iphone.webp)
 

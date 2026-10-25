@@ -3,7 +3,11 @@ package io.github.saaqes.icarusbrowser
 import android.content.Context
 import android.text.Editable
 import android.text.InputType
+import android.text.SpannableString
+import android.text.Spanned
 import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
+import android.text.style.StrikethroughSpan
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -173,7 +177,16 @@ class Omnibox(
     }
 
     private fun showDisplay() {
-        edit.setText(currentDisplay().text)
+        val text = currentDisplay().text
+        // Con un certificado no válido, como Chrome: «https» tachado y en rojo.
+        if (certificateError && text.startsWith("https://")) {
+            edit.setText(SpannableString(text).apply {
+                setSpan(StrikethroughSpan(), 0, 5, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                setSpan(ForegroundColorSpan(p.danger), 0, 5, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            })
+        } else {
+            edit.setText(text)
+        }
     }
 
     private fun refreshIcon() {
