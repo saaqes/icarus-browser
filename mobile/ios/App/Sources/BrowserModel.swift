@@ -190,8 +190,11 @@ final class BrowserModel: ObservableObject {
         }
         var seen = Set<String>()
         // También coincide con la dirección visible (la personalizada), no solo con la real.
-        let history = needle.isEmpty ? services.history.list() : services.history.list().filter { item in
-            item.title.lowercased().contains(needle) || item.url.lowercased().contains(needle) || AddressFormat.display(item.url).full.lowercased().contains(needle)
+        // Perezoso: se deja de filtrar en cuanto hay suficientes resultados.
+        let custom = !services.profile.customAddresses.isEmpty
+        let history = services.history.list().lazy.filter { item in
+            needle.isEmpty || item.title.lowercased().contains(needle) || item.url.lowercased().contains(needle)
+                || (custom && AddressFormat.display(item.url).full.lowercased().contains(needle))
         }
         for item in history where seen.insert(item.url).inserted {
             result.append(Suggestion(icon: "clock", title: AddressFormat.title(item.url, item.title), subtitle: AddressFormat.display(item.url).text, target: item.url))
