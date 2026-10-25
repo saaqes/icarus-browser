@@ -369,9 +369,19 @@ await step('8. Enlaces target=_blank abren pestañas de ICARUS (no ventanas)', a
 
 await step('9. Cerrar y crear pestañas libera las vistas', async () => {
   const before = (await views()).length;
+  const describeState = async () => {
+    const list = (await views()).map((view) => `${view.visible ? '*' : ''}${view.url}`).join(', ');
+    const tabs = (await win.locator('.tab').evaluateAll((items) => items.map((item) => `${item.classList.contains('is-active') ? '*' : ''}${item.getAttribute('title')?.split('\n')[0]}`))).join(', ');
+    return `vistas [${list}] · pestañas [${tabs}]`;
+  };
+  const initial = await describeState();
   await win.locator('.tab.is-active .tab__close').click();
   await eventually(async () => (await win.getByRole('tab').count()) === 2, 'La pestaña no se cerró');
-  await eventually(async () => (await views()).length === before - 1, 'La vista web no se liberó');
+  try {
+    await eventually(async () => (await views()).length === before - 1, 'La vista web no se liberó');
+  } catch (error) {
+    throw new Error(`${error.message}. Antes: ${initial}. Después: ${await describeState()}`);
+  }
   await win.keyboard.press('Control+T');
   await eventually(async () => (await win.getByRole('tab').count()) === 3, 'Ctrl+T no creó una pestaña');
   return `vistas: ${before} → ${before - 1}`;

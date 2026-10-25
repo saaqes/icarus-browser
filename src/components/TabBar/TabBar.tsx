@@ -5,8 +5,8 @@ import { Favicon } from '../common/Favicon';
 import { Icon } from '../common/Icon';
 import { IcarusMark } from '../common/IcarusLogo';
 import { useBrowser } from '../BrowserShell/BrowserContext';
-import './TabBar.css';
 import { shortAddress } from '../../services/custom-addresses/display';
+import './TabBar.css';
 
 function TabIcon({ presentation, loading, favicon }: { presentation: PagePresentation; loading: boolean; favicon: string | null }) {
   const m = useMessages();
