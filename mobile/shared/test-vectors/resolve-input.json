@@ -1,65 +1,45 @@
 {
   "description": "Entrada de la barra de direcciones → resultado (generado desde la versión de escritorio).",
-  "rules": [
+  "customAddresses": [
     {
-      "id": "default-search",
-      "name": "Página de búsqueda",
-      "matchType": "exact",
-      "pattern": "https://www.google.com/",
-      "displayName": "Buscar",
-      "alias": "buscar.icarus",
-      "targetUrl": "https://www.google.com/",
+      "id": "deriv",
+      "target": "https://bot.deriv.me/",
+      "address": "https://miweb.com/",
       "enabled": true,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
-    },
-    {
-      "id": "default-wiki",
-      "name": "Enciclopedia",
-      "matchType": "host",
-      "pattern": "es.wikipedia.org",
-      "displayName": "Wikipedia",
-      "alias": "wiki.icarus",
-      "targetUrl": "https://es.wikipedia.org/",
-      "enabled": false,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z"
-    },
-    {
-      "id": "guia",
-      "name": "Guía",
-      "enabled": true,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
-      "matchType": "prefix",
-      "pattern": "https://docs.ejemplo.com/guia",
-      "displayName": "Guía",
-      "alias": "guia.icarus",
-      "targetUrl": "https://docs.ejemplo.com/guia"
-    },
-    {
-      "id": "org",
-      "name": "Ejemplo ORG",
-      "enabled": true,
-      "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
-      "matchType": "host",
-      "pattern": "*.ejemplo.org",
-      "displayName": "Ejemplo ORG",
-      "alias": "org.icarus",
-      "targetUrl": "https://ejemplo.org/"
     },
     {
       "id": "local",
-      "name": "Servidor local",
+      "target": "http://localhost:3000/",
+      "address": "http://miapp.com/v2",
       "enabled": true,
       "createdAt": "2026-01-01T00:00:00.000Z",
-      "updatedAt": "2026-01-01T00:00:00.000Z",
-      "matchType": "exact",
-      "pattern": "http://localhost:3000/",
-      "displayName": "Servidor local",
-      "alias": "local.icarus",
-      "targetUrl": "http://localhost:3000/"
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "docs",
+      "target": "https://ejemplo.com/docs",
+      "address": "https://docs.miweb.org/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "migrada",
+      "target": "https://es.wikipedia.org/",
+      "address": "https://wiki.icarus/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "apagada",
+      "target": "https://apagada.com/",
+      "address": "https://desactivada.com/",
+      "enabled": false,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "cases": [
@@ -231,40 +211,86 @@
       "url": "https://www.google.com/search?q=https%3A%2F%2Fusuario%3Aclave%40ejemplo.com%2F"
     },
     {
-      "input": "https://buscar.icarus/",
-      "kind": "alias",
-      "url": "https://www.google.com/",
-      "ruleId": "default-search"
+      "input": "bot.deriv.me",
+      "kind": "url",
+      "url": "https://bot.deriv.me/"
     },
     {
-      "input": "buscar.icarus",
-      "kind": "alias",
-      "url": "https://www.google.com/",
-      "ruleId": "default-search"
+      "input": "icarus.marketing",
+      "kind": "url",
+      "url": "https://icarus.marketing/"
     },
     {
-      "input": "BUSCAR.ICARUS",
-      "kind": "alias",
-      "url": "https://www.google.com/",
-      "ruleId": "default-search"
+      "input": "miweb.com",
+      "kind": "custom",
+      "url": "https://bot.deriv.me/",
+      "address": "https://miweb.com/",
+      "entryId": "deriv"
     },
     {
-      "input": "guia.icarus",
-      "kind": "alias",
-      "url": "https://docs.ejemplo.com/guia",
-      "ruleId": "guia"
+      "input": "MIWEB.COM/Panel?x=1#a",
+      "kind": "custom",
+      "url": "https://bot.deriv.me/Panel?x=1#a",
+      "address": "https://miweb.com/Panel?x=1#a",
+      "entryId": "deriv"
+    },
+    {
+      "input": "https://miweb.com/ruta",
+      "kind": "custom",
+      "url": "https://bot.deriv.me/ruta",
+      "address": "https://miweb.com/ruta",
+      "entryId": "deriv"
+    },
+    {
+      "input": "http://miweb.com/",
+      "kind": "url",
+      "url": "http://miweb.com/"
+    },
+    {
+      "input": "miapp.com/v2/api",
+      "kind": "custom",
+      "url": "http://localhost:3000/api",
+      "address": "http://miapp.com/v2/api",
+      "entryId": "local"
+    },
+    {
+      "input": "https://miapp.com/v2",
+      "kind": "url",
+      "url": "https://miapp.com/v2"
+    },
+    {
+      "input": "miapp.com/v1",
+      "kind": "url",
+      "url": "https://miapp.com/v1"
+    },
+    {
+      "input": "docs.miweb.org/guia",
+      "kind": "custom",
+      "url": "https://ejemplo.com/docs/guia",
+      "address": "https://docs.miweb.org/guia",
+      "entryId": "docs"
     },
     {
       "input": "wiki.icarus",
-      "kind": "alias-unresolved",
-      "alias": "wiki.icarus",
-      "reason": "disabled"
+      "kind": "custom",
+      "url": "https://es.wikipedia.org/",
+      "address": "https://wiki.icarus/",
+      "entryId": "migrada"
     },
     {
-      "input": "nada.icarus",
-      "kind": "alias-unresolved",
-      "alias": "nada.icarus",
-      "reason": "unknown"
+      "input": "https://buscar.icarus/",
+      "kind": "url",
+      "url": "https://buscar.icarus/"
+    },
+    {
+      "input": "buscar.icarus",
+      "kind": "url",
+      "url": "https://buscar.icarus/"
+    },
+    {
+      "input": "desactivada.com",
+      "kind": "url",
+      "url": "https://desactivada.com/"
     },
     {
       "input": "icarus://nueva-pestana",

@@ -20,7 +20,8 @@ describe('accesos directos', () => {
     });
     expect(validateShortcutInput({ title: '', url: '' })).toEqual({ ok: false, errors: { title: 'required', url: 'required' } });
     expect(validateShortcutInput({ title: 'x', url: 'javascript:alert(1)' })).toMatchObject({ errors: { url: 'unsafe-protocol' } });
-    expect(validateShortcutInput({ title: 'x', url: 'buscar.icarus' })).toMatchObject({ errors: { url: 'alias-url' } });
+    // Cualquier dirección vale, también las que antes se reservaban para alias.
+    expect(validateShortcutInput({ title: 'x', url: 'buscar.icarus' })).toMatchObject({ ok: true, value: { url: 'https://buscar.icarus/' } });
     expect(validateShortcutInput({ title: 'x', url: 'no válido' })).toMatchObject({ errors: { url: 'invalid-url' } });
     expect(validateShortcutInput({ title: 'x'.repeat(41), url: 'a.com' })).toMatchObject({ errors: { title: 'too-long' } });
   });

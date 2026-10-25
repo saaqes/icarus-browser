@@ -78,26 +78,6 @@
   font-size: var(--text-sm);
 }
 
-.shortcut__alias {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: -4px;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 10.5px;
-  font-weight: 700;
-}
-
-.home[data-surface='image'] .shortcut__alias,
-.home[data-surface='color-dark'] .shortcut__alias {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-}
-
 .shortcut__menu {
   position: absolute;
   top: 2px;
@@ -171,11 +151,6 @@
 .shortcuts--tile .shortcut__menu,
 .shortcuts--tile .shortcut--add .shortcut__icon {
   color: var(--fg-2);
-}
-
-.shortcuts--tile .shortcut__alias {
-  background: var(--accent-soft) !important;
-  color: var(--accent) !important;
 }
 
 /* Dock (ICARUS) */

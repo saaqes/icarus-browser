@@ -14,7 +14,6 @@ export type ShortcutFieldError =
   | 'too-long'
   | 'invalid-url'
   | 'unsafe-protocol'
-  | 'alias-url'
   | 'duplicate-url';
 
 export type ShortcutErrors = Partial<Record<keyof ShortcutInput, ShortcutFieldError>>;
@@ -54,14 +53,7 @@ export function validateShortcutInput(
   const normalized = normalizeUserUrl(input.url);
   let url = '';
   if (!normalized.ok) {
-    errors.url =
-      normalized.reason === 'empty'
-        ? 'required'
-        : normalized.reason === 'alias'
-          ? 'alias-url'
-          : normalized.reason === 'invalid'
-            ? 'invalid-url'
-            : 'unsafe-protocol';
+    errors.url = normalized.reason === 'empty' ? 'required' : normalized.reason === 'invalid' ? 'invalid-url' : 'unsafe-protocol';
   } else {
     url = normalized.url;
     if (existing.some((shortcut) => shortcut.id !== editingId && shortcut.url === url)) errors.url = 'duplicate-url';

@@ -23,7 +23,6 @@ import {
   THEME_IDS,
   WIDGET_IDS,
   WIDGET_PLACEMENTS,
-  type AdvancedSettings,
   type AppearanceSettings,
   type BackgroundSetting,
   type GeneralSettings,
@@ -69,9 +68,7 @@ export function createDefaultSettings(): Settings {
       externalOpening: import.meta.env.VITE_ICARUS_EXTERNAL_OPENING === 'confirm' ? 'confirm' : 'automatic',
       shortcutOpenTarget: 'current-tab',
       loadFavicons: true,
-    },
-    advanced: {
-      showAliases: true,
+      showFullUrls: false,
     },
   };
 }
@@ -168,14 +165,10 @@ export function sanitizeSettings(raw: unknown, issues: string[]): Settings {
     externalOpening: readEnum(navigationRaw.externalOpening, EXTERNAL_OPENING_MODES, defaults.navigation.externalOpening, 'navigation.externalOpening', issues),
     shortcutOpenTarget: readEnum(navigationRaw.shortcutOpenTarget, SHORTCUT_OPEN_TARGETS, defaults.navigation.shortcutOpenTarget, 'navigation.shortcutOpenTarget', issues),
     loadFavicons: readBoolean(navigationRaw.loadFavicons, defaults.navigation.loadFavicons, 'navigation.loadFavicons', issues),
+    showFullUrls: readBoolean(navigationRaw.showFullUrls, defaults.navigation.showFullUrls, 'navigation.showFullUrls', issues),
   };
 
-  const advancedRaw = readRecord(root.advanced, 'advanced', issues);
-  const advanced: AdvancedSettings = {
-    showAliases: readBoolean(advancedRaw.showAliases, defaults.advanced.showAliases, 'advanced.showAliases', issues),
-  };
-
-  return { general, appearance, navigation, advanced };
+  return { general, appearance, navigation };
 }
 
 export const settingsSchema: DocumentSchema<Settings> = {
@@ -236,6 +229,3 @@ export function updateNavigation(settings: Settings, patch: Partial<NavigationSe
   return { ...settings, navigation: { ...settings.navigation, ...patch } };
 }
 
-export function updateAdvanced(settings: Settings, patch: Partial<AdvancedSettings>): Settings {
-  return { ...settings, advanced: { ...settings.advanced, ...patch } };
-}

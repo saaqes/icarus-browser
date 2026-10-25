@@ -1,0 +1,187 @@
+{
+  "description": "URL real → dirección que muestra la barra (personalizada o real) y su forma corta (sin foco) y completa (al editar), como en Chrome.",
+  "customAddresses": [
+    {
+      "id": "deriv",
+      "target": "https://bot.deriv.me/",
+      "address": "https://miweb.com/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "local",
+      "target": "http://localhost:3000/",
+      "address": "http://miapp.com/v2",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "docs",
+      "target": "https://ejemplo.com/docs",
+      "address": "https://docs.miweb.org/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "migrada",
+      "target": "https://es.wikipedia.org/",
+      "address": "https://wiki.icarus/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "apagada",
+      "target": "https://apagada.com/",
+      "address": "https://desactivada.com/",
+      "enabled": false,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "cases": [
+    {
+      "url": "https://bot.deriv.me/",
+      "entryId": "deriv",
+      "shown": "https://miweb.com/",
+      "short": "miweb.com",
+      "full": "https://miweb.com/"
+    },
+    {
+      "url": "https://BOT.DERIV.ME/panel/a?x=1&y=2#z",
+      "entryId": "deriv",
+      "shown": "https://miweb.com/panel/a?x=1&y=2#z",
+      "short": "miweb.com/panel/a?x=1&y=2#z",
+      "full": "https://miweb.com/panel/a?x=1&y=2#z"
+    },
+    {
+      "url": "https://bot.deriv.me:443/x",
+      "entryId": "deriv",
+      "shown": "https://miweb.com/x",
+      "short": "miweb.com/x",
+      "full": "https://miweb.com/x"
+    },
+    {
+      "url": "http://bot.deriv.me/",
+      "entryId": null,
+      "shown": "http://bot.deriv.me/",
+      "short": "bot.deriv.me",
+      "full": "http://bot.deriv.me/"
+    },
+    {
+      "url": "https://x.bot.deriv.me/",
+      "entryId": null,
+      "shown": "https://x.bot.deriv.me/",
+      "short": "x.bot.deriv.me",
+      "full": "https://x.bot.deriv.me/"
+    },
+    {
+      "url": "https://ejemplo.com/docs",
+      "entryId": "docs",
+      "shown": "https://docs.miweb.org/",
+      "short": "docs.miweb.org",
+      "full": "https://docs.miweb.org/"
+    },
+    {
+      "url": "https://ejemplo.com/docs/",
+      "entryId": "docs",
+      "shown": "https://docs.miweb.org/",
+      "short": "docs.miweb.org",
+      "full": "https://docs.miweb.org/"
+    },
+    {
+      "url": "https://ejemplo.com/docs/guia?p=2",
+      "entryId": "docs",
+      "shown": "https://docs.miweb.org/guia?p=2",
+      "short": "docs.miweb.org/guia?p=2",
+      "full": "https://docs.miweb.org/guia?p=2"
+    },
+    {
+      "url": "https://ejemplo.com/docsx",
+      "entryId": null,
+      "shown": "https://ejemplo.com/docsx",
+      "short": "ejemplo.com/docsx",
+      "full": "https://ejemplo.com/docsx"
+    },
+    {
+      "url": "https://ejemplo.com/",
+      "entryId": null,
+      "shown": "https://ejemplo.com/",
+      "short": "ejemplo.com",
+      "full": "https://ejemplo.com/"
+    },
+    {
+      "url": "http://localhost:3000/",
+      "entryId": "local",
+      "shown": "http://miapp.com/v2",
+      "short": "miapp.com/v2",
+      "full": "http://miapp.com/v2"
+    },
+    {
+      "url": "http://localhost:3000/api?q=1",
+      "entryId": "local",
+      "shown": "http://miapp.com/v2/api?q=1",
+      "short": "miapp.com/v2/api?q=1",
+      "full": "http://miapp.com/v2/api?q=1"
+    },
+    {
+      "url": "https://localhost:3000/",
+      "entryId": null,
+      "shown": "https://localhost:3000/",
+      "short": "localhost:3000",
+      "full": "https://localhost:3000/"
+    },
+    {
+      "url": "https://es.wikipedia.org/wiki/%C3%8Dcaro",
+      "entryId": "migrada",
+      "shown": "https://wiki.icarus/wiki/%C3%8Dcaro",
+      "short": "wiki.icarus/wiki/%C3%8Dcaro",
+      "full": "https://wiki.icarus/wiki/%C3%8Dcaro"
+    },
+    {
+      "url": "https://apagada.com/",
+      "entryId": null,
+      "shown": "https://apagada.com/",
+      "short": "apagada.com",
+      "full": "https://apagada.com/"
+    },
+    {
+      "url": "https://www.google.com/",
+      "entryId": null,
+      "shown": "https://www.google.com/",
+      "short": "google.com",
+      "full": "https://www.google.com/"
+    },
+    {
+      "url": "https://www.google.com/search?q=icarus",
+      "entryId": null,
+      "shown": "https://www.google.com/search?q=icarus",
+      "short": "google.com/search?q=icarus",
+      "full": "https://www.google.com/search?q=icarus"
+    },
+    {
+      "url": "http://www.ejemplo.com/a/",
+      "entryId": null,
+      "shown": "http://www.ejemplo.com/a/",
+      "short": "ejemplo.com/a/",
+      "full": "http://www.ejemplo.com/a/"
+    },
+    {
+      "url": "https://usuario:clave@bot.deriv.me/",
+      "entryId": null,
+      "shown": "https://usuario:clave@bot.deriv.me/",
+      "short": "bot.deriv.me",
+      "full": "https://bot.deriv.me/"
+    },
+    {
+      "url": "javascript:alert(1)",
+      "entryId": null,
+      "shown": "javascript:alert(1)",
+      "short": "javascript:alert(1)",
+      "full": "javascript:alert(1)"
+    }
+  ]
+}

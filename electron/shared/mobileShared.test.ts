@@ -13,12 +13,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { findAliasMatch } from '../../src/services/alias-rules/resolution';
-import { createDefaultAliasRules } from '../../src/services/alias-rules/rules';
+import { formatAddress, shortAddress } from '../../src/services/custom-addresses/display';
+import { displayUrlFor } from '../../src/services/custom-addresses/mapping';
+import { convertLegacyRule, sanitizeCustomAddresses } from '../../src/services/custom-addresses/store';
+import { validateCustomAddressInput } from '../../src/services/custom-addresses/validation';
 import { buildSearchUrl } from '../../src/services/search/providers';
 import { createDefaultShortcuts } from '../../src/services/shortcuts/shortcuts';
 import { resolveInput } from '../../src/services/url-resolution/resolveInput';
-import type { AliasRule } from '../../src/types/alias';
+import type { CustomAddress, CustomAddressInput } from '../../src/types/customAddress';
 import type { SearchProviderId } from '../../src/types/settings';
 import { BUILTIN_LIST_TEXT } from '../shield/builtinList';
 import { getRegistrableDomain } from '../shield/domains';
@@ -52,18 +54,18 @@ const expectShared = (name: string, content: string) => expectMobile(`shared/${n
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 const EPOCH = new Date('2026-01-01T00:00:00.000Z');
 
-/* ------------------------------ Reglas de alias ------------------------------ */
+/* ------------------------- Direcciones personalizadas ------------------------- */
 
-function rule(id: string, fields: Pick<AliasRule, 'matchType' | 'pattern' | 'displayName' | 'alias' | 'targetUrl'> & { enabled?: boolean }): AliasRule {
-  return { id, name: fields.displayName, enabled: true, createdAt: EPOCH.toISOString(), updatedAt: EPOCH.toISOString(), ...fields };
+function entry(id: string, target: string, address: string, enabled = true): CustomAddress {
+  return { id, target, address, enabled, createdAt: EPOCH.toISOString(), updatedAt: EPOCH.toISOString() };
 }
 
-const DEFAULT_RULES = createDefaultAliasRules(EPOCH);
-const VECTOR_RULES: AliasRule[] = [
-  ...DEFAULT_RULES,
-  rule('guia', { matchType: 'prefix', pattern: 'https://docs.ejemplo.com/guia', displayName: 'Guía', alias: 'guia.icarus', targetUrl: 'https://docs.ejemplo.com/guia' }),
-  rule('org', { matchType: 'host', pattern: '*.ejemplo.org', displayName: 'Ejemplo ORG', alias: 'org.icarus', targetUrl: 'https://ejemplo.org/' }),
-  rule('local', { matchType: 'exact', pattern: 'http://localhost:3000/', displayName: 'Servidor local', alias: 'local.icarus', targetUrl: 'http://localhost:3000/' }),
+const VECTOR_ENTRIES: CustomAddress[] = [
+  entry('deriv', 'https://bot.deriv.me/', 'https://miweb.com/'),
+  entry('local', 'http://localhost:3000/', 'http://miapp.com/v2'),
+  entry('docs', 'https://ejemplo.com/docs', 'https://docs.miweb.org/'),
+  entry('migrada', 'https://es.wikipedia.org/', 'https://wiki.icarus/'),
+  entry('apagada', 'https://apagada.com/', 'https://desactivada.com/', false),
 ];
 
 /* ---------------------------- Vectores de entrada ---------------------------- */
@@ -101,12 +103,20 @@ const INPUTS = [
   'ftp://ejemplo.com',
   'mailto:hola@ejemplo.com',
   'https://usuario:clave@ejemplo.com/',
+  'bot.deriv.me',
+  'icarus.marketing',
+  'miweb.com',
+  'MIWEB.COM/Panel?x=1#a',
+  'https://miweb.com/ruta',
+  'http://miweb.com/',
+  'miapp.com/v2/api',
+  'https://miapp.com/v2',
+  'miapp.com/v1',
+  'docs.miweb.org/guia',
+  'wiki.icarus',
   'https://buscar.icarus/',
   'buscar.icarus',
-  'BUSCAR.ICARUS',
-  'guia.icarus',
-  'wiki.icarus',
-  'nada.icarus',
+  'desactivada.com',
   'icarus://nueva-pestana',
   'icarus://inicio',
   'icarus://historial',
@@ -118,16 +128,14 @@ const INPUTS = [
 
 function resolveVectors(providerId: SearchProviderId) {
   return INPUTS.map((input) => {
-    const result = resolveInput(input, { providerId, rules: VECTOR_RULES });
+    const result = resolveInput(input, { providerId, customAddresses: VECTOR_ENTRIES });
     switch (result.kind) {
       case 'url':
         return { input, kind: result.kind, url: result.url };
       case 'search':
         return { input, kind: result.kind, url: result.url };
-      case 'alias':
-        return { input, kind: result.kind, url: result.url, ruleId: result.rule.id };
-      case 'alias-unresolved':
-        return { input, kind: result.kind, alias: result.alias, reason: result.reason };
+      case 'custom':
+        return { input, kind: result.kind, url: result.url, address: result.address, entryId: result.entry.id };
       case 'internal':
         return { input, kind: result.kind, page: result.page.kind };
       case 'blocked':
@@ -140,29 +148,70 @@ function resolveVectors(providerId: SearchProviderId) {
 
 const SEARCH_QUERIES = ['icarus', 'hola mundo', 'café & té', 'a+b=c?', '¿qué es? 100%', "it's (fine) ~*!", 'cohete 🚀', '  espacios  '];
 
-/* --------------------------- Coincidencia de alias --------------------------- */
+/* ------------------------ Dirección que muestra la barra ------------------------ */
 
-const ALIAS_URLS = [
-  'https://www.google.com/',
-  'https://WWW.GOOGLE.COM/',
-  'https://www.google.com/#seccion',
-  'https://www.google.com/?q=x',
-  'https://www.google.com/maps',
-  'http://www.google.com/',
-  'https://docs.ejemplo.com/guia',
-  'https://docs.ejemplo.com/guia/capitulo-1',
-  'https://docs.ejemplo.com/guia?pagina=2',
-  'https://docs.ejemplo.com/guiax',
-  'https://ejemplo.org/',
-  'https://a.b.ejemplo.org/x',
-  'http://ejemplo.org/',
-  'https://ejemplo.org.otro.com/',
-  'https://es.wikipedia.org/',
+const DISPLAY_URLS = [
+  'https://bot.deriv.me/',
+  'https://BOT.DERIV.ME/panel/a?x=1&y=2#z',
+  'https://bot.deriv.me:443/x',
+  'http://bot.deriv.me/',
+  'https://x.bot.deriv.me/',
+  'https://ejemplo.com/docs',
+  'https://ejemplo.com/docs/',
+  'https://ejemplo.com/docs/guia?p=2',
+  'https://ejemplo.com/docsx',
+  'https://ejemplo.com/',
   'http://localhost:3000/',
-  'http://localhost:3001/',
-  'https://buscar.icarus/',
+  'http://localhost:3000/api?q=1',
+  'https://localhost:3000/',
+  'https://es.wikipedia.org/wiki/%C3%8Dcaro',
+  'https://apagada.com/',
+  'https://www.google.com/',
+  'https://www.google.com/search?q=icarus',
+  'http://www.ejemplo.com/a/',
+  'https://usuario:clave@bot.deriv.me/',
   'javascript:alert(1)',
 ];
+
+/* ------------------------- Validación y conflictos ------------------------- */
+
+const VALIDATION_CASES: Array<CustomAddressInput & { editingId?: string }> = [
+  { target: 'bot.deriv.me', address: 'miweb.com', enabled: true, editingId: 'deriv' },
+  { target: 'https://bot.deriv.me', address: 'https://otraweb.com/', enabled: true, editingId: 'deriv' },
+  { target: 'localhost:3000', address: 'miapp.com', enabled: true, editingId: 'local' },
+  { target: 'https://ejemplo.com/ruta/', address: 'icarus.marketing', enabled: true },
+  { target: 'nuevo.com', address: 'nueva.com', enabled: true },
+  { target: '', address: '', enabled: true },
+  { target: 'no es url', address: 'palabra', enabled: true },
+  { target: 'javascript:alert(1)', address: 'ftp://a.com', enabled: true },
+  { target: 'https://a.com/?x=1', address: 'b.com#c', enabled: true },
+  { target: 'http://intranet.ejemplo.com', address: 'https://miweb2.com', enabled: true },
+  { target: 'https://a.com', address: 'a.com/b', enabled: true },
+  { target: 'bot.deriv.me/panel', address: 'otra.com', enabled: true },
+  { target: 'otro.com', address: 'miweb.com/x', enabled: true },
+  { target: 'miweb.com', address: 'nueva2.com', enabled: true },
+  { target: 'nuevo2.com', address: 'bot.deriv.me', enabled: true },
+  { target: 'https://ejemplo.com/blog', address: 'blog.miweb.org', enabled: true },
+  { target: 'bot.deriv.me', address: 'otra.com', enabled: false },
+];
+
+/** Reglas de alias guardadas por versiones anteriores (se convierten al leerlas). */
+const LEGACY_RULES = [
+  { id: 'default-search', name: 'Página de búsqueda', matchType: 'exact', pattern: 'https://www.google.com/', displayName: 'Buscar', alias: 'buscar.icarus', targetUrl: 'https://www.google.com/', enabled: true },
+  { id: 'default-wiki', name: 'Enciclopedia', matchType: 'host', pattern: 'es.wikipedia.org', displayName: 'Wikipedia', alias: 'wiki.icarus', targetUrl: 'https://es.wikipedia.org/', enabled: false },
+  { id: 'bot', name: 'Bot', matchType: 'host', pattern: 'bot.deriv.me', displayName: 'Bot', alias: 'bot.icarus', targetUrl: 'https://bot.deriv.me/', enabled: true, createdAt: '2026-02-01T00:00:00.000Z', updatedAt: '2026-02-02T00:00:00.000Z' },
+  { id: 'org', name: 'Org', matchType: 'host', pattern: '*.ejemplo.org', displayName: 'Org', alias: 'org.icarus', targetUrl: 'https://ejemplo.org/', enabled: true },
+  { id: 'guia', name: 'Guía', matchType: 'prefix', pattern: 'https://docs.ejemplo.com/guia', displayName: 'Guía', alias: 'guia.icarus/v1', targetUrl: 'https://docs.ejemplo.com/guia', enabled: true },
+  { id: 'local', name: 'Local', matchType: 'exact', pattern: 'http://localhost:3000/?a=1', displayName: 'Local', alias: 'local.icarus', targetUrl: 'http://localhost:3000/', enabled: false },
+  { id: 'choca', name: 'Choca', matchType: 'host', pattern: 'otro.com', displayName: 'Otro', alias: 'bot.icarus', targetUrl: 'https://otro.com/', enabled: true },
+  { id: 'rota', name: 'Rota', matchType: 'host', pattern: '', displayName: '', alias: '', targetUrl: '', enabled: true },
+  { id: 'nueva', target: 'https://nuevo.com/', address: 'https://nueva.com/', enabled: true, createdAt: '2026-03-01T00:00:00.000Z', updatedAt: '2026-03-01T00:00:00.000Z' },
+];
+
+/** Plantilla de un texto con parámetros: los parámetros se sustituyen por {nombre}. */
+function template<A extends string[]>(fn: (...args: A) => string, ...names: A): string {
+  return fn(...(names.map((name) => `{${name}}`) as A));
+}
 
 /* ------------------------------ ICARUS Shield ------------------------------ */
 
@@ -377,23 +426,53 @@ describe('datos compartidos con las apps móviles', () => {
       'test-vectors/resolve-input.json',
       json({
         description: 'Entrada de la barra de direcciones → resultado (generado desde la versión de escritorio).',
-        rules: VECTOR_RULES,
+        customAddresses: VECTOR_ENTRIES,
         cases: resolveVectors('google'),
         search: providers.flatMap((providerId) => SEARCH_QUERIES.map((query) => ({ providerId, query, url: buildSearchUrl(providerId, query) }))),
       }),
     );
   });
 
-  it('vectores de alias', () => {
+  it('vectores de la dirección visible', () => {
     expectShared(
-      'test-vectors/alias-match.json',
+      'test-vectors/custom-address-display.json',
       json({
-        description: 'URL real → regla de alias que se muestra (o null).',
-        rules: VECTOR_RULES,
-        cases: ALIAS_URLS.map((url) => {
-          const match = findAliasMatch(url, VECTOR_RULES);
-          return { url, ruleId: match?.rule.id ?? null, realUrl: match?.realUrl ?? null };
+        description:
+          'URL real → dirección que muestra la barra (personalizada o real) y su forma corta (sin foco) y completa (al editar), como en Chrome.',
+        customAddresses: VECTOR_ENTRIES,
+        cases: DISPLAY_URLS.map((url) => {
+          const match = displayUrlFor(url, VECTOR_ENTRIES);
+          const shown = match?.url ?? url;
+          const full = formatAddress(shown, true);
+          return { url, entryId: match?.entry.id ?? null, shown, short: shortAddress(shown), full: `${full.prefix}${full.host}${full.rest}` };
         }),
+      }),
+    );
+  });
+
+  it('vectores de validación y migración', () => {
+    expectShared(
+      'test-vectors/custom-address-validation.json',
+      json({
+        description: 'Entrada del editor → valores normalizados o errores por campo (con la entrada que provoca el conflicto).',
+        customAddresses: VECTOR_ENTRIES,
+        cases: VALIDATION_CASES.map(({ editingId, ...input }) => {
+          const result = validateCustomAddressInput(input, VECTOR_ENTRIES, editingId);
+          return result.ok
+            ? { input, editingId: editingId ?? null, ok: true, value: result.value }
+            : {
+                input,
+                editingId: editingId ?? null,
+                ok: false,
+                errors: result.errors,
+                conflicts: Object.fromEntries(Object.entries(result.conflicts).map(([field, other]) => [field, other.id])),
+              };
+        }),
+        legacy: {
+          rules: LEGACY_RULES,
+          conversions: LEGACY_RULES.filter((raw) => 'alias' in raw).map((raw) => ({ id: raw.id, result: convertLegacyRule(raw) })),
+          loaded: sanitizeCustomAddresses(LEGACY_RULES, []),
+        },
       }),
     );
   });
@@ -424,24 +503,60 @@ describe('datos compartidos con las apps móviles', () => {
   });
 
   it('textos compartidos', () => {
-    const { form } = es.aliasManager;
+    const t = es.customAddresses;
+    const info = es.addressBar.info;
     expectShared(
       'strings.json',
       json({
-        description: 'Textos de escritorio (src/i18n/es.ts) que reutilizan las apps móviles.',
-        aliasErrors: es.aliasManager.errors,
+        description: 'Textos de escritorio (src/i18n/es.ts) que reutilizan las apps móviles. {nombre} marca un parámetro.',
+        customAddressErrors: Object.fromEntries(Object.entries(t.errors).map(([code, fn]) => [code, template(fn, 'address', 'target')])),
         shortcutErrors: es.shortcuts.errors,
         shieldListErrors: es.shield.settings.errors,
-        aliasManager: {
-          title: es.aliasManager.title,
-          subtitle: es.aliasManager.subtitle,
-          priorityNote: es.aliasManager.priorityNote,
-          matchTypes: form.matchTypes,
-          matchHints: form.matchHints,
-          patternPlaceholders: form.patternPlaceholders,
-          aliasHint: form.aliasHint,
-          targetHint: form.targetHint,
-          displayNameHint: form.displayNameHint,
+        addressBar: {
+          notSecure: es.addressBar.notSecure,
+          secureTitle: info.secureTitle,
+          secureBody: template(info.secureBody, 'host'),
+          insecureTitle: info.insecureTitle,
+          insecureBody: info.insecureBody,
+          dangerousBody: template(info.dangerousBody, 'host'),
+          customTitle: info.customTitle,
+          customBody: template(info.customBody, 'shown', 'real'),
+          showFullUrls: es.settings.navigation.showFullUrls,
+          showFullUrlsHint: es.settings.navigation.showFullUrlsHint,
+        },
+        customAddresses: {
+          title: t.title,
+          subtitle: t.subtitle,
+          add: t.add,
+          empty: t.empty,
+          targetOf: template(t.targetOf, 'target'),
+          disabled: t.disabled,
+          howTo: t.howTo,
+          form: {
+            createTitle: t.form.createTitle,
+            editTitle: t.form.editTitle,
+            target: t.form.target,
+            targetHint: t.form.targetHint,
+            targetPlaceholder: t.form.targetPlaceholder,
+            chooseFrom: t.form.chooseFrom,
+            address: t.form.address,
+            addressHint: t.form.addressHint,
+            addressPlaceholder: t.form.addressPlaceholder,
+            preview: t.form.preview,
+            previewShows: template(t.form.previewShows, 'target', 'address'),
+            previewOpens: template(t.form.previewOpens, 'address', 'target'),
+            previewPaths: template(t.form.previewPaths, 'real', 'shown'),
+            previewIncomplete: t.form.previewIncomplete,
+            limitation: t.form.limitation,
+            enabled: t.form.enabled,
+            remove: t.form.remove,
+            fixErrors: t.form.fixErrors,
+          },
+          created: template(t.created, 'address'),
+          saved: t.saved,
+          deleted: t.deleted,
+          toggleConflict: template(t.toggleConflict, 'address', 'target'),
+          deleteBody: template(t.deleteBody, 'address', 'target'),
         },
         shield: { intro: es.shield.settings.intro, listsHint: es.shield.settings.listsHint, customHint: es.shield.settings.customHint },
       }),
@@ -468,7 +583,7 @@ describe('datos compartidos con las apps móviles', () => {
       'defaults.json',
       json({
         shortcuts: createDefaultShortcuts(EPOCH).map(({ id, title, url }) => ({ id, title, url })),
-        aliasRules: DEFAULT_RULES,
+        customAddresses: [],
       }),
     );
   });

@@ -1,14 +1,14 @@
 /**
- * Copia de seguridad completa (preferencias, accesos directos, reglas de alias y
+ * Copia de seguridad completa (preferencias, accesos directos, direcciones personalizadas y
  * datos de widgets) en un archivo JSON. La imagen de fondo subida no se incluye
  * por tamaño. Nunca se guardan contraseñas ni secretos.
  */
 
-import type { AliasRule } from '../../types/alias';
+import type { CustomAddress } from '../../types/customAddress';
 import type { Settings } from '../../types/settings';
 import type { Shortcut } from '../../types/shortcuts';
 import type { WidgetData } from '../../types/widgets';
-import { aliasRulesSchema } from '../alias-rules/rules';
+import { customAddressesSchema } from '../custom-addresses/store';
 import { isRecord } from '../persistence/validation';
 import { settingsSchema } from '../settings/settings';
 import { shortcutsSchema } from '../shortcuts/shortcuts';
@@ -20,7 +20,7 @@ export const BACKUP_VERSION = 1;
 export interface BackupData {
   settings: Settings;
   shortcuts: Shortcut[];
-  aliasRules: AliasRule[];
+  customAddresses: CustomAddress[];
   widgets: WidgetData;
 }
 
@@ -55,7 +55,8 @@ export function parseBackup(text: string): BackupParseResult {
     data: {
       settings: settingsSchema.sanitize(source.settings, issues),
       shortcuts: shortcutsSchema.sanitize(source.shortcuts, issues),
-      aliasRules: aliasRulesSchema.sanitize(source.aliasRules, issues),
+      // Las copias anteriores guardaban las reglas de alias en `aliasRules`: se convierten al leerlas.
+      customAddresses: customAddressesSchema.sanitize(source.customAddresses ?? source.aliasRules, issues),
       widgets: widgetDataSchema.sanitize(source.widgets, issues),
     },
   };

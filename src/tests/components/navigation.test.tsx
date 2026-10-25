@@ -109,40 +109,87 @@ describe('barra de direcciones y navegación', () => {
     expect(screen.getByRole('link', { name: 'Abrir de nuevo' })).toBeInTheDocument();
   });
 
-  it('muestra el alias sin ocultar la URL real', async () => {
-    const { user } = renderApp();
-    await typeAddress(user, 'https://www.google.com/{Enter}');
+  const miweb = {
+    id: 'deriv',
+    target: 'https://bot.deriv.me/',
+    address: 'https://miweb.com/',
+    enabled: true,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+  const display = () => document.querySelector('.omnibox__display')?.textContent ?? '';
 
-    // Pestaña con el nombre visible de la regla y barra con el alias + host real.
-    expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('Buscar');
-    const display = document.querySelector('.omnibox__display')!;
-    expect(display).toHaveTextContent('Alias');
-    expect(display).toHaveTextContent('buscar.icarus');
-    expect(display).toHaveTextContent('www.google.com');
-    // El valor del campo sigue siendo la URL real.
-    expect(addressBar()).toHaveValue('https://www.google.com/');
-
-    // El control de información permite verificar la URL real.
-    await user.click(screen.getByRole('button', { name: 'Ver información y URL real' }));
-    const info = screen.getByRole('dialog', { name: 'Información de la página' });
-    expect(within(info).getByTestId('real-url')).toHaveTextContent('https://www.google.com/');
-    expect(within(info).getByText(/No cambia el dominio, el DNS/)).toBeInTheDocument();
-
-    // Al editar, el campo muestra la URL real y lo indica.
-    await user.click(within(info).getByRole('button', { name: 'Editar URL real' }));
-    expect(addressBar()).toHaveFocus();
-    expect(addressBar()).toHaveValue('https://www.google.com/');
-    expect(screen.getByText(/se muestra la URL real para que la consultes o la edites/)).toBeInTheDocument();
+  it('muestra solo la dirección personalizada: sin etiqueta, sin icono de alias y sin la URL original', async () => {
+    const { user, services, open } = renderApp();
+    services.customAddresses.set([miweb]);
+    await typeAddress(user, 'https://bot.deriv.me/panel?x=1#a{Enter}');
+    // El motor recibe la URL real…
+    expect(open).toHaveBeenLastCalledWith('https://bot.deriv.me/panel?x=1#a', '_blank', 'noopener,noreferrer');
+    // …y la barra y la pestaña solo muestran la dirección personalizada.
+    expect(display()).toBe('miweb.com/panel?x=1#a');
+    expect(document.querySelector('.omnibox')).not.toHaveTextContent(/deriv|Alias/);
+    expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('miweb.com/panel?x=1#a');
+    expect(document.querySelector('.tab')?.getAttribute('title')).not.toContain('deriv');
+    // Al hacer clic se edita la dirección completa (con protocolo), seleccionada.
+    await user.click(addressBar());
+    expect(addressBar()).toHaveValue('https://miweb.com/panel?x=1#a');
+    const input = addressBar() as HTMLInputElement;
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, input.value.length]);
   });
 
-  it('resuelve un alias escrito solo si su regla está activa', async () => {
-    const { user, open } = renderApp();
-    await typeAddress(user, 'buscar.icarus{Enter}');
-    expect(open).toHaveBeenLastCalledWith('https://www.google.com/', '_blank', 'noopener,noreferrer');
+  it('Escape cancela la edición y recupera la dirección de la página', async () => {
+    const { user, services } = renderApp();
+    services.customAddresses.set([miweb]);
+    await typeAddress(user, 'bot.deriv.me{Enter}');
+    // Como en Chrome, el clic selecciona toda la dirección y lo que se escribe la sustituye.
+    await user.click(addressBar());
+    await user.keyboard('algo distinto');
+    expect(addressBar()).toHaveValue('algo distinto');
+    await user.keyboard('{Escape}');
+    expect(addressBar()).toHaveValue('https://miweb.com/');
+    expect(addressBar()).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(addressBar()).not.toHaveFocus();
+    expect(display()).toBe('miweb.com');
+  });
 
-    await typeAddress(user, 'wiki.icarus{Enter}');
-    expect(open).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText('La regla del alias «wiki.icarus» está desactivada.')).toBeInTheDocument();
+  it('escribir la dirección personalizada navega al destino real equivalente', async () => {
+    const { user, services, open } = renderApp();
+    services.customAddresses.set([miweb]);
+    await typeAddress(user, 'miw');
+    expect(screen.getByRole('option', { name: /miweb\.com\s*Dirección personalizada/ })).toBeInTheDocument();
+    await user.clear(addressBar());
+    await user.type(addressBar(), 'miweb.com/otra?y=2{Enter}');
+    expect(open).toHaveBeenLastCalledWith('https://bot.deriv.me/otra?y=2', '_blank', 'noopener,noreferrer');
+    expect(display()).toBe('miweb.com/otra?y=2');
+  });
+
+  it('la información del sitio indica la conexión real y a qué sitio van las solicitudes', async () => {
+    const { user, services } = renderApp();
+    services.customAddresses.set([miweb]);
+    await typeAddress(user, 'bot.deriv.me{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Ver información del sitio' }));
+    const info = screen.getByRole('dialog', { name: 'Información del sitio' });
+    expect(within(info).getByRole('heading', { name: 'miweb.com' })).toBeInTheDocument();
+    expect(within(info).getByTestId('site-custom-address')).toHaveTextContent('Las solicitudes van al sitio real, bot.deriv.me');
+  });
+
+  it('las páginas HTTP muestran «No seguro», también con una dirección personalizada', async () => {
+    const { user, services } = renderApp();
+    services.customAddresses.set([{ ...miweb, target: 'http://intranet.ejemplo.com/', address: 'http://miweb.com/' }]);
+    await typeAddress(user, 'http://intranet.ejemplo.com/{Enter}');
+    expect(screen.getByRole('button', { name: 'No seguro · Ver información del sitio' })).toBeInTheDocument();
+    expect(display()).toBe('miweb.com');
+    await typeAddress(user, 'https://example.com/{Enter}');
+    expect(screen.queryByRole('button', { name: /No seguro/ })).not.toBeInTheDocument();
+  });
+
+  it('como Chrome, oculta https:// y www. sin foco salvo si se pide la URL completa', async () => {
+    const { user, services } = renderApp();
+    await typeAddress(user, 'https://www.example.com/ruta{Enter}');
+    expect(display()).toBe('example.com/ruta');
+    services.settings.set((s) => ({ ...s, navigation: { ...s.navigation, showFullUrls: true } }));
+    await waitFor(() => expect(display()).toBe('https://www.example.com/ruta'));
   });
 
   it('abre la configuración como página interna', async () => {

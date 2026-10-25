@@ -10,7 +10,7 @@ import {
 } from '../../services/settings/settings';
 import { createBackup, parseBackup } from '../../services/backup/backup';
 import { createDefaultShortcuts } from '../../services/shortcuts/shortcuts';
-import { createDefaultAliasRules } from '../../services/alias-rules';
+import type { CustomAddress } from '../../types/customAddress';
 
 describe('operaciones de preferencias', () => {
   it('cambiar de estilo solo modifica el estilo activo', () => {
@@ -49,11 +49,20 @@ describe('operaciones de preferencias', () => {
   });
 });
 
+const customAddress: CustomAddress = {
+  id: 'deriv',
+  target: 'https://bot.deriv.me/',
+  address: 'https://miweb.com/',
+  enabled: true,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
 describe('copia de seguridad', () => {
   it('exporta e importa toda la configuración', () => {
     const settings = updateGeneral(createDefaultSettings(), { searchProvider: 'duckduckgo' });
     const text = createBackup(
-      { settings, shortcuts: createDefaultShortcuts(), aliasRules: createDefaultAliasRules(), widgets: { notes: 'hola', tasks: [] } },
+      { settings, shortcuts: createDefaultShortcuts(), customAddresses: [customAddress], widgets: { notes: 'hola', tasks: [] } },
       '0.1.0',
     );
     const parsed = parseBackup(text);
@@ -61,7 +70,21 @@ describe('copia de seguridad', () => {
     if (!parsed.ok) return;
     expect(parsed.data.settings.general.searchProvider).toBe('duckduckgo');
     expect(parsed.data.widgets.notes).toBe('hola');
-    expect(parsed.data.aliasRules).toHaveLength(2);
+    expect(parsed.data.customAddresses).toEqual([customAddress]);
+  });
+
+  it('convierte las reglas de alias de copias antiguas', () => {
+    const legacy = {
+      format: 'icarus-backup',
+      version: 1,
+      data: {
+        aliasRules: [
+          { id: 'mia', name: 'Mía', matchType: 'host', pattern: 'bot.deriv.me', displayName: 'Bot', alias: 'bot.icarus', targetUrl: 'https://bot.deriv.me/', enabled: true },
+        ],
+      },
+    };
+    const parsed = parseBackup(JSON.stringify(legacy));
+    expect(parsed.ok && parsed.data.customAddresses).toMatchObject([{ id: 'mia', target: 'https://bot.deriv.me/', address: 'https://bot.icarus/', enabled: true }]);
   });
 
   it('rechaza archivos ajenos o de versiones futuras', () => {

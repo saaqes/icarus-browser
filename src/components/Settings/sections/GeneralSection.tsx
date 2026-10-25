@@ -29,7 +29,7 @@ export function GeneralSection() {
   const saveHomeUrl = () => {
     const result = normalizeUserUrl(homeUrl);
     if (!result.ok) {
-      setHomeError(m.shortcuts.errors[result.reason === 'empty' ? 'required' : result.reason === 'alias' ? 'alias-url' : result.reason === 'invalid' ? 'invalid-url' : 'unsafe-protocol']);
+      setHomeError(m.shortcuts.errors[result.reason === 'empty' ? 'required' : result.reason === 'invalid' ? 'invalid-url' : 'unsafe-protocol']);
       return;
     }
     setHomeError(null);
@@ -160,7 +160,7 @@ export function GeneralSection() {
   );
 }
 
-type RestoreTarget = 'settings' | 'shortcuts' | 'aliasRules' | 'widgets';
+type RestoreTarget = 'settings' | 'shortcuts' | 'customAddresses' | 'widgets';
 
 function RestoreDialog({ onClose }: { onClose: () => void }) {
   const m = useMessages();
@@ -170,10 +170,10 @@ function RestoreDialog({ onClose }: { onClose: () => void }) {
   const [selected, setSelected] = useState<Record<RestoreTarget, boolean>>({
     settings: true,
     shortcuts: false,
-    aliasRules: false,
+    customAddresses: false,
     widgets: false,
   });
-  const targets: RestoreTarget[] = ['settings', 'shortcuts', 'aliasRules', 'widgets'];
+  const targets: RestoreTarget[] = ['settings', 'shortcuts', 'customAddresses', 'widgets'];
 
   return (
     <Modal

@@ -16,6 +16,15 @@ export function NavigationSection() {
   const navigation = settings.navigation;
   return (
     <>
+      <SettingsCard title={t.addressBar}>
+        <Toggle
+          label={t.showFullUrls}
+          description={t.showFullUrlsHint}
+          checked={navigation.showFullUrls}
+          onChange={(showFullUrls) => updateSettings((current) => updateNavigation(current, { showFullUrls }))}
+        />
+      </SettingsCard>
+
       <SettingsCard title={t.newTab}>
         <RadioList<NewTabPage>
           label={t.newTab}

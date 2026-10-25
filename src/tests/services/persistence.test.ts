@@ -151,10 +151,10 @@ describe('esquema de preferencias', () => {
   it('completa en silencio los campos nuevos que faltan', () => {
     const storage = createMemoryStorage();
     const partial = createDefaultSettings() as unknown as Record<string, Record<string, unknown>>;
-    delete partial.advanced;
+    delete partial.navigation!.showFullUrls;
     storage.setItem(STORAGE_KEYS.settings, JSON.stringify({ version: 1, data: partial }));
     const result = loadDocument(storage, settingsSchema);
     expect(result.status).toBe('ok');
-    expect(result.value.advanced.showAliases).toBe(true);
+    expect(result.value.navigation.showFullUrls).toBe(false);
   });
 });

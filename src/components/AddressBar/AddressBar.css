@@ -62,12 +62,33 @@
   color: var(--omnibox-fg);
 }
 
-.omnibox__info.is-alias {
-  color: var(--accent);
+.omnibox__info.has-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: auto;
+  padding: 0 10px 0 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
 }
 
 .omnibox__info.is-insecure {
   color: var(--warning);
+}
+
+.omnibox__info.is-dangerous {
+  color: var(--danger);
+}
+
+.omnibox__security-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* Con un certificado no válido, el protocolo aparece tachado en rojo (como en Chrome). */
+.omnibox__scheme.is-struck {
+  color: var(--danger);
+  text-decoration: line-through;
 }
 
 .omnibox__input-wrap {
@@ -131,22 +152,6 @@
   color: var(--omnibox-fg);
 }
 
-.omnibox__alias {
-  font-weight: 600;
-  color: var(--omnibox-fg);
-}
-
-.omnibox__real-host {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--omnibox-dim);
-  font-size: var(--text-sm);
-}
-
-.omnibox__real-host::before {
-  content: '·';
-  margin-right: 6px;
-}
 
 .omnibox__internal {
   color: var(--omnibox-fg);
@@ -260,23 +265,34 @@
   font-weight: 650;
 }
 
-.site-info__list {
+.site-info__section {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
 }
 
-.site-info__list dt {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--fg-3);
+.site-info__section > .icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
 }
 
-.site-info__list dd {
-  margin: 2px 0 0;
+.site-info__section.is-warning > .icon,
+.site-info__section.is-warning .site-info__heading {
+  color: var(--warning);
+}
+
+.site-info__heading {
+  font-weight: 650;
+}
+
+.site-info__text {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--fg-2);
 }
 
 .site-info__note {

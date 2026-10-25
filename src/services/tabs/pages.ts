@@ -1,13 +1,15 @@
 /**
- * Describe cómo se presenta una página en la interfaz (título, texto de la barra
- * de direcciones, icono) aplicando las reglas de alias activas.
+ * Describe cómo se presenta una página en la interfaz (título, dirección de la
+ * barra, icono) aplicando las direcciones personalizadas activas.
  *
- * El alias es solo presentación: `realUrl` conserva siempre la dirección real.
+ * `realUrl` es siempre la dirección que carga el motor; `addressUrl` es la que ve
+ * el usuario: la personalizada mientras la página esté dentro de su destino.
  */
 
-import type { AliasMatch, AliasRule } from '../../types/alias';
+import type { CustomAddress } from '../../types/customAddress';
 import type { PageEntry } from '../../types/tabs';
-import { findAliasMatch } from '../alias-rules/resolution';
+import { shortAddress } from '../custom-addresses/display';
+import { displayUrlFor } from '../custom-addresses/mapping';
 import { internalUrlForPage } from '../url-resolution/internalPages';
 import { parseWebUrl } from '../url-resolution/urlUtils';
 
@@ -17,13 +19,16 @@ export interface PagePresentation {
   kind: PageEntry['kind'];
   /** URL real (web) o dirección interna `icarus://`. */
   realUrl: string;
-  /** Alias aplicado, si existe una regla activa que coincide. */
-  alias: AliasMatch | null;
+  /** Dirección que muestra y permite editar la barra (personalizada o real). */
+  addressUrl: string;
+  /** Dirección personalizada aplicada, si la página está dentro de su destino. */
+  customAddress: CustomAddress | null;
   /** Título para la pestaña. */
   title: string;
   icon: PageIcon;
   /** Protocolo real de la página web (null en páginas internas). */
   protocol: 'https:' | 'http:' | null;
+  /** Host real de la página (null en páginas internas). */
   hostname: string | null;
 }
 
@@ -35,10 +40,7 @@ export interface PageTitles {
   downloads: string;
 }
 
-export function describePage(
-  page: PageEntry,
-  options: { rules: AliasRule[]; showAliases: boolean; titles: PageTitles },
-): PagePresentation {
+export function describePage(page: PageEntry, options: { customAddresses: CustomAddress[]; titles: PageTitles }): PagePresentation {
   if (page.kind !== 'web') {
     const internal: Record<Exclude<PageEntry['kind'], 'web'>, { title: string; icon: PageIcon }> = {
       newtab: { title: options.titles.newTab, icon: 'icarus' },
@@ -47,10 +49,12 @@ export function describePage(
       history: { title: options.titles.history, icon: 'history' },
       downloads: { title: options.titles.downloads, icon: 'downloads' },
     };
+    const internalUrl = internalUrlForPage(page) ?? '';
     return {
       kind: page.kind,
-      realUrl: internalUrlForPage(page) ?? '',
-      alias: null,
+      realUrl: internalUrl,
+      addressUrl: internalUrl,
+      customAddress: null,
       title: internal[page.kind].title,
       icon: internal[page.kind].icon,
       protocol: null,
@@ -58,17 +62,19 @@ export function describePage(
     };
   }
   const url = parseWebUrl(page.url);
-  // Al dejar de coincidir con la URL real (p. ej. tras navegar), el alias desaparece.
-  const alias = options.showAliases ? findAliasMatch(page.url, options.rules) : null;
-  const hostname = url?.hostname ?? null;
+  // Se calcula con la URL real actual: si una navegación o redirección sale del
+  // destino, vuelve a mostrarse la dirección real del sitio al que se llegó.
+  const custom = displayUrlFor(page.url, options.customAddresses);
+  const addressUrl = custom?.url ?? page.url;
   return {
     kind: 'web',
     realUrl: page.url,
-    alias,
-    title: alias?.rule.displayName || page.title?.trim() || hostname?.replace(/^www\./, '') || page.url,
+    addressUrl,
+    customAddress: custom?.entry ?? null,
+    title: page.title?.trim() || shortAddress(addressUrl) || page.url,
     icon: 'site',
     protocol: url?.protocol === 'http:' ? 'http:' : url?.protocol === 'https:' ? 'https:' : null,
-    hostname,
+    hostname: url?.hostname ?? null,
   };
 }
 

@@ -3,7 +3,7 @@
  * almacenamiento en memoria, un motor de navegación simulado o un reloj fijo.
  */
 
-import { aliasRulesSchema } from '../services/alias-rules/rules';
+import { customAddressesSchema } from '../services/custom-addresses/store';
 import { backgroundImageSchema, type StoredBackgroundImage } from '../services/background/backgroundImage';
 import type { BrowserEngine } from '../services/navigation/engine';
 import { createExternalBrowserEngine } from '../services/navigation/externalEngine';
@@ -15,7 +15,7 @@ import { settingsSchema } from '../services/settings/settings';
 import { shortcutsSchema } from '../services/shortcuts/shortcuts';
 import { sessionSchema, type StoredSession } from '../services/tabs/session';
 import { widgetDataSchema } from '../services/widgets/widgets';
-import type { AliasRule } from '../types/alias';
+import type { CustomAddress } from '../types/customAddress';
 import type { IcarusNativeApi } from '../types/native';
 import type { Settings } from '../types/settings';
 import type { Shortcut } from '../types/shortcuts';
@@ -25,7 +25,7 @@ export interface AppServices {
   storage: KeyValueStorage;
   settings: PersistentStore<Settings>;
   shortcuts: PersistentStore<Shortcut[]>;
-  aliasRules: PersistentStore<AliasRule[]>;
+  customAddresses: PersistentStore<CustomAddress[]>;
   widgets: PersistentStore<WidgetData>;
   backgroundImage: PersistentStore<StoredBackgroundImage>;
   /** Solo se guarda si el usuario eligió restaurar la sesión al iniciar. */
@@ -75,7 +75,7 @@ export function createAppServices(options: AppServicesOptions = {}): AppServices
     settings,
     session,
     shortcuts: createPersistentStore(storage, shortcutsSchema, { onSaveError }),
-    aliasRules: createPersistentStore(storage, aliasRulesSchema, { onSaveError }),
+    customAddresses: createPersistentStore(storage, customAddressesSchema, { onSaveError }),
     widgets: createPersistentStore(storage, widgetDataSchema, { onSaveError }),
     backgroundImage: createPersistentStore(storage, backgroundImageSchema, { onSaveError }),
     engine: options.engine ?? (native ? createNativeEngine(native) : createExternalBrowserEngine()),

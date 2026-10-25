@@ -1,8 +1,10 @@
 /**
  * Controlador del navegador: pestañas, historial y navegación.
  *
- * Toda navegación pasa por aquí: se interpreta la entrada (URL, búsqueda, alias,
- * página interna) y se registra en el historial de la pestaña.
+ * Toda navegación pasa por aquí: se interpreta la entrada (URL, dirección
+ * personalizada, búsqueda, página interna) y se registra en el historial de la
+ * pestaña. Las direcciones personalizadas se resuelven aquí, antes de llegar al
+ * motor: Chromium siempre recibe la URL real.
  *
  * - Motor integrado (escritorio): cada pestaña tiene una vista de Chromium. Una
  *   entrada «web» del historial representa un tramo de navegación cuyo
@@ -25,7 +27,7 @@ import {
 } from 'react';
 import { useServices } from '../../app/ServicesContext';
 import type { AppServices } from '../../app/services';
-import { useAliasRules, useSettings } from '../../hooks/useStores';
+import { useCustomAddresses, useSettings } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
 import { STORAGE_KEYS } from '../../services/persistence/keys';
 import { buildSearchUrl } from '../../services/search/providers';
@@ -49,6 +51,15 @@ export interface OpenOptions {
   newTab?: boolean;
   /** Con `newTab`, abre la pestaña sin activarla (clic central, «abrir en segundo plano»). */
   background?: boolean;
+}
+
+/** Petición de abrir el editor de direcciones personalizadas (desde la barra). */
+export interface CustomAddressEditorRequest {
+  token: number;
+  /** Entrada que se quiere editar. */
+  editId?: string;
+  /** Destino con el que empezar una entrada nueva (p. ej. el sitio actual). */
+  target?: string;
 }
 
 export interface BrowserController {
@@ -79,6 +90,9 @@ export interface BrowserController {
   goHome: () => void;
   openSettings: (section?: SettingsSection) => void;
   setSettingsSection: (section: SettingsSection) => void;
+  customAddressEditor: CustomAddressEditorRequest | null;
+  openCustomAddressEditor: (request?: { editId?: string; target?: string }) => void;
+  clearCustomAddressEditor: () => void;
   customizeOpen: boolean;
   setCustomizeOpen: (open: boolean) => void;
   registerAddressBar: (focus: (() => void) | null) => void;
@@ -125,13 +139,14 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const m = useMessages();
   const notify = useToast();
   const [settings] = useSettings();
-  const [rules] = useAliasRules();
+  const [customAddresses] = useCustomAddresses();
   const [session, dispatch] = useReducer(sessionReducer, services, initialSession);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [webState, setWebState] = useState<Record<string, WebTabState>>({});
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequestInfo[]>([]);
   const [authRequests, setAuthRequests] = useState<AuthRequestInfo[]>([]);
   const [find, setFind] = useState<{ tabId: string; token: number } | null>(null);
+  const [customAddressEditor, setCustomAddressEditor] = useState<CustomAddressEditorRequest | null>(null);
   const addressBarFocus = useRef<(() => void) | null>(null);
   /** Entrada web que muestra ahora la vista de cada pestaña (tramo «vivo»). */
   const liveEntry = useRef(new Map<string, string>());
@@ -142,8 +157,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   sessionRef.current = session;
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
-  const rulesRef = useRef(rules);
-  rulesRef.current = rules;
+  const customAddressesRef = useRef(customAddresses);
+  customAddressesRef.current = customAddresses;
   const webStateRef = useRef(webState);
   webStateRef.current = webState;
   const findRef = useRef(find);
@@ -164,8 +179,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const describe = useCallback(
     (page: PageEntry) =>
       describePage(page, {
-        rules,
-        showAliases: settings.advanced.showAliases,
+        customAddresses,
         titles: {
           newTab: m.pages.newTab,
           blank: m.pages.blank,
@@ -174,7 +188,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           downloads: m.pages.downloads,
         },
       }),
-    [rules, settings.advanced.showAliases, m],
+    [customAddresses, m],
   );
 
   /* ------------------------------ Motor externo ------------------------------ */
@@ -258,7 +272,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     (text: string, options?: OpenOptions): boolean => {
       const resolution = resolveInput(text, {
         providerId: settingsRef.current.general.searchProvider,
-        rules: rulesRef.current,
+        customAddresses: customAddressesRef.current,
       });
       switch (resolution.kind) {
         case 'empty':
@@ -271,14 +285,6 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
               : m.navigationNotices.unsupported(resolution.protocol),
           );
           return false;
-        case 'alias-unresolved':
-          notify(
-            'info',
-            resolution.reason === 'disabled'
-              ? m.navigationNotices.aliasDisabled(resolution.alias)
-              : m.navigationNotices.aliasUnknown(resolution.alias),
-          );
-          return false;
         case 'internal-unknown':
           notify('error', m.navigationNotices.internalUnknown);
           return false;
@@ -287,7 +293,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           return true;
         case 'url':
         case 'search':
-        case 'alias':
+        case 'custom':
           openUrl(resolution.url, options);
           return true;
       }
@@ -437,6 +443,16 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const setSettingsSection = useCallback((section: SettingsSection) => {
     dispatch({ type: 'tab/replace', tabId: getActiveTab(sessionRef.current).id, page: { kind: 'settings', section } });
   }, []);
+
+  const openCustomAddressEditor = useCallback(
+    (request: { editId?: string; target?: string } = {}) => {
+      setCustomAddressEditor((current) => ({ ...request, token: (current?.token ?? 0) + 1 }));
+      openSettings('advanced');
+    },
+    [openSettings],
+  );
+
+  const clearCustomAddressEditor = useCallback(() => setCustomAddressEditor(null), []);
 
   const registerAddressBar = useCallback((focus: (() => void) | null) => {
     addressBarFocus.current = focus;
@@ -614,6 +630,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       goHome,
       openSettings,
       setSettingsSection,
+      customAddressEditor,
+      openCustomAddressEditor,
+      clearCustomAddressEditor,
       customizeOpen,
       setCustomizeOpen,
       registerAddressBar,
@@ -651,6 +670,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       goHome,
       openSettings,
       setSettingsSection,
+      customAddressEditor,
+      openCustomAddressEditor,
+      clearCustomAddressEditor,
       customizeOpen,
       registerAddressBar,
       focusAddressBar,

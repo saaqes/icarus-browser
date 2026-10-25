@@ -3,7 +3,8 @@
  *
  * Arranca ICARUS compilado (npm run build), un servidor HTTP local con páginas
  * de prueba y comprueba con Playwright la navegación real dentro de las
- * pestañas, el bloqueo de Shield, las descargas, los alias y la persistencia.
+ * pestañas, el bloqueo de Shield, las descargas, las direcciones personalizadas
+ * (escenarios A–H) y la persistencia.
  *
  * Uso: npm run build && npm run test:e2e
  * En Linux necesita una pantalla (p. ej. `xvfb-run -a npm run test:e2e`) y un
@@ -138,6 +139,12 @@ const server = http.createServer((request, response) => {
       });
     case '/texto.html':
       return send(200, 'text/html; charset=utf-8', page('Texto', '<p>Cuaderno de vuelo</p><p>El vuelo de ICARUS</p><p>Plan de vuelo nocturno</p>'));
+    case '/salto':
+      // Redirección dentro del mismo sitio: se sigue mostrando la dirección personalizada.
+      return send(302, 'text/plain', 'Redirigiendo', { location: '/b.html' });
+    case '/redirige':
+      // Redirección a otro sitio: la barra pasa a mostrar la dirección real del sitio de llegada.
+      return send(302, 'text/plain', 'Redirigiendo', { location: `${local}/b.html` });
     case '/archivo.txt':
       return send(200, 'text/plain; charset=utf-8', 'Contenido de prueba de ICARUS\n', {
         'content-disposition': 'attachment; filename="informe-icarus.txt"',
@@ -148,8 +155,9 @@ const server = http.createServer((request, response) => {
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
-// El mismo servidor con otro host: la regla de alias del paso 12 solo coincide con 127.0.0.1.
+// El mismo servidor con otro host: la dirección personalizada del paso 12 solo cubre 127.0.0.1.
 const local = base.replace('127.0.0.1', 'localhost');
+const localHost = new URL(local).host;
 
 /**
  * Servidor HTTPS con un certificado autofirmado creado con openssl, para comprobar
@@ -238,6 +246,34 @@ async function openSettings(section) {
   await win.getByRole('button', { name: 'Configuración', exact: true }).first().click();
   await win.getByRole('button', { name: section, exact: true }).click();
 }
+
+/* -------------------------- Direcciones personalizadas -------------------------- */
+
+/** Texto visible de la barra sin foco (dirección en forma corta). */
+const shownAddress = () => win.evaluate(() => document.querySelector('.omnibox__display')?.textContent ?? '');
+/** Todo el texto de la barra (chip de seguridad incluido) y el título emergente de la pestaña activa. */
+const visibleChrome = () =>
+  win.evaluate(() => `${document.querySelector('.omnibox')?.textContent ?? ''} ${document.querySelector('.tab.is-active')?.getAttribute('title') ?? ''}`);
+const securityState = () => win.evaluate(() => document.querySelector('.omnibox__info')?.getAttribute('data-security') ?? null);
+async function expectShown(text, message) {
+  return eventually(async () => ((await shownAddress()) === text ? text : null), `${message ?? 'La barra no muestra la dirección esperada'}: «${text}»`);
+}
+async function openAddressEditor() {
+  await openSettings('Avanzado');
+  await win.getByRole('button', { name: 'Personalizar direcciones URL' }).click();
+  return win.getByRole('dialog', { name: 'Direcciones personalizadas' });
+}
+/** Crea una dirección personalizada desde Configuración, como lo haría el usuario. */
+async function addCustomAddress(target, address) {
+  const editor = await openAddressEditor();
+  await editor.getByRole('button', { name: 'Añadir dirección' }).click();
+  await editor.getByLabel('1. Destino real').fill(target);
+  await editor.getByLabel('2. Dirección que se mostrará').fill(address);
+  await editor.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await win.getByText(/^Dirección .+ guardada\.$/).last().waitFor();
+  await editor.getByRole('button', { name: 'Cerrar' }).first().click();
+}
+const visibleUrl = async () => (await views()).find((view) => view.visible)?.url ?? null;
 
 /* --------------------------------- Pruebas --------------------------------- */
 
@@ -354,36 +390,36 @@ await step('11. Menús sobre la página: captura y ocultación de la vista', asy
   await eventually(async () => (await views()).some((v) => v.visible && v.url?.endsWith('/a.html')), 'La vista no volvió a mostrarse');
 });
 
-await step('12. Alias de URL conectados a la navegación real', async () => {
-  await openSettings('Avanzado');
-  await win.getByRole('button', { name: 'Cambiar nombre de URL' }).click();
-  const manager = win.getByRole('dialog', { name: 'Cambiar nombre de URL' });
-  await manager.getByRole('button', { name: 'Nueva regla' }).click();
-  await manager.getByRole('radio', { name: 'Sitio (host)' }).check({ force: true });
-  await manager.getByLabel('Nombre de la regla').fill('Pruebas locales');
-  await manager.getByLabel('URL original o patrón de coincidencia').fill('127.0.0.1');
-  await manager.getByLabel('Nombre visible del sitio').fill('Servidor local');
-  await manager.getByLabel('Alias mostrado en ICARUS').fill('local.icarus');
-  await manager.getByLabel('URL de destino real').fill(`${base}/a.html`);
-  await manager.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await win.getByText('Regla creada.').waitFor();
-  await manager.getByRole('button', { name: 'Cerrar' }).first().click();
-
-  // Todas las pestañas de 127.0.0.1 pasan a llamarse «Servidor local»: se abre a.html explícitamente.
+await step('12. A · Dirección personalizada: la barra muestra solo miweb.com y Chromium carga la URL real', async () => {
+  // Destino: el servidor de pruebas (127.0.0.1, HTTP). La dirección se escribe sin protocolo ni sufijos.
+  await addCustomAddress(`${base}/`, 'miweb.com');
   await go(`${base}/a.html`);
-  await waitForActiveTab('Servidor local');
-  await eventually(async () => (await addressBar().inputValue()) === `${base}/a.html`, 'La URL real no se conserva en la barra');
-  const display = await eventually(async () => {
-    const text = await win.locator('.omnibox__display').innerText();
-    return text.includes('local.icarus') && text.includes('127.0.0.1') ? text : null;
-  }, 'La barra no muestra alias y host real');
-  const realUrls = (await views()).map((view) => view.url);
-  assert(realUrls.some((url) => url === `${base}/a.html`), 'El motor no conserva la URL real');
-  assert(!realUrls.some((url) => url?.includes('icarus')), 'Una vista navegó a un alias');
+  await waitForActiveTab('Página A');
+  await expectShown('miweb.com/a.html');
+  const chrome = await visibleChrome();
+  assert(!chrome.includes('127.0.0.1') && !/alias|\.icarus/i.test(chrome), `La barra o la pestaña muestran la dirección original o un alias: ${chrome}`);
+  assert((await addressBar().inputValue()) === 'http://miweb.com/a.html', 'El campo no contiene la dirección personalizada completa');
+  // Seguridad real: la página es HTTP, así que se indica «No seguro».
+  assert((await securityState()) === 'insecure', `Estado de seguridad inesperado: ${await securityState()}`);
+  assert(await win.getByRole('button', { name: 'No seguro · Ver información del sitio' }).isVisible(), 'No se muestra «No seguro»');
+  const real = await visibleUrl();
+  assert(real === `${base}/a.html`, `Chromium no cargó la URL real (${real})`);
+  assert(!(await views()).some((view) => view.url?.includes('miweb')), 'Una vista navegó a la dirección personalizada');
 
-  await go('local.icarus');
-  await eventually(async () => (await addressBar().inputValue()) === `${base}/a.html`, 'Escribir el alias no abrió su destino');
-  return display.replace(/\s+/g, ' ');
+  // Escribir la dirección personalizada lleva a la página real equivalente.
+  await go('miweb.com/b.html');
+  await waitForActiveTab('Página B');
+  await eventually(async () => (await visibleUrl()) === `${base}/b.html`, 'Escribir miweb.com/b.html no abrió la página real');
+  await expectShown('miweb.com/b.html');
+
+  // Escape cancela la edición y recupera la dirección de la página.
+  await addressBar().click();
+  await win.keyboard.type('algo escrito');
+  assert((await addressBar().inputValue()) === 'algo escrito', 'El clic no seleccionó la dirección para reemplazarla');
+  await win.keyboard.press('Escape');
+  assert((await addressBar().inputValue()) === 'http://miweb.com/b.html', 'Escape no recuperó la dirección');
+  await win.keyboard.press('Escape');
+  return `barra: «${await shownAddress()}» · Chromium: ${real}`;
 });
 
 await step('13. ICARUS Shield bloquea solicitudes reales', async () => {
@@ -498,16 +534,37 @@ await step('17. Atajos: Ctrl+L desde la página, Ctrl+W, Ctrl+Mayús+T y Ctrl+Ta
   return `${before} pestañas`;
 });
 
-await step('18. El alias se retira cuando la regla deja de coincidir', async () => {
-  const display = () => win.evaluate(() => document.querySelector('.omnibox__display')?.textContent ?? '');
-  await go(`${base}/b.html`);
-  await waitForActiveTab('Servidor local');
-  await eventually(async () => (await display()).includes('local.icarus'), 'No se aplicó el alias');
-  await go(`${local}/b.html`);
+await step('18. B y D · Editar sin .icarus; rutas, pushState, fragmentos y redirecciones', async () => {
+  const editor = await openAddressEditor();
+  await editor.getByRole('button', { name: 'Editar miweb.com' }).click();
+  await editor.getByLabel('2. Dirección que se mostrará').fill('otraweb.com');
+  await editor.getByRole('button', { name: 'Guardar cambios' }).click();
+  await win.getByText('Cambios guardados.').waitFor();
+  assert(!(await editor.innerText()).includes('.icarus'), 'El editor menciona .icarus');
+  await editor.getByRole('button', { name: 'Cerrar' }).first().click();
+
+  await go('otraweb.com/a.html');
+  await waitForActiveTab('Página A');
+  await expectShown('otraweb.com/a.html');
+  await pageEval('/a.html', "document.getElementById('to-b').click(); true");
   await waitForActiveTab('Página B');
-  await eventually(async () => !(await display()).includes('local.icarus'), 'El alias sigue visible en una dirección que no coincide');
-  assert((await addressBar().inputValue()) === `${local}/b.html`, 'La barra no muestra la URL real nueva');
-  return '127.0.0.1 → alias · localhost → sin alias';
+  await expectShown('otraweb.com/b.html', 'Al seguir un enlace');
+  await pageEval('/b.html', "history.pushState({}, '', '/ruta/nueva?x=1#parte'); true");
+  await expectShown('otraweb.com/ruta/nueva?x=1#parte', 'Tras history.pushState');
+  await pageEval('/ruta/nueva', "location.hash = '#otra'; true");
+  await expectShown('otraweb.com/ruta/nueva?x=1#otra', 'Tras cambiar el fragmento');
+  const chrome = await visibleChrome();
+  assert(!chrome.includes('127.0.0.1'), `Reapareció la dirección original: ${chrome}`);
+
+  // Redirección dentro del destino: se mantiene la dirección personalizada.
+  await go('otraweb.com/salto');
+  await eventually(async () => (await visibleUrl()) === `${base}/b.html`, 'La redirección no llegó a b.html');
+  await expectShown('otraweb.com/b.html', 'Tras una redirección dentro del sitio');
+  // Redirección a otro sitio: se muestra la dirección real de llegada (no se finge que sigue en el destino).
+  await go('otraweb.com/redirige');
+  await eventually(async () => (await visibleUrl()) === `${local}/b.html`, 'La redirección a otro sitio no se completó');
+  await expectShown(`${localHost}/b.html`, 'Tras una redirección a otro sitio');
+  return 'enlace, pushState, fragmento y redirección interna → otraweb.com · redirección externa → dirección real';
 });
 
 await step('19. Protocolos peligrosos bloqueados (barra y enlaces)', async () => {
@@ -623,21 +680,33 @@ await step('23. Buscar en la página (Ctrl+F desde la página, siguiente, anteri
   return 'contador real de Chromium: 3 coincidencias';
 });
 
-await step('24. Cerrar y volver a abrir conserva los datos', async () => {
+await step('24. E · Cerrar y volver a abrir conserva los datos y la dirección personalizada', async () => {
   const customize = win.getByRole('button', { name: 'Personalizar', exact: true }).first();
   if (!(await customize.isVisible())) await win.keyboard.press('Control+T');
   await customize.click();
   await win.locator('.theme-card', { hasText: 'Panorama' }).click();
   await win.keyboard.press('Escape');
+  // Restaurar la sesión al abrir, con una página personalizada en la pestaña activa.
+  await openSettings('General');
+  await win.getByRole('radio', { name: 'Restaurar las pestañas de la sesión anterior' }).check({ force: true });
+  await win.keyboard.press('Control+T');
+  await go('otraweb.com/a.html');
+  await waitForActiveTab('Página A');
+  await expectShown('otraweb.com/a.html');
   await app.close();
   ({ app, win } = await launch());
+  await waitForActiveTab('Página A');
+  await expectShown('otraweb.com/a.html', 'Tras reiniciar');
+  await eventually(async () => (await visibleUrl()) === `${base}/a.html`, 'La pestaña restaurada no cargó la página real');
   assert((await win.locator('.icarus-root').getAttribute('data-theme')) === 'edge-inspired', 'El estilo no se conservó');
   const state = await win.evaluate(() => window.icarusNative.shield.getState());
   assert(state.customRules.includes('/ads/banner.js'), 'Las reglas de Shield no se conservaron');
   const history = await win.evaluate(() => window.icarusNative.history.list());
   assert(history.some((item) => item.title === 'Página A'), 'El historial no se conservó');
   const storage = JSON.parse(readFileSync(join(dataDir, 'ui-storage.json'), 'utf8'));
-  assert(String(storage.data['icarus.aliasRules']).includes('local.icarus'), 'Las reglas de alias no se guardaron en disco');
+  const saved = String(storage.data['icarus.aliasRules']);
+  assert(saved.includes('http://otraweb.com/') && saved.includes(`${base}/`), 'La dirección personalizada no se guardó en disco');
+  assert(!saved.includes('.icarus'), 'Los datos guardados contienen .icarus');
   return `datos en ${dataDir}`;
 });
 
@@ -651,7 +720,99 @@ await step('25. Borrar el historial', async () => {
   assert(items.length === 0, `Quedan ${items.length} entradas en el historial`);
 });
 
+await step('26. C · Escribir google.com navega a la dirección real (añade https://)', async () => {
+  await win.keyboard.press('Control+T');
+  await go('google.com');
+  const outcome = await eventually(async () => {
+    const url = await visibleUrl();
+    if (url && /^https:\/\/(www\.)?google\.com\//.test(url)) return { url };
+    if (await win.locator('.error-page').count()) return { error: (await win.locator('.error-card__details').innerText()).replace(/\s+/g, ' ') };
+    return null;
+  }, 'google.com no navegó', 30_000);
+  const shown = await shownAddress();
+  assert(/^google\.com/.test(shown), `La barra no muestra google.com (${shown})`);
+  if (outcome.error) {
+    assert(outcome.error.includes('https://google.com/'), `No se intentó abrir https://google.com/ (${outcome.error})`);
+    return `https://google.com/ (la red del entorno bloquea google.com: se mostró la página de error real)`;
+  }
+  return `${outcome.url} · barra: «${shown}»`;
+});
+
+await step('27. F · Pestaña nueva, atrás, adelante, recargar y restaurar con la dirección personalizada', async () => {
+  await win.keyboard.press('Control+T');
+  await go('otraweb.com/a.html');
+  await waitForActiveTab('Página A');
+  await expectShown('otraweb.com/a.html');
+  await pageEval('/a.html', "document.getElementById('to-b').click(); true");
+  await waitForActiveTab('Página B');
+  const controls = win.locator('.nav-controls');
+  await controls.getByRole('button', { name: 'Atrás' }).click();
+  await waitForActiveTab('Página A');
+  await expectShown('otraweb.com/a.html', 'Tras volver atrás');
+  await controls.getByRole('button', { name: 'Adelante' }).click();
+  await waitForActiveTab('Página B');
+  await expectShown('otraweb.com/b.html', 'Tras avanzar');
+  await controls.getByRole('button', { name: 'Recargar' }).click();
+  await eventually(async () => !(await win.locator('[role="tab"][aria-selected="true"] .tab__spinner').count()), 'La recarga no terminó');
+  await expectShown('otraweb.com/b.html', 'Tras recargar');
+  const tabs = win.locator('[role="tab"]');
+  const before = await tabs.count();
+  await win.keyboard.press('Control+W');
+  await eventually(async () => (await tabs.count()) === before - 1, 'Ctrl+W no cerró la pestaña');
+  await win.keyboard.press('Control+Shift+T');
+  await waitForActiveTab('Página B');
+  await expectShown('otraweb.com/b.html', 'Tras restaurar la pestaña cerrada');
+  assert(!(await visibleChrome()).includes('127.0.0.1'), 'Reapareció la dirección original');
+  return 'atrás, adelante, recargar y Ctrl+Mayús+T conservan otraweb.com';
+});
+
+if (!tlsServer) {
+  skip('28. H · Un certificado no válido muestra el sitio real y «No seguro»', 'no hay openssl para crear el certificado de prueba');
+} else {
+  await step('28. H · Un certificado no válido muestra el sitio real y «No seguro»', async () => {
+    const origin = `https://127.0.0.1:${tlsServer.tls.address().port}`;
+    await addCustomAddress(`${origin}/`, 'segura.miweb.com');
+    await win.keyboard.press('Control+T');
+    await go('segura.miweb.com');
+    await win.getByRole('heading', { name: 'La conexión no es segura' }).waitFor({ timeout: 15_000 });
+    // El aviso se refiere al sitio que respondió: la barra muestra su dirección real, con https tachado.
+    await expectShown(`https://127.0.0.1:${tlsServer.tls.address().port}/`, 'Con un error de certificado');
+    assert((await securityState()) === 'dangerous', `Estado de seguridad inesperado: ${await securityState()}`);
+    assert(await win.locator('.omnibox__scheme.is-struck').isVisible(), 'El protocolo no aparece tachado');
+    assert(!(await views()).some((view) => view.visible && view.url?.startsWith(origin)), 'Se muestra la página con el certificado no válido');
+    const buttons = await win.locator('.error-card__actions button').allInnerTexts();
+    assert(!buttons.some((text) => /omitir|continuar|de todos modos|acceder/i.test(text)), `Hay un botón para omitir el error: ${buttons.join(', ')}`);
+    return `barra: «${await shownAddress()}» · estado: ${await securityState()}`;
+  });
+}
+
 if (process.env.ICARUS_E2E_INTERNET === '1') {
+  await step('Internet (A): https://bot.deriv.me/ con la dirección personalizada https://miweb.com/', async () => {
+    await addCustomAddress('https://bot.deriv.me', 'https://miweb.com');
+    await win.keyboard.press('Control+T');
+    await go('miweb.com');
+    const outcome = await eventually(async () => {
+      if (await win.locator('.error-page').count()) {
+        return { error: `${await win.locator('#error-page-title').innerText()} · ${await win.locator('.error-card__details').innerText()}` };
+      }
+      const url = await visibleUrl();
+      const ready = url ? await pageEval(new URL(url).host, 'document.readyState === "complete"') : false;
+      return ready === true ? { url } : null;
+    }, 'No se cargó bot.deriv.me', 45_000);
+    assert(!outcome.error, outcome.error?.replace(/\s+/g, ' '));
+    const finalHost = new URL(outcome.url).host;
+    const shown = await shownAddress();
+    if (finalHost === 'bot.deriv.me') {
+      assert(shown.startsWith('miweb.com'), `La barra no muestra miweb.com (${shown})`);
+      assert(!(await visibleChrome()).includes('deriv'), 'La barra o la pestaña muestran bot.deriv.me');
+      assert((await securityState()) === 'secure', `La conexión HTTPS real no se indica como segura (${await securityState()})`);
+      return `Chromium: ${outcome.url} · barra: «${shown}» · conexión: ${await securityState()}`;
+    }
+    // Si el sitio redirige a otro dominio, se muestra la dirección real de llegada.
+    assert(shown.startsWith(finalHost.replace(/^www\./, '')), `Tras redirigir a ${finalHost}, la barra muestra «${shown}»`);
+    return `bot.deriv.me redirigió a ${outcome.url}: la barra muestra la dirección real «${shown}»`;
+  });
+
   const sites = process.env.ICARUS_E2E_SITES?.split(',').filter(Boolean) ?? ['https://www.wikipedia.org/', 'https://www.google.com/', 'https://www.youtube.com/'];
   for (const url of sites) {
     await step(`Internet: ${url}`, async () => {

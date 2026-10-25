@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultAliasRules } from '../../services/alias-rules';
 import { normalizeUserUrl, parseInternalUrl, resolveInput } from '../../services/url-resolution';
 import { buildSearchUrl } from '../../services/search/providers';
+import type { CustomAddress } from '../../types/customAddress';
 
-const context = { providerId: 'google' as const, rules: createDefaultAliasRules() };
+const entry = (id: string, target: string, address: string, enabled = true): CustomAddress => ({
+  id,
+  target,
+  address,
+  enabled,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+});
+const customAddresses = [
+  entry('deriv', 'https://bot.deriv.me/', 'https://miweb.com/'),
+  entry('local', 'http://localhost:3000/', 'http://miapp.com/'),
+  entry('docs', 'https://ejemplo.com/docs', 'https://docs.miweb.org/'),
+  entry('apagada', 'https://apagada.com/', 'https://desactivada.com/', false),
+];
+const context = { providerId: 'google' as const, customAddresses };
 
 describe('resolveInput', () => {
   it('reconoce direcciones web con y sin protocolo', () => {
@@ -44,11 +58,29 @@ describe('resolveInput', () => {
     expect(resolveInput('icarus://nada', context)).toEqual({ kind: 'internal-unknown', text: 'icarus://nada' });
   });
 
-  it('solo convierte un alias en destino si existe una regla activa', () => {
-    expect(resolveInput('buscar.icarus', context)).toMatchObject({ kind: 'alias', url: 'https://www.google.com/' });
-    expect(resolveInput('wiki.icarus', context)).toEqual({ kind: 'alias-unresolved', alias: 'wiki.icarus', reason: 'disabled' });
-    expect(resolveInput('otro.icarus', context)).toEqual({ kind: 'alias-unresolved', alias: 'otro.icarus', reason: 'unknown' });
-    expect(resolveInput('https://otro.icarus/', context)).toMatchObject({ kind: 'alias-unresolved' });
+  it('acepta las direcciones tal como se escriben, sin sufijos', () => {
+    expect(resolveInput('bot.deriv.me', { ...context, customAddresses: [] })).toEqual({ kind: 'url', url: 'https://bot.deriv.me/' });
+    expect(resolveInput('google.com', context)).toEqual({ kind: 'url', url: 'https://google.com/' });
+    expect(resolveInput('youtube.com', context)).toEqual({ kind: 'url', url: 'https://youtube.com/' });
+    expect(resolveInput('icarus.marketing', context)).toEqual({ kind: 'url', url: 'https://icarus.marketing/' });
+    expect(resolveInput('localhost:3000', context)).toEqual({ kind: 'url', url: 'http://localhost:3000/' });
+    expect(resolveInput('https://ejemplo.com/ruta', context)).toEqual({ kind: 'url', url: 'https://ejemplo.com/ruta' });
+    expect(resolveInput('ejemplo.com:8443/a?b=1#c', context)).toEqual({ kind: 'url', url: 'https://ejemplo.com:8443/a?b=1#c' });
+    // `.icarus` ya no es especial: es una dirección más.
+    expect(resolveInput('buscar.icarus', context)).toEqual({ kind: 'url', url: 'https://buscar.icarus/' });
+  });
+
+  it('una dirección personalizada lleva a la URL real equivalente del destino', () => {
+    expect(resolveInput('miweb.com', context)).toMatchObject({ kind: 'custom', url: 'https://bot.deriv.me/', address: 'https://miweb.com/' });
+    expect(resolveInput('https://miweb.com/panel?x=1#a', context)).toMatchObject({ kind: 'custom', url: 'https://bot.deriv.me/panel?x=1#a' });
+    expect(resolveInput('MIWEB.com/Ruta', context)).toMatchObject({ kind: 'custom', url: 'https://bot.deriv.me/Ruta' });
+    // Sin protocolo escrito se acepta el del destino (http); con https:// explícito no coincide.
+    expect(resolveInput('miapp.com/api', context)).toMatchObject({ kind: 'custom', url: 'http://localhost:3000/api' });
+    expect(resolveInput('https://miapp.com/', context)).toEqual({ kind: 'url', url: 'https://miapp.com/' });
+    // Destino con ruta base.
+    expect(resolveInput('docs.miweb.org/guia', context)).toMatchObject({ kind: 'custom', url: 'https://ejemplo.com/docs/guia' });
+    // Desactivada: es una dirección normal.
+    expect(resolveInput('desactivada.com', context)).toEqual({ kind: 'url', url: 'https://desactivada.com/' });
   });
 
   it('ignora la entrada vacía', () => {
@@ -57,11 +89,11 @@ describe('resolveInput', () => {
 });
 
 describe('normalizeUserUrl', () => {
-  it('normaliza dominios y rechaza alias, credenciales y protocolos inseguros', () => {
+  it('normaliza dominios y rechaza credenciales y protocolos inseguros', () => {
     expect(normalizeUserUrl('github.com')).toMatchObject({ ok: true, url: 'https://github.com/' });
     expect(normalizeUserUrl('javascript:alert(1)')).toEqual({ ok: false, reason: 'unsafe-protocol' });
     expect(normalizeUserUrl('ftp://example.com')).toEqual({ ok: false, reason: 'unsupported-protocol' });
-    expect(normalizeUserUrl('buscar.icarus')).toEqual({ ok: false, reason: 'alias' });
+    expect(normalizeUserUrl('buscar.icarus')).toMatchObject({ ok: true, url: 'https://buscar.icarus/' });
     expect(normalizeUserUrl('https://user:pw@example.com')).toEqual({ ok: false, reason: 'invalid' });
     expect(normalizeUserUrl('no es url')).toEqual({ ok: false, reason: 'invalid' });
     expect(normalizeUserUrl('')).toEqual({ ok: false, reason: 'empty' });

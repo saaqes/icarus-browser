@@ -1,40 +1,47 @@
 import { useServices } from '../../app/ServicesContext';
 import { useMessages } from '../../i18n';
+import { shortAddress } from '../../services/custom-addresses/display';
+import type { CustomAddress } from '../../types/customAddress';
 import { Favicon } from '../common/Favicon';
 import { Icon, type IconName } from '../common/Icon';
-import type { Suggestion } from './suggestions';
+import { visibleAddress, type Suggestion } from './suggestions';
 
 interface SuggestionListProps {
   id: string;
   suggestions: Suggestion[];
   activeIndex: number;
   providerName: string;
+  customAddresses: CustomAddress[];
   onHover: (index: number) => void;
   onSelect: (suggestion: Suggestion) => void;
 }
 
-function describe(suggestion: Suggestion, providerName: string, m: ReturnType<typeof useMessages>, desktop: boolean) {
+function describe(
+  suggestion: Suggestion,
+  providerName: string,
+  customAddresses: CustomAddress[],
+  m: ReturnType<typeof useMessages>,
+  desktop: boolean,
+) {
   const t = m.addressBar.suggestion;
+  const shown = (url: string) => shortAddress(visibleAddress(url, customAddresses));
   if (suggestion.kind === 'shortcut') {
-    return { icon: null, main: suggestion.shortcut.title, detail: `${t.shortcut} · ${suggestion.shortcut.url}`, warn: false };
+    return { icon: null, main: suggestion.shortcut.title, detail: `${t.shortcut} · ${shown(suggestion.shortcut.url)}`, warn: false };
   }
   if (suggestion.kind === 'history') {
-    return { icon: 'history' as IconName, main: suggestion.item.title || suggestion.item.url, detail: `${t.history} · ${suggestion.item.url}`, warn: false };
+    return { icon: 'history' as IconName, main: suggestion.item.title || shown(suggestion.item.url), detail: `${t.history} · ${shown(suggestion.item.url)}`, warn: false };
   }
-  if (suggestion.kind === 'alias') {
-    const { rule } = suggestion;
-    return { icon: 'tag' as IconName, main: rule.alias, detail: `${t.aliasRule} · ${rule.displayName} → ${rule.targetUrl}`, warn: false };
+  if (suggestion.kind === 'address') {
+    return { icon: 'globe' as IconName, main: shortAddress(suggestion.entry.address), detail: t.customAddress, warn: false };
   }
   const { resolution, text } = suggestion;
   switch (resolution.kind) {
     case 'url':
-      return { icon: 'globe' as IconName, main: resolution.url, detail: desktop ? t.urlDesktop : t.url, warn: false };
+      return { icon: 'globe' as IconName, main: shown(resolution.url), detail: desktop ? t.urlDesktop : t.url, warn: false };
+    case 'custom':
+      return { icon: 'globe' as IconName, main: shortAddress(resolution.address), detail: desktop ? t.urlDesktop : t.url, warn: false };
     case 'search':
       return { icon: 'search' as IconName, main: text, detail: desktop ? t.searchDesktop(providerName) : t.search(providerName), warn: false };
-    case 'alias':
-      return { icon: 'tag' as IconName, main: resolution.rule.alias, detail: t.alias(resolution.url), warn: false };
-    case 'alias-unresolved':
-      return { icon: 'warning' as IconName, main: resolution.alias, detail: t.aliasUnresolved, warn: true };
     case 'internal':
       return { icon: 'sparkle' as IconName, main: text, detail: t.internal, warn: false };
     case 'internal-unknown':
@@ -46,14 +53,14 @@ function describe(suggestion: Suggestion, providerName: string, m: ReturnType<ty
   }
 }
 
-export function SuggestionList({ id, suggestions, activeIndex, providerName, onHover, onSelect }: SuggestionListProps) {
+export function SuggestionList({ id, suggestions, activeIndex, providerName, customAddresses, onHover, onSelect }: SuggestionListProps) {
   const m = useMessages();
   const desktop = Boolean(useServices().native);
   return (
     <div className="omnibox__dropdown">
       <ul id={id} role="listbox" aria-label={m.addressBar.suggestions} className="suggestions">
         {suggestions.map((suggestion, index) => {
-          const info = describe(suggestion, providerName, m, desktop);
+          const info = describe(suggestion, providerName, customAddresses, m, desktop);
           return (
             <li
               key={suggestion.id}

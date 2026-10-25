@@ -1,8 +1,15 @@
-/** Página icarus://historial: historial persistente con búsqueda y borrado. */
+/**
+ * Página icarus://historial: historial persistente con búsqueda y borrado. Guarda
+ * las URL reales (para volver a abrirlas) y muestra la dirección visible, la
+ * personalizada si existe, igual que la barra.
+ */
 
 import { useMemo, useState } from 'react';
 import { useHistoryItems, useNative } from '../../hooks/useNative';
+import { useCustomAddresses } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
+import { shortAddress } from '../../services/custom-addresses/display';
+import { displayUrlFor } from '../../services/custom-addresses/mapping';
 import { hostnameOf } from '../../services/format';
 import type { ClearRange } from '../../types/native';
 import { useBrowser } from '../BrowserShell/BrowserContext';
@@ -20,13 +27,25 @@ export function HistoryPage() {
   const notify = useToast();
   const { openUrl } = useBrowser();
   const { items, loading } = useHistoryItems();
+  const [customAddresses] = useCustomAddresses();
+  const shown = useMemo(() => {
+    const cache = new Map<string, string>();
+    return (url: string) => {
+      let value = cache.get(url);
+      if (value === undefined) {
+        value = displayUrlFor(url, customAddresses)?.url ?? url;
+        cache.set(url, value);
+      }
+      return value;
+    };
+  }, [customAddresses]);
   const [query, setQuery] = useState('');
   const [clearRange, setClearRange] = useState<ClearRange | null>(null);
 
   const groups = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const filtered = needle
-      ? items.filter((item) => item.title.toLowerCase().includes(needle) || item.url.toLowerCase().includes(needle))
+      ? items.filter((item) => item.title.toLowerCase().includes(needle) || shortAddress(shown(item.url)).toLowerCase().includes(needle))
       : items;
     const byDay = new Map<string, typeof filtered>();
     for (const item of filtered.slice(0, 1000)) {
@@ -36,7 +55,7 @@ export function HistoryPage() {
       else byDay.set(day, [item]);
     }
     return [...byDay.entries()];
-  }, [items, m.locale, query]);
+  }, [items, m.locale, query, shown]);
 
   if (!native) return <DesktopOnlyNotice title={t.title} />;
 
@@ -79,14 +98,14 @@ export function HistoryPage() {
                     {new Date(item.visitedAt).toLocaleTimeString(m.locale, { hour: '2-digit', minute: '2-digit' })}
                   </time>
                   <Favicon url={item.url} label={item.title} size={16} />
-                  <button type="button" className="history-row__open" onClick={() => openUrl(item.url)} title={item.url}>
-                    <span className="history-row__title">{item.title || item.url}</span>
-                    <span className="history-row__host">{hostnameOf(item.url)}</span>
+                  <button type="button" className="history-row__open" onClick={() => openUrl(item.url)} title={shown(item.url)}>
+                    <span className="history-row__title">{item.title || shortAddress(shown(item.url))}</span>
+                    <span className="history-row__host">{hostnameOf(shown(item.url))}</span>
                   </button>
                   <button
                     type="button"
                     className="icon-btn icon-btn--sm"
-                    aria-label={t.remove(item.title || item.url)}
+                    aria-label={t.remove(item.title || shortAddress(shown(item.url)))}
                     onClick={() => void native.history.remove(item.id)}
                   >
                     <Icon name="close" size={14} />

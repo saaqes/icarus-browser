@@ -19,6 +19,6 @@ function useStore<T>(store: PersistentStore<T>): [T, Updater<T>] {
 
 export const useSettings = () => useStore(useServices().settings);
 export const useShortcuts = () => useStore(useServices().shortcuts);
-export const useAliasRules = () => useStore(useServices().aliasRules);
+export const useCustomAddresses = () => useStore(useServices().customAddresses);
 export const useWidgetData = () => useStore(useServices().widgets);
 export const useBackgroundImage = () => useStore(useServices().backgroundImage);

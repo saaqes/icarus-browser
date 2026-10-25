@@ -1,12 +1,9 @@
 /**
  * Utilidades de URL compartidas por la barra de direcciones, los accesos directos
- * y las reglas de alias. Solo se consideran navegables las URL http(s).
+ * y las direcciones personalizadas. Solo se consideran navegables las URL http(s).
  */
 
 export const WEB_PROTOCOLS = ['http:', 'https:'] as const;
-
-/** Sufijo reservado para los alias visuales de ICARUS. No es un dominio de Internet. */
-export const ALIAS_SUFFIX = '.icarus';
 
 /** Protocolos que nunca se abren porque pueden ejecutar código o leer datos locales. */
 export const DANGEROUS_PROTOCOLS = ['javascript:', 'data:', 'vbscript:', 'file:', 'blob:'] as const;
@@ -39,11 +36,6 @@ export function isIpLiteral(hostname: string): boolean {
   return IPV4.test(hostname) || IPV6_BRACKETED.test(hostname);
 }
 
-export function isAliasHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/\.$/, '');
-  return host === 'icarus' || host.endsWith(ALIAS_SUFFIX);
-}
-
 /** ¿Parece `texto` un host con puerto opcional (ej. `ejemplo.com`, `localhost:3000`)? */
 export function looksLikeHost(text: string): boolean {
   if (!text || text.includes('@')) return false;
@@ -65,13 +57,13 @@ export function isDangerousProtocol(protocol: string): boolean {
   return (DANGEROUS_PROTOCOLS as readonly string[]).includes(protocol.toLowerCase());
 }
 
-export type NormalizeUrlFailure = 'empty' | 'unsafe-protocol' | 'unsupported-protocol' | 'invalid' | 'alias';
+export type NormalizeUrlFailure = 'empty' | 'unsafe-protocol' | 'unsupported-protocol' | 'invalid';
 export type NormalizeUrlResult = { ok: true; url: string; parsed: URL } | { ok: false; reason: NormalizeUrlFailure };
 
 /**
  * Normaliza una URL escrita por el usuario en formularios (accesos directos,
- * página principal, reglas). Acepta `ejemplo.com` y lo convierte en
- * `https://ejemplo.com/`. Rechaza protocolos peligrosos y alias `.icarus`.
+ * página principal). Acepta `ejemplo.com` y lo convierte en
+ * `https://ejemplo.com/`. Rechaza protocolos peligrosos.
  */
 export function normalizeUserUrl(text: string): NormalizeUrlResult {
   const trimmed = text.trim();
@@ -87,26 +79,15 @@ export function normalizeUserUrl(text: string): NormalizeUrlResult {
     if (!(WEB_PROTOCOLS as readonly string[]).includes(protocol)) return { ok: false, reason: 'unsupported-protocol' };
   } else {
     const hostPart = trimmed.split(/[/?#]/)[0] ?? '';
-    if (!looksLikeHost(hostPart)) {
-      return /^[^/?#]+\.icarus(?:[/?#]|$)/i.test(trimmed) ? { ok: false, reason: 'alias' } : { ok: false, reason: 'invalid' };
-    }
+    if (!looksLikeHost(hostPart)) return { ok: false, reason: 'invalid' };
     const bareHost = hostPart.replace(/:\d+$/, '');
     candidate = `${isLoopbackHost(bareHost) || isIpLiteral(bareHost) ? 'http' : 'https'}://${trimmed}`;
   }
 
   const parsed = parseWebUrl(candidate);
   if (!parsed) return { ok: false, reason: 'invalid' };
-  if (isAliasHost(parsed.hostname)) return { ok: false, reason: 'alias' };
   if (parsed.username || parsed.password) return { ok: false, reason: 'invalid' };
   return { ok: true, url: parsed.href, parsed };
-}
-
-/** Parte una URL para resaltar el host (ayuda a reconocer el origen real). */
-export function splitUrlForDisplay(href: string): { prefix: string; host: string; rest: string } {
-  const url = parseWebUrl(href);
-  if (!url) return { prefix: '', host: href, rest: '' };
-  const rest = `${url.pathname === '/' && !url.search && !url.hash ? '' : url.pathname}${url.search}${url.hash}`;
-  return { prefix: `${url.protocol}//`, host: url.host, rest };
 }
 
 export function getHostname(href: string): string | null {

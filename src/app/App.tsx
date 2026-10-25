@@ -17,7 +17,7 @@ function PersistenceNotices() {
   useEffect(() => services.onSaveError((event) => notify('error', m.persistence.saveFailed[event.reason])), [m, notify, services]);
 
   useEffect(() => {
-    const loads = [services.settings, services.shortcuts, services.aliasRules, services.widgets, services.backgroundImage].map(
+    const loads = [services.settings, services.shortcuts, services.customAddresses, services.widgets, services.backgroundImage].map(
       (store) => store.initialLoad.status,
     );
     if (services.storage.kind === 'memory') notify('info', m.persistence.memoryOnly);
@@ -31,7 +31,7 @@ function PersistenceNotices() {
 /** Sincroniza los cambios hechos en otra ventana del mismo navegador. */
 function useCrossWindowSync(services: AppServices) {
   useEffect(() => {
-    const stores = [services.settings, services.shortcuts, services.aliasRules, services.widgets, services.backgroundImage];
+    const stores = [services.settings, services.shortcuts, services.customAddresses, services.widgets, services.backgroundImage];
     const onStorage = (event: StorageEvent) => {
       const store = stores.find((item) => item.key === event.key);
       if (store) store.reload();

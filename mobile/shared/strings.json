@@ -1,23 +1,22 @@
 {
-  "description": "Textos de escritorio (src/i18n/es.ts) que reutilizan las apps móviles.",
-  "aliasErrors": {
+  "description": "Textos de escritorio (src/i18n/es.ts) que reutilizan las apps móviles. {nombre} marca un parámetro.",
+  "customAddressErrors": {
     "required": "Este campo es obligatorio.",
-    "too-long": "El texto es demasiado largo.",
-    "invalid-url": "Introduce una URL web válida (http o https).",
-    "unsafe-protocol": "Solo se admiten direcciones http:// o https://.",
-    "invalid-host": "Introduce un nombre de host válido, por ejemplo www.ejemplo.com o *.ejemplo.com.",
-    "alias-format": "El alias debe terminar en .icarus y usar letras, números o guiones (ej. buscar.icarus).",
-    "alias-duplicate": "Ya existe una regla activa con este alias.",
-    "pattern-is-alias": "El patrón debe ser una dirección real, no un alias .icarus.",
-    "target-is-alias": "El destino debe ser una URL real; un alias no puede apuntar a otro alias.",
-    "insecure-target": "El destino no puede usar HTTP si el patrón no es HTTP: una regla no puede convertir HTTPS en HTTP."
+    "invalid-url": "Escribe una dirección válida, por ejemplo miweb.com, localhost:3000 o https://ejemplo.com/ruta.",
+    "unsupported-protocol": "Solo se admiten direcciones http:// o https://.",
+    "has-query": "Usa solo el sitio o una ruta, sin «?» ni «#»: la consulta y el fragmento se conservan solos al navegar.",
+    "protocol-mismatch": "La dirección debe usar el mismo protocolo que el destino. ICARUS no muestra una conexión distinta de la real (por ejemplo, HTTPS para una página HTTP).",
+    "same-as-target": "La dirección personalizada no puede ser el propio destino ni estar dentro de él.",
+    "target-in-use": "Ese destino ya tiene una dirección: {target} se muestra como {address}. Edítala en la lista.",
+    "target-is-address": "{address} ya es la dirección personalizada de {target}: un destino no puede ser otra dirección personalizada.",
+    "address-in-use": "{address} ya se usa para {target}. Elige otra dirección o edita esa entrada.",
+    "address-is-target": "Esa dirección es el destino de otra entrada ({target} se muestra como {address})."
   },
   "shortcutErrors": {
     "required": "Este campo es obligatorio.",
     "too-long": "El nombre admite como máximo 40 caracteres.",
     "invalid-url": "Introduce una dirección web válida, por ejemplo ejemplo.com.",
     "unsafe-protocol": "Solo se admiten direcciones http:// o https://.",
-    "alias-url": "Usa la URL real del sitio. Los alias .icarus se aplican automáticamente.",
     "duplicate-url": "Ya existe un acceso directo con esta dirección."
   },
   "shieldListErrors": {
@@ -29,28 +28,59 @@
     "invalid-url": "Introduce una dirección https:// válida.",
     "duplicate": "Esa lista ya está añadida."
   },
-  "aliasManager": {
-    "title": "Cambiar nombre de URL",
-    "subtitle": "Define cómo se muestran ciertas direcciones dentro de ICARUS. Un alias es una etiqueta visual interna: la URL real se conserva y siempre se puede consultar.",
-    "priorityNote": "Prioridad: coincidencia exacta > prefijo más largo > host concreto > host con comodín. En empate se aplica la regla más antigua.",
-    "matchTypes": {
-      "exact": "URL exacta",
-      "prefix": "Empieza por",
-      "host": "Sitio (host)"
+  "addressBar": {
+    "notSecure": "No seguro",
+    "secureTitle": "La conexión es segura",
+    "secureBody": "Chromium verificó el certificado de {host}. La información que envíes viaja cifrada.",
+    "insecureTitle": "La conexión no es segura",
+    "insecureBody": "La página se cargó por HTTP: lo que envíes o recibas no viaja cifrado.",
+    "dangerousBody": "El certificado de {host} no es válido. ICARUS no carga la página ni permite omitir el aviso.",
+    "customTitle": "Dirección personalizada de ICARUS",
+    "customBody": "ICARUS muestra esta página como {shown}. Las solicitudes van al sitio real, {real}, y la seguridad de la conexión es la suya.",
+    "showFullUrls": "Mostrar siempre las URL completas",
+    "showFullUrlsHint": "Como en Chrome y Edge, la barra oculta https:// y www. cuando no tiene el foco. Actívalo para ver siempre la dirección completa."
+  },
+  "customAddresses": {
+    "title": "Direcciones personalizadas",
+    "subtitle": "Elige la dirección que verás en la barra para un sitio. ICARUS sigue cargando el sitio real: la dirección personalizada solo existe dentro de ICARUS.",
+    "add": "Añadir dirección",
+    "empty": "Aún no hay direcciones personalizadas. Pulsa «Añadir dirección» para crear la primera.",
+    "targetOf": "Destino: {target}",
+    "disabled": "Desactivada",
+    "howTo": {
+      "title": "Cómo funciona",
+      "steps": [
+        "Elige el destino: una pestaña abierta, un acceso directo, una página reciente o escribe su dirección.",
+        "Escribe la dirección que quieres ver, por ejemplo miweb.com. No hace falta ningún sufijo.",
+        "Guarda. Mientras navegues por ese sitio, la barra mostrará solo tu dirección, con la misma ruta, y al escribirla irás al sitio real."
+      ],
+      "security": "El icono de la barra sigue indicando la seguridad real de la conexión, y la información del sitio dice a qué sitio van las solicitudes. Los errores de certificado muestran siempre el sitio real."
     },
-    "matchHints": {
-      "exact": "Solo la dirección indicada (se ignora el fragmento #).",
-      "prefix": "La dirección indicada y las rutas que cuelgan de ella.",
-      "host": "Todas las páginas del host. Usa *.dominio.com para incluir subdominios."
+    "form": {
+      "createTitle": "Nueva dirección personalizada",
+      "editTitle": "Editar dirección personalizada",
+      "target": "1. Destino real",
+      "targetHint": "El sitio (o la sección) que se carga de verdad. Se aplica a todas sus páginas.",
+      "targetPlaceholder": "bot.deriv.me",
+      "chooseFrom": "O elige una página que ya tienes:",
+      "address": "2. Dirección que se mostrará",
+      "addressHint": "Por ejemplo miweb.com o https://miweb.com/app. Si no escribes el protocolo, se usa el del destino.",
+      "addressPlaceholder": "miweb.com",
+      "preview": "Así se verá",
+      "previewShows": "En {target} y todas sus páginas, la barra mostrará {address}.",
+      "previewOpens": "Escribir {address} en ICARUS abrirá {target}.",
+      "previewPaths": "Las rutas se conservan: {real} se mostrará como {shown}.",
+      "previewIncomplete": "Completa el destino y la dirección para ver el resultado.",
+      "limitation": "La dirección personalizada no es un dominio de Internet: otros navegadores y dispositivos no la conocen. Si existe un sitio real con esa dirección, ICARUS abrirá tu destino en su lugar mientras esta entrada esté activa.",
+      "enabled": "Activa",
+      "remove": "Eliminar",
+      "fixErrors": "Revisa los campos marcados."
     },
-    "patternPlaceholders": {
-      "exact": "https://www.ejemplo.com/",
-      "prefix": "https://www.ejemplo.com/docs",
-      "host": "www.ejemplo.com"
-    },
-    "aliasHint": "Etiqueta interna terminada en .icarus. No es un dominio de Internet.",
-    "targetHint": "Dirección que se abre al escribir el alias en la barra de direcciones.",
-    "displayNameHint": "Se usa como título de la pestaña."
+    "created": "Dirección {address} guardada.",
+    "saved": "Cambios guardados.",
+    "deleted": "Dirección personalizada eliminada. El sitio vuelve a mostrar su dirección real.",
+    "toggleConflict": "No se puede activar: choca con {address} ({target}).",
+    "deleteBody": "¿Eliminar {address}? {target} volverá a mostrar su dirección real."
   },
   "shield": {
     "intro": "Shield bloquea las solicitudes de red de anuncios y rastreadores antes de que se descarguen, usando listas de filtros con sintaxis de Adblock Plus.",

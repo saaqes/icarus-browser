@@ -517,20 +517,6 @@ fieldset {
 }
 
 /* Chips */
-.alias-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 7px;
-  border-radius: var(--radius-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
 .insecure-chip,
 .conflict-badge,
 .unsaved-badge,

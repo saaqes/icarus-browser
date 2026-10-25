@@ -108,16 +108,12 @@ export interface NavigationSettings {
   externalOpening: ExternalOpeningMode;
   shortcutOpenTarget: ShortcutOpenTarget;
   loadFavicons: boolean;
-}
-
-export interface AdvancedSettings {
-  /** Aplica las reglas de alias en la barra de direcciones, pestañas y páginas internas. */
-  showAliases: boolean;
+  /** Muestra la URL completa (con `https://` y `www.`) aunque la barra no tenga el foco, como la opción de Chrome. */
+  showFullUrls: boolean;
 }
 
 export interface Settings {
   general: GeneralSettings;
   appearance: AppearanceSettings;
   navigation: NavigationSettings;
-  advanced: AdvancedSettings;
 }

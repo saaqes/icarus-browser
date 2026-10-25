@@ -1,0 +1,506 @@
+{
+  "description": "Entrada del editor → valores normalizados o errores por campo (con la entrada que provoca el conflicto).",
+  "customAddresses": [
+    {
+      "id": "deriv",
+      "target": "https://bot.deriv.me/",
+      "address": "https://miweb.com/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "local",
+      "target": "http://localhost:3000/",
+      "address": "http://miapp.com/v2",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "docs",
+      "target": "https://ejemplo.com/docs",
+      "address": "https://docs.miweb.org/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "migrada",
+      "target": "https://es.wikipedia.org/",
+      "address": "https://wiki.icarus/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "apagada",
+      "target": "https://apagada.com/",
+      "address": "https://desactivada.com/",
+      "enabled": false,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "cases": [
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "miweb.com",
+        "enabled": true
+      },
+      "editingId": "deriv",
+      "ok": true,
+      "value": {
+        "target": "https://bot.deriv.me/",
+        "address": "https://miweb.com/",
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "https://bot.deriv.me",
+        "address": "https://otraweb.com/",
+        "enabled": true
+      },
+      "editingId": "deriv",
+      "ok": true,
+      "value": {
+        "target": "https://bot.deriv.me/",
+        "address": "https://otraweb.com/",
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "localhost:3000",
+        "address": "miapp.com",
+        "enabled": true
+      },
+      "editingId": "local",
+      "ok": true,
+      "value": {
+        "target": "http://localhost:3000/",
+        "address": "http://miapp.com/",
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "https://ejemplo.com/ruta/",
+        "address": "icarus.marketing",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": true,
+      "value": {
+        "target": "https://ejemplo.com/ruta",
+        "address": "https://icarus.marketing/",
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "nuevo.com",
+        "address": "nueva.com",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": true,
+      "value": {
+        "target": "https://nuevo.com/",
+        "address": "https://nueva.com/",
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "",
+        "address": "",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "target": "required",
+        "address": "required"
+      },
+      "conflicts": {}
+    },
+    {
+      "input": {
+        "target": "no es url",
+        "address": "palabra",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "target": "invalid-url",
+        "address": "invalid-url"
+      },
+      "conflicts": {}
+    },
+    {
+      "input": {
+        "target": "javascript:alert(1)",
+        "address": "ftp://a.com",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "target": "unsupported-protocol",
+        "address": "unsupported-protocol"
+      },
+      "conflicts": {}
+    },
+    {
+      "input": {
+        "target": "https://a.com/?x=1",
+        "address": "b.com#c",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "target": "has-query",
+        "address": "has-query"
+      },
+      "conflicts": {}
+    },
+    {
+      "input": {
+        "target": "http://intranet.ejemplo.com",
+        "address": "https://miweb2.com",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "address": "protocol-mismatch"
+      },
+      "conflicts": {}
+    },
+    {
+      "input": {
+        "target": "https://a.com",
+        "address": "a.com/b",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "address": "same-as-target"
+      },
+      "conflicts": {}
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me/panel",
+        "address": "otra.com",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "target": "target-in-use"
+      },
+      "conflicts": {
+        "target": "deriv"
+      }
+    },
+    {
+      "input": {
+        "target": "otro.com",
+        "address": "miweb.com/x",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "address": "address-in-use"
+      },
+      "conflicts": {
+        "address": "deriv"
+      }
+    },
+    {
+      "input": {
+        "target": "miweb.com",
+        "address": "nueva2.com",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "target": "target-is-address"
+      },
+      "conflicts": {
+        "target": "deriv"
+      }
+    },
+    {
+      "input": {
+        "target": "nuevo2.com",
+        "address": "bot.deriv.me",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "address": "address-is-target"
+      },
+      "conflicts": {
+        "address": "deriv"
+      }
+    },
+    {
+      "input": {
+        "target": "https://ejemplo.com/blog",
+        "address": "blog.miweb.org",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": true,
+      "value": {
+        "target": "https://ejemplo.com/blog",
+        "address": "https://blog.miweb.org/",
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "otra.com",
+        "enabled": false
+      },
+      "editingId": null,
+      "ok": true,
+      "value": {
+        "target": "https://bot.deriv.me/",
+        "address": "https://otra.com/",
+        "enabled": false
+      }
+    }
+  ],
+  "legacy": {
+    "rules": [
+      {
+        "id": "default-search",
+        "name": "Página de búsqueda",
+        "matchType": "exact",
+        "pattern": "https://www.google.com/",
+        "displayName": "Buscar",
+        "alias": "buscar.icarus",
+        "targetUrl": "https://www.google.com/",
+        "enabled": true
+      },
+      {
+        "id": "default-wiki",
+        "name": "Enciclopedia",
+        "matchType": "host",
+        "pattern": "es.wikipedia.org",
+        "displayName": "Wikipedia",
+        "alias": "wiki.icarus",
+        "targetUrl": "https://es.wikipedia.org/",
+        "enabled": false
+      },
+      {
+        "id": "bot",
+        "name": "Bot",
+        "matchType": "host",
+        "pattern": "bot.deriv.me",
+        "displayName": "Bot",
+        "alias": "bot.icarus",
+        "targetUrl": "https://bot.deriv.me/",
+        "enabled": true,
+        "createdAt": "2026-02-01T00:00:00.000Z",
+        "updatedAt": "2026-02-02T00:00:00.000Z"
+      },
+      {
+        "id": "org",
+        "name": "Org",
+        "matchType": "host",
+        "pattern": "*.ejemplo.org",
+        "displayName": "Org",
+        "alias": "org.icarus",
+        "targetUrl": "https://ejemplo.org/",
+        "enabled": true
+      },
+      {
+        "id": "guia",
+        "name": "Guía",
+        "matchType": "prefix",
+        "pattern": "https://docs.ejemplo.com/guia",
+        "displayName": "Guía",
+        "alias": "guia.icarus/v1",
+        "targetUrl": "https://docs.ejemplo.com/guia",
+        "enabled": true
+      },
+      {
+        "id": "local",
+        "name": "Local",
+        "matchType": "exact",
+        "pattern": "http://localhost:3000/?a=1",
+        "displayName": "Local",
+        "alias": "local.icarus",
+        "targetUrl": "http://localhost:3000/",
+        "enabled": false
+      },
+      {
+        "id": "choca",
+        "name": "Choca",
+        "matchType": "host",
+        "pattern": "otro.com",
+        "displayName": "Otro",
+        "alias": "bot.icarus",
+        "targetUrl": "https://otro.com/",
+        "enabled": true
+      },
+      {
+        "id": "rota",
+        "name": "Rota",
+        "matchType": "host",
+        "pattern": "",
+        "displayName": "",
+        "alias": "",
+        "targetUrl": "",
+        "enabled": true
+      },
+      {
+        "id": "nueva",
+        "target": "https://nuevo.com/",
+        "address": "https://nueva.com/",
+        "enabled": true,
+        "createdAt": "2026-03-01T00:00:00.000Z",
+        "updatedAt": "2026-03-01T00:00:00.000Z"
+      }
+    ],
+    "conversions": [
+      {
+        "id": "default-search",
+        "result": {
+          "kind": "skip"
+        }
+      },
+      {
+        "id": "default-wiki",
+        "result": {
+          "kind": "skip"
+        }
+      },
+      {
+        "id": "bot",
+        "result": {
+          "kind": "entry",
+          "input": {
+            "target": "https://bot.deriv.me/",
+            "address": "https://bot.icarus",
+            "enabled": true
+          }
+        }
+      },
+      {
+        "id": "org",
+        "result": {
+          "kind": "entry",
+          "input": {
+            "target": "https://ejemplo.org/",
+            "address": "https://org.icarus",
+            "enabled": true
+          }
+        }
+      },
+      {
+        "id": "guia",
+        "result": {
+          "kind": "entry",
+          "input": {
+            "target": "https://docs.ejemplo.com/guia",
+            "address": "https://guia.icarus/v1",
+            "enabled": true
+          }
+        }
+      },
+      {
+        "id": "local",
+        "result": {
+          "kind": "entry",
+          "input": {
+            "target": "http://localhost:3000/",
+            "address": "http://local.icarus",
+            "enabled": false
+          }
+        }
+      },
+      {
+        "id": "choca",
+        "result": {
+          "kind": "entry",
+          "input": {
+            "target": "https://otro.com/",
+            "address": "https://bot.icarus",
+            "enabled": true
+          }
+        }
+      },
+      {
+        "id": "rota",
+        "result": {
+          "kind": "invalid"
+        }
+      }
+    ],
+    "loaded": [
+      {
+        "target": "https://bot.deriv.me/",
+        "address": "https://bot.icarus/",
+        "enabled": true,
+        "id": "bot",
+        "createdAt": "2026-02-01T00:00:00.000Z",
+        "updatedAt": "2026-02-02T00:00:00.000Z"
+      },
+      {
+        "target": "https://ejemplo.org/",
+        "address": "https://org.icarus/",
+        "enabled": true,
+        "id": "org",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:00:00.000Z"
+      },
+      {
+        "target": "https://docs.ejemplo.com/guia",
+        "address": "https://guia.icarus/v1",
+        "enabled": true,
+        "id": "guia",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:00:00.000Z"
+      },
+      {
+        "target": "http://localhost:3000/",
+        "address": "http://local.icarus/",
+        "enabled": false,
+        "id": "local",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:00:00.000Z"
+      },
+      {
+        "target": "https://otro.com/",
+        "address": "https://bot.icarus/",
+        "enabled": false,
+        "id": "choca",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:00:00.000Z"
+      },
+      {
+        "target": "https://nuevo.com/",
+        "address": "https://nueva.com/",
+        "enabled": true,
+        "id": "nueva",
+        "createdAt": "2026-03-01T00:00:00.000Z",
+        "updatedAt": "2026-03-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

@@ -1,12 +1,13 @@
 /**
  * Página interna que ocupa la pestaña cuando una página web se abre fuera de
- * ICARUS. Deja claro que la navegación es externa y muestra la URL real,
- * separada del alias visual si lo hay.
+ * ICARUS (versión web, sin motor propio). Deja claro que la navegación es externa:
+ * el navegador del sistema siempre muestra la URL real, también cuando ICARUS
+ * tiene una dirección personalizada para ella.
  */
 
 import { useServices } from '../../app/ServicesContext';
 import { useMessages } from '../../i18n';
-import { splitUrlForDisplay } from '../../services/url-resolution/urlUtils';
+import { formatAddress, shortAddress } from '../../services/custom-addresses/display';
 import type { PageEntry } from '../../types/tabs';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 import { Favicon } from '../common/Favicon';
@@ -21,7 +22,7 @@ export function ExternalPage({ page }: { page: ExternalEntry }) {
   const { engine } = useServices();
   const { describe, markCurrentOpened } = useBrowser();
   const presentation = describe(page);
-  const display = splitUrlForDisplay(page.url);
+  const display = formatAddress(presentation.addressUrl, false);
 
   return (
     <section className="external-page" aria-labelledby="external-page-title">
@@ -41,32 +42,16 @@ export function ExternalPage({ page }: { page: ExternalEntry }) {
         <p className="external-card__body">{page.openedExternally ? t.openedBody : t.pendingBody}</p>
 
         <dl className="external-card__details">
+          {presentation.customAddress && (
+            <div>
+              <dt>{t.customAddress}</dt>
+              <dd className="mono selectable">{shortAddress(presentation.addressUrl)}</dd>
+            </div>
+          )}
           <div>
-            <dt>{t.realUrl}</dt>
+            <dt>{presentation.customAddress ? t.openedUrl : t.realUrl}</dt>
             <dd className="mono selectable">{page.url}</dd>
           </div>
-          {presentation.alias && (
-            <>
-              <div>
-                <dt>{t.alias}</dt>
-                <dd>
-                  <span className="alias-chip">
-                    <Icon name="tag" size={12} />
-                    {m.addressBar.aliasBadge}
-                  </span>{' '}
-                  <span className="mono">{presentation.alias.rule.alias}</span>
-                </dd>
-              </div>
-              <div>
-                <dt>{t.rule}</dt>
-                <dd>{presentation.alias.rule.name}</dd>
-              </div>
-              <div>
-                <dt>{t.target}</dt>
-                <dd className="mono selectable">{presentation.alias.rule.targetUrl}</dd>
-              </div>
-            </>
-          )}
         </dl>
 
         {presentation.protocol === 'http:' && (

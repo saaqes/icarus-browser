@@ -1,7 +1,8 @@
 import { useState, type CSSProperties, type DragEvent, type MouseEvent } from 'react';
-import { useAliasRules, useSettings } from '../../hooks/useStores';
+import { useCustomAddresses, useSettings } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
-import { findAliasMatch } from '../../services/alias-rules/resolution';
+import { shortAddress } from '../../services/custom-addresses/display';
+import { displayUrlFor } from '../../services/custom-addresses/mapping';
 import type { ShortcutColumns, ShortcutStyle } from '../../types/settings';
 import type { Shortcut } from '../../types/shortcuts';
 import { useBrowser } from '../BrowserShell/BrowserContext';
@@ -24,7 +25,7 @@ const DRAG_TYPE = 'application/x-icarus-shortcut';
 export function ShortcutGrid({ shortcutStyle, columns }: ShortcutGridProps) {
   const m = useMessages();
   const [settings] = useSettings();
-  const [rules] = useAliasRules();
+  const [customAddresses] = useCustomAddresses();
   const { openUrl } = useBrowser();
   const { shortcuts, save, remove, move, canAdd } = useShortcutActions();
   const [editing, setEditing] = useState<Shortcut | 'new' | null>(null);
@@ -49,8 +50,7 @@ export function ShortcutGrid({ shortcutStyle, columns }: ShortcutGridProps) {
     <section className={`shortcuts shortcuts--${shortcutStyle}`} aria-label={m.shortcuts.title} style={{ '--columns': columns } as CSSProperties}>
       <ul className="shortcuts__list" title={shortcuts.length > 1 ? m.shortcuts.dragHint : undefined}>
         {shortcuts.map((shortcut, index) => {
-          const alias = settings.advanced.showAliases ? findAliasMatch(shortcut.url, rules) : null;
-          const tooltip = alias ? `${shortcut.title}\n${m.shortcuts.aliasHint(alias.rule.alias)}\n${shortcut.url}` : `${shortcut.title}\n${shortcut.url}`;
+          const tooltip = `${shortcut.title}\n${shortAddress(displayUrlFor(shortcut.url, customAddresses)?.url ?? shortcut.url)}`;
           return (
             <li
               key={shortcut.id}
@@ -87,7 +87,6 @@ export function ShortcutGrid({ shortcutStyle, columns }: ShortcutGridProps) {
                   <Favicon url={shortcut.url} label={shortcut.title} size={shortcutStyle === 'tile' ? 32 : 24} />
                 </span>
                 <span className="shortcut__title">{shortcut.title}</span>
-                {alias && <span className="shortcut__alias">{alias.rule.alias}</span>}
               </button>
               <MenuButton
                 label={m.shortcuts.options(shortcut.title)}

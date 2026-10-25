@@ -6,6 +6,7 @@ import { Icon } from '../common/Icon';
 import { IcarusMark } from '../common/IcarusLogo';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 import './TabBar.css';
+import { shortAddress } from '../../services/custom-addresses/display';
 
 function TabIcon({ presentation, loading, favicon }: { presentation: PagePresentation; loading: boolean; favicon: string | null }) {
   const m = useMessages();
@@ -41,11 +42,8 @@ export function TabBar() {
         {session.tabs.map((tab) => {
           const presentation = describe(getCurrentEntry(tab).page);
           const active = tab.id === session.activeTabId;
-          const tooltip = presentation.alias
-            ? `${presentation.title}\n${presentation.alias.rule.alias} · ${presentation.realUrl}`
-            : presentation.kind === 'web'
-              ? `${presentation.title}\n${presentation.realUrl}`
-              : presentation.title;
+          // Como en la barra: la dirección personalizada si la página está dentro de su destino.
+          const tooltip = presentation.kind === 'web' ? `${presentation.title}\n${shortAddress(presentation.addressUrl)}` : presentation.title;
           return (
             <div key={tab.id} className={`tab${active ? ' is-active' : ''}`} title={tooltip}>
               <button
@@ -62,7 +60,6 @@ export function TabBar() {
                   <TabIcon presentation={presentation} loading={tab.loading} favicon={webState[tab.id]?.favicon ?? null} />
                 </span>
                 <span className="tab__title">{presentation.title}</span>
-                {presentation.alias && <span className="tab__alias-dot" aria-hidden="true" />}
               </button>
               <button type="button" className="tab__close" onClick={() => closeTab(tab.id)} aria-label={m.tabs.close(presentation.title)}>
                 <Icon name="close" size={14} />

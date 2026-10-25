@@ -12,7 +12,6 @@ import {
   getCurrentEntry,
   sessionReducer,
 } from '../../services/tabs/tabs';
-import { createDefaultAliasRules } from '../../services/alias-rules';
 import type { PageEntry } from '../../types/tabs';
 
 const home: PageEntry = { kind: 'newtab' };
@@ -90,22 +89,42 @@ describe('sanitizeSession', () => {
 describe('describePage', () => {
   const titles = { newTab: 'Nueva pestaña', blank: 'En blanco', settings: 'Configuración', history: 'Historial', downloads: 'Descargas' };
 
-  it('muestra el alias sin perder la URL real', () => {
-    const presentation = describePage(external('https://www.google.com/'), { rules: createDefaultAliasRules(), showAliases: true, titles });
-    expect(presentation.alias?.rule.alias).toBe('buscar.icarus');
-    expect(presentation.realUrl).toBe('https://www.google.com/');
-    expect(presentation.title).toBe('Buscar');
+  const customAddresses = [
+    {
+      id: 'deriv',
+      target: 'https://bot.deriv.me/',
+      address: 'https://miweb.com/',
+      enabled: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ];
+
+  it('muestra solo la dirección personalizada y conserva la URL real para el motor', () => {
+    const presentation = describePage(
+      { kind: 'web', url: 'https://bot.deriv.me/panel?x=1#a', title: 'Deriv Bot', openedExternally: true },
+      { customAddresses, titles },
+    );
+    expect(presentation.addressUrl).toBe('https://miweb.com/panel?x=1#a');
+    expect(presentation.realUrl).toBe('https://bot.deriv.me/panel?x=1#a');
+    expect(presentation.customAddress?.id).toBe('deriv');
+    expect(presentation.title).toBe('Deriv Bot');
     expect(presentation.protocol).toBe('https:');
   });
 
-  it('no aplica alias si están desactivados en la configuración', () => {
-    const presentation = describePage(external('https://www.google.com/'), { rules: createDefaultAliasRules(), showAliases: false, titles });
-    expect(presentation.alias).toBeNull();
+  it('fuera del destino (p. ej. tras una redirección a otro dominio) muestra la dirección real', () => {
+    const presentation = describePage(external('https://www.google.com/'), { customAddresses, titles });
+    expect(presentation.customAddress).toBeNull();
+    expect(presentation.addressUrl).toBe('https://www.google.com/');
     expect(presentation.title).toBe('google.com');
   });
 
+  it('sin título, la pestaña usa la dirección visible', () => {
+    expect(describePage(external('https://bot.deriv.me/'), { customAddresses, titles }).title).toBe('miweb.com');
+  });
+
   it('describe páginas internas', () => {
-    expect(describePage({ kind: 'settings', section: 'advanced' }, { rules: [], showAliases: true, titles })).toMatchObject({
+    expect(describePage({ kind: 'settings', section: 'advanced' }, { customAddresses: [], titles })).toMatchObject({
       realUrl: 'icarus://configuracion/avanzado',
       title: 'Configuración',
       icon: 'settings',

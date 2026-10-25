@@ -1,17 +1,16 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useServices } from '../../../app/ServicesContext';
-import { useAliasRules, useSettings, useShortcuts, useWidgetData } from '../../../hooks/useStores';
+import { useCustomAddresses, useSettings, useShortcuts, useWidgetData } from '../../../hooks/useStores';
 import { useMessages } from '../../../i18n';
 import { createBackup, downloadTextFile, parseBackup, readFileAsText, type BackupData } from '../../../services/backup/backup';
 import { STORAGE_PREFIX } from '../../../services/persistence/keys';
 import { estimateUsage } from '../../../services/persistence/storage';
-import { updateAdvanced } from '../../../services/settings/settings';
 import type { EngineCapabilities } from '../../../services/navigation/engine';
-import { Toggle } from '../../common/Controls';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { Icon } from '../../common/Icon';
 import { useToast } from '../../common/Toast';
-import { UrlAliasManager } from '../../UrlAliasManager/UrlAliasManager';
+import { useBrowser } from '../../BrowserShell/BrowserContext';
+import { CustomAddressManager, type CustomAddressEditorStart } from '../../CustomAddressManager/CustomAddressManager';
 import { SettingsCard } from '../SettingsPage';
 
 function formatBytes(bytes: number, locale: string): string {
@@ -24,18 +23,26 @@ export function AdvancedSection() {
   const t = m.settings.advanced;
   const services = useServices();
   const notify = useToast();
-  const [settings, updateSettings] = useSettings();
-  const [rules] = useAliasRules();
+  const [settings] = useSettings();
+  const [customAddresses] = useCustomAddresses();
   const [shortcuts] = useShortcuts();
   const [widgets] = useWidgetData();
-  const [managerOpen, setManagerOpen] = useState(false);
+  const [manager, setManager] = useState<{ start: CustomAddressEditorStart | null } | null>(null);
+  const { customAddressEditor, clearCustomAddressEditor } = useBrowser();
   const [pendingImport, setPendingImport] = useState<{ data: BackupData; repaired: boolean } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const capabilities = services.engine.info.capabilities;
-  const activeRules = rules.filter((rule) => rule.enabled).length;
+  const activeAddresses = customAddresses.filter((entry) => entry.enabled).length;
+
+  // Petición desde la información del sitio de la barra: abrir el editor en esa entrada o destino.
+  useEffect(() => {
+    if (!customAddressEditor) return;
+    setManager({ start: { editId: customAddressEditor.editId, target: customAddressEditor.target } });
+    clearCustomAddressEditor();
+  }, [clearCustomAddressEditor, customAddressEditor]);
 
   const exportAll = () => {
-    const content = createBackup({ settings, shortcuts, aliasRules: rules, widgets }, __APP_VERSION__, services.now());
+    const content = createBackup({ settings, shortcuts, customAddresses, widgets }, __APP_VERSION__, services.now());
     downloadTextFile(`icarus-configuracion-${services.now().toISOString().slice(0, 10)}.json`, content);
     notify('success', t.exportDone);
   };
@@ -58,7 +65,7 @@ export function AdvancedSection() {
     const { data, repaired } = pendingImport;
     services.settings.set(data.settings);
     services.shortcuts.set(data.shortcuts);
-    services.aliasRules.set(data.aliasRules);
+    services.customAddresses.set(data.customAddresses);
     services.widgets.set(data.widgets);
     setPendingImport(null);
     notify('success', t.importDone);
@@ -68,20 +75,14 @@ export function AdvancedSection() {
   return (
     <>
       <SettingsCard title={t.presentation}>
-        <Toggle
-          label={t.showAliases}
-          description={t.showAliasesHint}
-          checked={settings.advanced.showAliases}
-          onChange={(showAliases) => updateSettings((current) => updateAdvanced(current, { showAliases }))}
-        />
         <div className="discreet-row">
           <div>
-            <p className="discreet-row__hint">{t.aliasManagerHint}</p>
-            <p className="discreet-row__meta">{t.activeRules(activeRules, rules.length)}</p>
+            <p className="discreet-row__hint">{t.customAddressesHint}</p>
+            <p className="discreet-row__meta">{t.activeAddresses(activeAddresses, customAddresses.length)}</p>
           </div>
-          <button type="button" className="btn btn--subtle btn--sm" onClick={() => setManagerOpen(true)}>
-            <Icon name="tag" size={14} />
-            {t.aliasManagerButton}
+          <button type="button" className="btn btn--subtle btn--sm" onClick={() => setManager({ start: null })}>
+            <Icon name="edit" size={14} />
+            {t.customAddressesButton}
           </button>
         </div>
       </SettingsCard>
@@ -131,7 +132,7 @@ export function AdvancedSection() {
         </p>
       </SettingsCard>
 
-      {managerOpen && <UrlAliasManager onClose={() => setManagerOpen(false)} />}
+      {manager && <CustomAddressManager start={manager.start} onClose={() => setManager(null)} />}
       <ConfirmDialog
         open={pendingImport !== null}
         title={t.importConfirmTitle}

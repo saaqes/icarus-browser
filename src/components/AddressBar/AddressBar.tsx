@@ -1,37 +1,67 @@
 /**
- * Barra de direcciones (omnibox).
+ * Barra de direcciones (omnibox), con el comportamiento de Chrome y Edge.
  *
- * - Sin foco: muestra la URL real con el host resaltado o, si hay una regla activa,
- *   el alias con la etiqueta «Alias» y el host real al lado.
- * - Con foco: siempre muestra la URL real para consultarla, copiarla o editarla.
- * - Al escribir: sugiere la acción (abrir URL, buscar, alias, página interna o
- *   bloqueo) para que el usuario sepa qué ocurrirá al pulsar Enter.
+ * - Una sola dirección: la personalizada si la página está dentro de su destino;
+ *   si no, la real. Sin foco se muestra en forma corta (sin `https://` ni `www.`).
+ * - A la izquierda, el estado real de la conexión: icono de información del sitio
+ *   en HTTPS, «No seguro» en HTTP y «No seguro» en rojo con `https` tachado si el
+ *   certificado no es válido. Con un error de certificado se muestra la dirección
+ *   real que falló: el aviso siempre se refiere al sitio que respondió.
+ * - Al hacer clic se muestra la dirección completa seleccionada; Enter navega,
+ *   Escape la restaura y, mientras se escribe, nada sustituye el texto.
+ * - Sugerencias: acción principal, direcciones personalizadas, accesos directos e
+ *   historial, sin cambiar la página hasta confirmar.
  */
 
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useServices } from '../../app/ServicesContext';
 import { useHistoryItems } from '../../hooks/useNative';
-import { useAliasRules, useSettings, useShortcuts } from '../../hooks/useStores';
+import { useCustomAddresses, useSettings, useShortcuts } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
+import { formatAddress } from '../../services/custom-addresses/display';
 import { getSearchProvider } from '../../services/search/providers';
-import { splitUrlForDisplay } from '../../services/url-resolution/urlUtils';
-import { Icon } from '../common/Icon';
+import { Icon, type IconName } from '../common/Icon';
 import { useOverlayLayer } from '../common/overlayLayer';
 import { useBrowser } from '../BrowserShell/BrowserContext';
-import { SiteInfoPopover } from './SiteInfoPopover';
+import { SiteInfoPopover, type SecurityState } from './SiteInfoPopover';
 import { SuggestionList } from './SuggestionList';
 import { buildSuggestions, type Suggestion } from './suggestions';
 import './AddressBar.css';
 
+const SECURITY_ICONS: Record<SecurityState, IconName> = {
+  secure: 'sliders',
+  unverified: 'info',
+  insecure: 'warning',
+  dangerous: 'warning',
+  internal: 'sparkle',
+};
+
 export function AddressBar() {
   const m = useMessages();
-  const { currentEntry, activeTab, describe, navigateInput, openUrl, registerAddressBar } = useBrowser();
+  const { currentEntry, activeTab, describe, navigateInput, openUrl, registerAddressBar, webState, liveWebTabId } = useBrowser();
+  const desktop = Boolean(useServices().native);
   const [settings] = useSettings();
-  const [rules] = useAliasRules();
+  const [customAddresses] = useCustomAddresses();
   const [shortcuts] = useShortcuts();
   const { items: history } = useHistoryItems();
   const presentation = describe(currentEntry.page);
   const provider = getSearchProvider(settings.general.searchProvider);
-  const editable = presentation.kind === 'newtab' ? '' : presentation.realUrl;
+
+  // Error de certificado en la página que se muestra: se enseña la dirección real que falló.
+  const error = liveWebTabId === activeTab.id ? webState[activeTab.id]?.error ?? null : null;
+  const certificateError = error?.kind === 'certificate' ? error : null;
+  const addressUrl = certificateError ? certificateError.url : presentation.addressUrl;
+  const editable = presentation.kind === 'newtab' ? '' : addressUrl;
+  const security: SecurityState =
+    presentation.kind !== 'web'
+      ? 'internal'
+      : certificateError
+        ? 'dangerous'
+        : presentation.protocol === 'http:'
+          ? 'insecure'
+          : desktop
+            ? 'secure'
+            : 'unverified';
 
   const inputRef = useRef<HTMLInputElement>(null);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
@@ -44,9 +74,22 @@ export function AddressBar() {
   const selectOnMouseUp = useRef(false);
   const listId = useId();
 
+  // Seleccionar todo después de que React escriba el valor (si no, el cursor queda al final).
+  const selectAfterRender = useRef(false);
+  useLayoutEffect(() => {
+    if (!selectAfterRender.current) return;
+    selectAfterRender.current = false;
+    if (document.activeElement === inputRef.current) inputRef.current?.select();
+  });
+
+  // La dirección se actualiza con la navegación salvo si el usuario está escribiendo.
+  const shownEditable = useRef(editable);
   useEffect(() => {
-    if (!editing) setValue(editable);
-  }, [editable, editing]);
+    if (dirty || shownEditable.current === editable) return;
+    shownEditable.current = editable;
+    setValue(editable);
+    if (editing) selectAfterRender.current = true;
+  }, [dirty, editable, editing]);
 
   useEffect(() => {
     setInfoOpen(false);
@@ -56,6 +99,7 @@ export function AddressBar() {
   const editableRef = useRef(editable);
   editableRef.current = editable;
   useEffect(() => {
+    shownEditable.current = editableRef.current;
     setValue(editableRef.current);
     setDirty(false);
   }, [activeTab.id]);
@@ -71,12 +115,21 @@ export function AddressBar() {
   }, [focusInput, registerAddressBar]);
 
   const suggestions: Suggestion[] =
-    editing && dirty ? buildSuggestions(value, { providerId: provider.id, rules, shortcuts, history }) : [];
+    editing && dirty ? buildSuggestions(value, { providerId: provider.id, customAddresses, shortcuts, history }) : [];
   const listOpen = suggestions.length > 0;
   const activeIndex = Math.min(highlight, Math.max(0, suggestions.length - 1));
 
   const finish = () => {
     inputRef.current?.blur();
+  };
+
+  /** Vuelve a la dirección de la página actual, como Escape en Chrome. */
+  const revert = () => {
+    shownEditable.current = editable;
+    setValue(editable);
+    setDirty(false);
+    setHighlight(0);
+    selectAfterRender.current = true;
   };
 
   const run = (suggestion: Suggestion | undefined) => {
@@ -89,7 +142,7 @@ export function AddressBar() {
       openUrl(suggestion.item.url);
       done = true;
     } else {
-      openUrl(suggestion.rule.targetUrl);
+      openUrl(suggestion.entry.target);
       done = true;
     }
     if (done) finish();
@@ -107,35 +160,42 @@ export function AddressBar() {
       run(listOpen ? suggestions[activeIndex] : undefined);
     } else if (event.key === 'Escape') {
       event.preventDefault();
-      if (listOpen) setDirty(false);
-      else {
-        setValue(editable);
-        finish();
-      }
+      if (dirty || value !== editable) revert();
+      else finish();
     }
   };
 
-  const display = splitUrlForDisplay(presentation.realUrl);
-  const isExternal = presentation.kind === 'web';
-  const showInfoButton = !editing && presentation.kind !== 'newtab';
-  const infoIcon = presentation.alias ? 'tag' : presentation.protocol === 'http:' ? 'warning' : 'info';
-  const hintVisible = editing && !dirty && Boolean(presentation.alias);
-  useOverlayLayer(listOpen || hintVisible || infoOpen);
+  // Con un certificado no válido se muestra el protocolo tachado, como en Chrome.
+  const parts = formatAddress(addressUrl, settings.navigation.showFullUrls || security === 'dangerous');
+  // Como en Chrome: el icono del sitio sigue visible al hacer clic y cambia a la lupa al escribir.
+  const showInfoButton = presentation.kind !== 'newtab' && !(editing && dirty);
+  const notSecure = security === 'insecure' || security === 'dangerous' ? m.addressBar.notSecure : null;
+  const securityLabel = editing ? null : notSecure;
+  useOverlayLayer(listOpen || infoOpen);
 
   return (
-    <div className={`omnibox${editing ? ' is-editing' : ''}${listOpen || hintVisible ? ' is-open' : ''}`}>
+    <div className={`omnibox${editing ? ' is-editing' : ''}${listOpen ? ' is-open' : ''}`}>
       <div className="omnibox__field">
         {showInfoButton ? (
           <button
             ref={infoButtonRef}
             type="button"
-            className={`omnibox__info${presentation.protocol === 'http:' ? ' is-insecure' : ''}${presentation.alias ? ' is-alias' : ''}`}
-            aria-label={m.addressBar.siteInfo}
+            className={`omnibox__info is-${security}${securityLabel ? ' has-label' : ''}`}
+            aria-label={notSecure ? `${notSecure} · ${m.addressBar.siteInfo}` : m.addressBar.siteInfo}
             title={m.addressBar.siteInfo}
             aria-expanded={infoOpen}
-            onClick={() => setInfoOpen((open) => !open)}
+            onMouseDown={(event) => {
+              // Mientras se edita, el clic no quita el foco ni lo escrito antes de abrir el panel.
+              if (editing) event.preventDefault();
+            }}
+            onClick={() => {
+              if (editing) finish();
+              setInfoOpen((open) => !open);
+            }}
+            data-security={security}
           >
-            <Icon name={isExternal ? infoIcon : 'sparkle'} size={16} />
+            <Icon name={SECURITY_ICONS[security]} size={16} />
+            {securityLabel && <span className="omnibox__security-label">{securityLabel}</span>}
           </button>
         ) : (
           <span className="omnibox__search-icon" aria-hidden="true">
@@ -162,7 +222,6 @@ export function AddressBar() {
             onFocus={(event) => {
               setEditing(true);
               setInfoOpen(false);
-              setValue(editable);
               event.currentTarget.select();
               selectOnMouseUp.current = true;
             }}
@@ -174,6 +233,7 @@ export function AddressBar() {
               setEditing(false);
               setDirty(false);
               setHighlight(0);
+              shownEditable.current = editable;
               setValue(editable);
             }}
             onChange={(event) => {
@@ -186,28 +246,14 @@ export function AddressBar() {
           />
           {!editing && presentation.kind !== 'newtab' && (
             <div className="omnibox__display" aria-hidden="true">
-              {presentation.alias ? (
-                <>
-                  <span className="alias-chip">
-                    <Icon name="tag" size={12} />
-                    {m.addressBar.aliasBadge}
-                  </span>
-                  <span className="omnibox__alias">{presentation.alias.rule.alias}</span>
-                  <span className="omnibox__real-host" title={m.addressBar.aliasRealHost(display.host)}>
-                    {display.host}
-                  </span>
-                </>
-              ) : isExternal ? (
-                <>
-                  {presentation.protocol === 'http:' && <span className="insecure-chip">HTTP</span>}
-                  <span className="omnibox__url">
-                    <span className="omnibox__dim">{display.prefix}</span>
-                    <span className="omnibox__host">{display.host}</span>
-                    <span className="omnibox__dim">{display.rest}</span>
-                  </span>
-                </>
+              {presentation.kind === 'web' ? (
+                <span className="omnibox__url">
+                  {parts.prefix && <span className={security === 'dangerous' ? 'omnibox__scheme is-struck' : 'omnibox__dim'}>{parts.prefix}</span>}
+                  <span className="omnibox__host">{parts.host}</span>
+                  <span className="omnibox__dim">{parts.rest}</span>
+                </span>
               ) : (
-                <span className="omnibox__internal">{presentation.realUrl}</span>
+                <span className="omnibox__internal">{addressUrl}</span>
               )}
             </div>
           )}
@@ -231,21 +277,13 @@ export function AddressBar() {
         )}
       </div>
 
-      {hintVisible && presentation.alias && (
-        <div className="omnibox__dropdown">
-          <p className="omnibox__hint">
-            <Icon name="tag" size={14} />
-            {m.addressBar.editingAlias(presentation.alias.rule.alias)}
-          </p>
-        </div>
-      )}
-
       {listOpen && (
         <SuggestionList
           id={listId}
           suggestions={suggestions}
           activeIndex={activeIndex}
           providerName={provider.name}
+          customAddresses={customAddresses}
           onHover={setHighlight}
           onSelect={run}
         />
@@ -254,12 +292,10 @@ export function AddressBar() {
       {infoOpen && (
         <SiteInfoPopover
           presentation={presentation}
+          security={security}
+          addressUrl={addressUrl}
           anchorRef={infoButtonRef}
           onClose={() => setInfoOpen(false)}
-          onEdit={() => {
-            setInfoOpen(false);
-            focusInput();
-          }}
         />
       )}
     </div>
