@@ -7,9 +7,8 @@ import android.util.Log
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import io.github.saaqes.icarusbrowser.core.AliasMatchType
-import io.github.saaqes.icarusbrowser.core.AliasRules
 import io.github.saaqes.icarusbrowser.core.ColorMode
+import io.github.saaqes.icarusbrowser.core.CustomAddresses
 import io.github.saaqes.icarusbrowser.core.ThemeId
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,7 +24,8 @@ import kotlin.concurrent.thread
 
 /**
  * Prueba de humo en un emulador: abre páginas reales en WebView y comprueba que
- * ICARUS Shield cancela solicitudes de verdad, que los alias se aplican y que
+ * ICARUS Shield cancela solicitudes de verdad, que las direcciones personalizadas
+ * se aplican y que
  * las direcciones peligrosas no se abren.
  *
  * Con el argumento `internet=1` comprueba además un certificado no válido real
@@ -122,20 +122,24 @@ class BrowserSmokeTest {
             waitFor(scenario, "dos solicitudes bloqueadas por Shield") { (it.currentTab?.blocked?.get() ?: 0) >= 2 }
             assertEquals(2, onMain(scenario) { it.currentTab!!.blocked.get() })
             assertTrue(app.shield.state().totalBlocked >= 2)
-            assertEquals(page, onMain(scenario) { it.addressText })
+            // Como Chrome: sin foco, la barra no muestra el protocolo (el icono indica «No seguro»).
+            assertEquals(CustomAddresses.shortAddress(page), onMain(scenario) { it.addressText })
             assertTrue("se guarda en el historial", app.history.list().any { it.url == page })
             screenshot("icarus-pagina-con-shield")
 
-            // 2. Regla de alias: la barra muestra el alias y escribir el alias abre la URL real.
-            val input = AliasRules.Input("Servidor de prueba", AliasMatchType.EXACT, page, "Prueba", "prueba.icarus", page, true)
+            // 2. Dirección personalizada sin sufijos: la barra muestra solo miweb.com (con la ruta
+            //    real) y escribirla abre el sitio real. El protocolo es el del destino (HTTP aquí).
             InstrumentationRegistry.getInstrumentation().runOnMainSync {
-                assertTrue(app.profile.saveAliasRule(input) is AliasRules.Validation.Ok)
+                app.profile.customAddresses.forEach { app.profile.removeCustomAddress(it.id) }
+                assertTrue(app.profile.saveCustomAddress(base, "miweb.com", true) is CustomAddresses.Validation.Ok)
             }
-            waitFor(scenario, "alias en la barra de direcciones") { it.addressText == "prueba.icarus" }
+            waitFor(scenario, "dirección personalizada en la barra") { it.addressText == "miweb.com/pagina.html" }
             onMain(scenario) { it.openNewTab(focus = false) }
             assertEquals(2, onMain(scenario) { it.tabCount })
-            onMain(scenario) { it.submitAddress("prueba.icarus") }
-            waitFor(scenario, "el alias abre la URL real") { it.currentTab?.url == page && it.currentTab?.title == "Prueba ICARUS" }
+            onMain(scenario) { it.submitAddress("miweb.com/pagina.html") }
+            waitFor(scenario, "la dirección personalizada abre la URL real") { it.currentTab?.url == page && it.currentTab?.title == "Prueba ICARUS" }
+            assertEquals("miweb.com/pagina.html", onMain(scenario) { it.addressText })
+            screenshot("direccion-personalizada")
 
             // 3. Direcciones peligrosas y búsquedas.
             onMain(scenario) { it.submitAddress("javascript:alert(1)") }
@@ -149,7 +153,7 @@ class BrowserSmokeTest {
             if (InstrumentationRegistry.getArguments().getString("internet") == "1") {
                 onMain(scenario) { it.submitAddress("https://self-signed.badssl.com/") }
                 waitFor(scenario, "error de certificado", 45_000) { it.currentTab?.error?.kind == PageError.Kind.CERTIFICATE }
-                waitFor(scenario, "la barra muestra el sitio que falló") { it.addressText == "self-signed.badssl.com" }
+                waitFor(scenario, "la barra muestra el sitio real que falló, completo") { it.addressText == "https://self-signed.badssl.com/" }
                 screenshot("certificado-no-valido")
             }
 
@@ -177,7 +181,7 @@ class BrowserSmokeTest {
         }
         ActivityScenario.launch<SettingsActivity>(settings(null)).use { screenshot("configuracion") }
         ActivityScenario.launch<SettingsActivity>(settings("shield")).use { screenshot("configuracion-shield") }
-        ActivityScenario.launch<SettingsActivity>(settings("aliases")).use { screenshot("cambiar-nombre-url") }
+        ActivityScenario.launch<SettingsActivity>(settings("addresses")).use { screenshot("direcciones-personalizadas") }
         ActivityScenario.launch(HistoryActivity::class.java).use { screenshot("historial") }
         ActivityScenario.launch(DownloadsActivity::class.java).use { screenshot("descargas") }
     }

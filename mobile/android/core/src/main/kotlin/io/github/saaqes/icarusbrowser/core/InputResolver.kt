@@ -17,13 +17,9 @@ sealed interface InputResolution {
         override val kind = "search"
     }
 
-    data class Alias(val url: String, val rule: AliasRule) : InputResolution {
-        override val kind = "alias"
-    }
-
-    /** `reason`: `unknown` (no hay regla) o `disabled` (la regla está desactivada). */
-    data class AliasUnresolved(val alias: String, val reason: String) : InputResolution {
-        override val kind = "alias-unresolved"
+    /** Dirección personalizada: `address` es lo escrito y `url`, el destino real. */
+    data class Custom(val url: String, val address: String, val entry: CustomAddress) : InputResolution {
+        override val kind = "custom"
     }
 
     data class Internal(val page: InternalPage) : InputResolution {
@@ -41,26 +37,24 @@ sealed interface InputResolution {
 
 /**
  * Interpreta el texto de la barra de direcciones o del buscador: dirección web,
- * búsqueda, alias de ICARUS, página interna o protocolo bloqueado. Equivale a
- * src/services/url-resolution/resolveInput.ts.
+ * dirección personalizada, búsqueda, página interna o protocolo bloqueado.
+ * Equivale a src/services/url-resolution/resolveInput.ts. Las direcciones se
+ * aceptan tal como se escriben; solo se añade el protocolo si falta.
  */
 object InputResolver {
-    fun resolve(text: String, provider: SearchProvider, rules: List<AliasRule>): InputResolution {
+    fun resolve(text: String, provider: SearchProvider, customAddresses: List<CustomAddress>): InputResolution {
         val value = text.trim()
         if (value.isEmpty()) return InputResolution.Empty
 
         val search = { InputResolution.Search(provider.searchUrl(value), value, provider) }
 
+        val web = { url: WebUrl, explicitProtocol: Boolean ->
+            CustomAddresses.resolve(url, customAddresses, explicitProtocol)
+                ?.let { InputResolution.Custom(it.url, it.address, it.entry) } ?: InputResolution.Url(url.href)
+        }
+
         // Con espacios siempre es una búsqueda (p. ej. «cómo funciona javascript: …»).
         if (value.any { it.isWhitespace() }) return search()
-
-        // Alias de ICARUS: solo se convierte en destino si hay una regla activa explícita.
-        when (val alias = AliasRules.resolveTyped(value, rules)) {
-            is TypedAlias.Resolved -> return InputResolution.Alias(alias.url, alias.rule)
-            is TypedAlias.Disabled -> return InputResolution.AliasUnresolved(alias.alias, "disabled")
-            is TypedAlias.Unknown -> return InputResolution.AliasUnresolved(alias.alias, "unknown")
-            TypedAlias.NotAlias -> Unit
-        }
 
         val protocol = UrlUtils.getProtocol(value)
         val isHostWithPort = protocol != null && UrlUtils.startsWithHostAndPort(value)
@@ -70,14 +64,14 @@ object InputResolver {
             }
             if (protocol in UrlUtils.WEB_PROTOCOLS) {
                 val url = UrlUtils.parseWebUrl(value)
-                if (url != null && !UrlUtils.isAliasHost(url.hostname) && !url.hasCredentials) return InputResolution.Url(url.href)
+                if (url != null && !url.hasCredentials) return web(url, true)
                 return search()
             }
             return InputResolution.Blocked(protocol, UrlUtils.isDangerousProtocol(protocol))
         }
 
         return when (val normalized = UrlUtils.normalizeUserUrl(value)) {
-            is UrlUtils.Normalized.Ok -> InputResolution.Url(normalized.url)
+            is UrlUtils.Normalized.Ok -> web(normalized.parsed, false)
             is UrlUtils.Normalized.Failure -> search()
         }
     }

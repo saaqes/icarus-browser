@@ -74,13 +74,20 @@
       "limitation": "La dirección personalizada no es un dominio de Internet: otros navegadores y dispositivos no la conocen. Si existe un sitio real con esa dirección, ICARUS abrirá tu destino en su lugar mientras esta entrada esté activa.",
       "enabled": "Activa",
       "remove": "Eliminar",
+      "unsaved": "Cambios sin guardar",
       "fixErrors": "Revisa los campos marcados."
     },
     "created": "Dirección {address} guardada.",
     "saved": "Cambios guardados.",
     "deleted": "Dirección personalizada eliminada. El sitio vuelve a mostrar su dirección real.",
+    "enabledToast": "{address} activada.",
+    "disabledToast": "{address} desactivada: se mostrará la dirección real.",
     "toggleConflict": "No se puede activar: choca con {address} ({target}).",
-    "deleteBody": "¿Eliminar {address}? {target} volverá a mostrar su dirección real."
+    "limit": "Has alcanzado el máximo de direcciones personalizadas.",
+    "deleteTitle": "Eliminar dirección personalizada",
+    "deleteBody": "¿Eliminar {address}? {target} volverá a mostrar su dirección real.",
+    "discardTitle": "Descartar cambios",
+    "discardBody": "Tienes cambios sin guardar. ¿Quieres descartarlos?"
   },
   "shield": {
     "intro": "Shield bloquea las solicitudes de red de anuncios y rastreadores antes de que se descarguen, usando listas de filtros con sintaxis de Adblock Plus.",

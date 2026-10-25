@@ -36,8 +36,8 @@ data class Settings(
     val saveHistory: Boolean = true,
     val restoreSession: Boolean = true,
     val showShortcuts: Boolean = true,
-    /** «Aplicar alias de URL en la interfaz» (Configuración → Avanzado en escritorio). */
-    val showAliases: Boolean = true,
+    /** «Mostrar siempre las URL completas»: sin ella, la barra oculta https:// y www. como Chrome. */
+    val showFullUrls: Boolean = false,
 )
 
 data class Shortcut(val id: String, val title: String, val url: String)
@@ -56,15 +56,15 @@ enum class SitePermission(val id: String) {
 }
 
 /**
- * Datos del usuario en el dispositivo (preferencias, accesos directos, reglas de
- * alias, decisiones de permisos y sesión). Se guardan en `profile.json` dentro de
+ * Datos del usuario en el dispositivo (preferencias, accesos directos, direcciones
+ * personalizadas, decisiones de permisos y sesión). Se guardan en `profile.json` dentro de
  * `dir`; el historial y ICARUS Shield usan sus propios archivos.
  */
 class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit = {}) {
     private data class Data(
         val settings: Settings,
         val shortcuts: List<Shortcut>,
-        val aliasRules: List<AliasRule>,
+        val customAddresses: List<CustomAddress>,
         /** origen (https://ejemplo.com) → permiso → permitido. */
         val permissions: Map<String, Map<SitePermission, Boolean>>,
         val session: SavedSession,
@@ -75,7 +75,7 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
 
     val settings: Settings get() = store.get().settings
     val shortcuts: List<Shortcut> get() = store.get().shortcuts
-    val aliasRules: List<AliasRule> get() = store.get().aliasRules
+    val customAddresses: List<CustomAddress> get() = store.get().customAddresses
     val session: SavedSession get() = store.get().session
 
     fun updateSettings(transform: (Settings) -> Settings) = change { it.copy(settings = transform(it.settings)) }
@@ -84,7 +84,7 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
 
     sealed interface ShortcutResult {
         data class Ok(val shortcut: Shortcut) : ShortcutResult
-        /** Códigos por campo como en escritorio: required, too-long, invalid-url, unsafe-protocol, alias-url, duplicate-url. */
+        /** Códigos por campo como en escritorio: required, too-long, invalid-url, unsafe-protocol, duplicate-url. */
         data class Errors(val errors: Map<String, String>, val limit: Boolean = false) : ShortcutResult
     }
 
@@ -102,7 +102,6 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
             }
             is UrlUtils.Normalized.Failure -> errors["url"] = when (normalized.reason) {
                 "empty" -> "required"
-                "alias" -> "alias-url"
                 "invalid" -> "invalid-url"
                 else -> "unsafe-protocol"
             }
@@ -120,40 +119,48 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
 
     fun resetShortcuts() = change { it.copy(shortcuts = defaultShortcuts()) }
 
-    /* -------------------------------- Reglas de alias -------------------------------- */
+    /* ------------------------- Direcciones personalizadas ------------------------- */
 
-    fun saveAliasRule(input: AliasRules.Input, editingId: String? = null): AliasRules.Validation {
-        val result = AliasRules.validate(input, aliasRules, editingId)
-        if (result !is AliasRules.Validation.Ok) return result
-        val value = result.value
+    /** Crea o edita una entrada. Devuelve los errores (con la entrada que choca) sin tocar las demás. */
+    fun saveCustomAddress(target: String, address: String, enabled: Boolean, editingId: String? = null): CustomAddresses.Validation {
+        if (editingId == null && customAddresses.size >= CustomAddresses.MAX) return CustomAddresses.Validation.Errors(mapOf("target" to "limit"), emptyMap())
+        val result = CustomAddresses.validate(target, address, enabled, customAddresses, editingId)
+        if (result !is CustomAddresses.Validation.Ok) return result
         val now = Instant.now().toString()
         change { data ->
-            val existing = data.aliasRules.firstOrNull { it.id == editingId }
-            val rule = AliasRule(
+            val existing = data.customAddresses.firstOrNull { it.id == editingId }
+            val entry = CustomAddress(
                 id = existing?.id ?: UUID.randomUUID().toString(),
-                name = value.name,
-                matchType = value.matchType,
-                pattern = value.pattern,
-                displayName = value.displayName,
-                alias = value.alias,
-                targetUrl = value.targetUrl,
-                enabled = value.enabled,
+                target = result.target,
+                address = result.address,
+                enabled = result.enabled,
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
             )
-            val rules = if (existing == null) data.aliasRules + rule else data.aliasRules.map { if (it.id == rule.id) rule else it }
-            data.copy(aliasRules = rules)
+            val list = if (existing == null) data.customAddresses + entry else data.customAddresses.map { if (it.id == entry.id) entry else it }
+            data.copy(customAddresses = list)
         }
         return result
     }
 
-    fun setAliasEnabled(id: String, enabled: Boolean) = change { data ->
-        data.copy(aliasRules = data.aliasRules.map { if (it.id == id) it.copy(enabled = enabled, updatedAt = Instant.now().toString()) else it })
+    /** Activa o desactiva. No activa una entrada que choca con otra activa: devuelve esa otra. */
+    fun setCustomAddressEnabled(id: String, enabled: Boolean): CustomAddress? {
+        val entry = customAddresses.firstOrNull { it.id == id } ?: return null
+        if (enabled) {
+            val target = CustomAddresses.parseLocation(entry.target)
+            val address = CustomAddresses.parseLocation(entry.address)
+            if (target != null && address != null) {
+                val conflicts = CustomAddresses.findConflicts(target, address, customAddresses, id).conflicts
+                (conflicts["target"] ?: conflicts["address"])?.let { return it }
+            }
+        }
+        change { data ->
+            data.copy(customAddresses = data.customAddresses.map { if (it.id == id) it.copy(enabled = enabled, updatedAt = Instant.now().toString()) else it })
+        }
+        return null
     }
 
-    fun removeAliasRule(id: String) = change { it.copy(aliasRules = it.aliasRules.filter { rule -> rule.id != id }) }
-
-    fun resetAliasRules() = change { it.copy(aliasRules = defaultAliasRules()) }
+    fun removeCustomAddress(id: String) = change { it.copy(customAddresses = it.customAddresses.filter { entry -> entry.id != id }) }
 
     /* ---------------------------------- Permisos ---------------------------------- */
 
@@ -193,9 +200,7 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
         }
     }
 
-    private fun defaultAliasRules(): List<AliasRule> = AliasRule.listFromJson(defaults.getJSONArray("aliasRules"))
-
-    private fun initial() = Data(Settings(), defaultShortcuts(), defaultAliasRules(), emptyMap(), SavedSession(emptyList(), 0))
+    private fun initial() = Data(Settings(), defaultShortcuts(), CustomAddresses.sanitize(defaults.optJSONArray("customAddresses")), emptyMap(), SavedSession(emptyList(), 0))
 
     private fun encode(data: Data): String {
         val settings = data.settings
@@ -204,7 +209,8 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
             permissions.put(origin, JSONObject().also { json -> site.forEach { (permission, allowed) -> json.put(permission.id, allowed) } })
         }
         return JSONObject()
-            .put("version", 1)
+            // 2: direcciones personalizadas (antes, reglas de alias en `aliasRules`).
+            .put("version", 2)
             .put(
                 "settings",
                 JSONObject()
@@ -215,10 +221,10 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
                     .put("saveHistory", settings.saveHistory)
                     .put("restoreSession", settings.restoreSession)
                     .put("showShortcuts", settings.showShortcuts)
-                    .put("showAliases", settings.showAliases),
+                    .put("showFullUrls", settings.showFullUrls),
             )
             .put("shortcuts", JSONArray().also { array -> data.shortcuts.forEach { array.put(JSONObject().put("id", it.id).put("title", it.title).put("url", it.url)) } })
-            .put("aliasRules", AliasRule.listToJson(data.aliasRules))
+            .put("customAddresses", CustomAddress.listToJson(data.customAddresses))
             .put("permissions", permissions)
             .put("session", JSONObject().put("urls", JSONArray(data.session.urls)).put("activeIndex", data.session.activeIndex))
             .toString()
@@ -236,7 +242,7 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
             saveHistory = raw.optBoolean("saveHistory", true),
             restoreSession = raw.optBoolean("restoreSession", true),
             showShortcuts = raw.optBoolean("showShortcuts", true),
-            showAliases = raw.optBoolean("showAliases", true),
+            showFullUrls = raw.optBoolean("showFullUrls", false),
         )
         val shortcuts = json.optJSONArray("shortcuts")?.let { array ->
             (0 until array.length()).mapNotNull { index ->
@@ -246,12 +252,8 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
                 Shortcut(item.optString("id").ifEmpty { UUID.randomUUID().toString() }, title, url)
             }.distinctBy { it.url }.take(MAX_SHORTCUTS)
         } ?: defaultShortcuts()
-        val aliasRules = json.optJSONArray("aliasRules")?.let { array ->
-            AliasRule.listFromJson(array).filter { rule ->
-                val input = AliasRules.Input(rule.name, rule.matchType, rule.pattern, rule.displayName, rule.alias, rule.targetUrl, rule.enabled)
-                rule.id.isNotEmpty() && AliasRules.validate(input, emptyList()) is AliasRules.Validation.Ok
-            }
-        } ?: defaultAliasRules()
+        // Las versiones anteriores guardaban reglas de alias: se convierten al leerlas.
+        val customAddresses = CustomAddresses.sanitize(json.optJSONArray("customAddresses") ?: json.optJSONArray("aliasRules"))
         val permissions = LinkedHashMap<String, Map<SitePermission, Boolean>>()
         json.optJSONObject("permissions")?.let { raw ->
             for (origin in raw.keys()) {
@@ -266,7 +268,7 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
             val kept = urls.filter { WEB.containsMatchIn(it) || it == InternalPage.NEW_TAB.url }.take(MAX_SESSION_TABS)
             SavedSession(kept, raw.optInt("activeIndex").coerceIn(0, maxOf(0, kept.size - 1)))
         } ?: SavedSession(emptyList(), 0)
-        return Data(settings, shortcuts, aliasRules, permissions, session)
+        return Data(settings, shortcuts, customAddresses, permissions, session)
     }
 
     companion object {

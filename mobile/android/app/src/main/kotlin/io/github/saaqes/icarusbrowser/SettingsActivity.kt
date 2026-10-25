@@ -16,16 +16,16 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import io.github.saaqes.icarusbrowser.core.AliasMatchType
-import io.github.saaqes.icarusbrowser.core.AliasRule
-import io.github.saaqes.icarusbrowser.core.AliasRules
 import io.github.saaqes.icarusbrowser.core.ClearRange
 import io.github.saaqes.icarusbrowser.core.ColorMode
+import io.github.saaqes.icarusbrowser.core.CustomAddress
+import io.github.saaqes.icarusbrowser.core.CustomAddresses
 import io.github.saaqes.icarusbrowser.core.Profile
 import io.github.saaqes.icarusbrowser.core.SearchProvider
 import io.github.saaqes.icarusbrowser.core.SitePermission
 import io.github.saaqes.icarusbrowser.core.ThemeId
 import io.github.saaqes.icarusbrowser.core.Themes
+import io.github.saaqes.icarusbrowser.core.UrlUtils
 import io.github.saaqes.icarusbrowser.core.shield.ShieldListInfo
 import io.github.saaqes.icarusbrowser.core.shield.ShieldState
 import io.github.saaqes.icarusbrowser.core.shield.ShieldStore
@@ -48,7 +48,11 @@ class SettingsActivity : ScreenActivity() {
         app.addShieldListener(shieldListener)
         when (intent.getStringExtra(EXTRA_SECTION)) {
             "shield" -> push("ICARUS Shield", ::shieldPage)
-            "aliases" -> push("Cambiar nombre de URL", ::aliasPage)
+            "addresses" -> {
+                push(addressesTitle, ::addressesPage)
+                val editing = intent.getStringExtra(EXTRA_EDIT_ID)?.let { id -> app.profile.customAddresses.firstOrNull { it.id == id } }
+                if (editing != null) editAddress(editing) else intent.getStringExtra(EXTRA_TARGET)?.let { editAddress(null, it) }
+            }
         }
     }
 
@@ -96,6 +100,9 @@ class SettingsActivity : ScreenActivity() {
             addView(w.switchRow("Restaurar pestañas al abrir", "Vuelve a abrir las pestañas de la última sesión.", settings.restoreSession) { value ->
                 app.profile.updateSettings { it.copy(restoreSession = value) }
             })
+            addView(w.switchRow(app.sharedText("addressBar", "showFullUrls"), app.sharedText("addressBar", "showFullUrlsHint"), settings.showFullUrls) { value ->
+                app.profile.updateSettings { it.copy(showFullUrls = value) }
+            })
         })
 
         addView(w.sectionLabel("Protección"))
@@ -118,14 +125,12 @@ class SettingsActivity : ScreenActivity() {
         })
 
         addView(w.sectionLabel("Avanzado"))
-        val rules = app.profile.aliasRules
+        val addresses = app.profile.customAddresses
         addView(w.card {
-            addView(w.switchRow("Aplicar alias de URL en la interfaz",
-                "Muestra los alias configurados en la barra de direcciones, las pestañas y el historial.", settings.showAliases) { value ->
-                app.profile.updateSettings { it.copy(showAliases = value) }
-            })
-            addView(w.row(R.drawable.icarus_tag, "Cambiar nombre de URL", "${rules.count { it.enabled }} de ${rules.size} reglas activas") {
-                push("Cambiar nombre de URL", ::aliasPage)
+            val summary = if (addresses.isEmpty()) "Ninguna dirección personalizada" else "${addresses.count { it.enabled }} de ${addresses.size} direcciones activas"
+            addView(w.row(R.drawable.icarus_tag, "Personalizar direcciones URL",
+                "Elige qué dirección muestra la barra para un sitio (por ejemplo, miweb.com en lugar de bot.deriv.me).\n$summary") {
+                push(addressesTitle, ::addressesPage)
             })
         })
 
@@ -286,32 +291,42 @@ class SettingsActivity : ScreenActivity() {
 
     /* ------------------------------ Alias de URL ------------------------------ */
 
-    private fun aliasPage(): View = pageColumn {
-        addView(w.text(app.sharedText("aliasManager", "subtitle"), 15f, p.fg2).apply { setPadding(dp(4), dp(8), dp(4), dp(8)) })
+    /* ------------------------- Direcciones personalizadas ------------------------- */
+
+    private val addressesTitle get() = app.sharedText("customAddresses", "title")
+    private fun ca(key: String, vararg params: Pair<String, String>) = app.sharedText("customAddresses", key, *params)
+    private fun caForm(key: String, vararg params: Pair<String, String>) = app.sharedText("customAddresses", "form", key, *params)
+    private fun short(url: String) = CustomAddresses.shortAddress(url)
+
+    private fun addressesPage(): View = pageColumn {
+        addView(w.text(ca("subtitle"), 15f, p.fg2).apply { setPadding(dp(4), dp(8), dp(4), dp(8)) })
         addView(w.horizontal(spacingDp = 10) {
-            addView(w.button("Nueva regla", primary = true) { editAlias(null) })
-            addView(w.button("Restaurar predeterminadas") {
-                w.dialog("Restaurar reglas predeterminadas", "Se eliminarán tus reglas y se restaurarán las de ejemplo.", positive = "Restaurar", destructive = true) {
-                    app.profile.resetAliasRules()
-                    toast("Reglas predeterminadas restauradas.")
-                    true
-                }.show()
-            })
+            addView(w.button(ca("add"), primary = true) { editAddress(null) })
         })
-        val rules = app.profile.aliasRules
-        if (rules.isEmpty()) {
-            addView(w.hint("No hay reglas. Crea una para empezar.").apply { setPadding(dp(4), dp(16), dp(4), 0) })
+        val entries = app.profile.customAddresses
+        if (entries.isEmpty()) {
+            addView(w.hint(ca("empty")).apply { setPadding(dp(4), dp(16), dp(4), 0) })
         } else {
-            addView(w.sectionLabel("${rules.size} reglas"))
+            addView(w.sectionLabel(addressesTitle))
             addView(w.card {
-                for (rule in rules) {
-                    val row = w.switchRow("${rule.alias}  ←  ${rule.displayName}", "${matchName(rule.matchType)}: ${rule.pattern}\nDestino: ${rule.targetUrl}", rule.enabled) { enabled ->
-                        app.profile.setAliasEnabled(rule.id, enabled)
+                for (entry in entries) {
+                    val address = short(entry.address)
+                    val subtitle = ca("targetOf", "target" to short(entry.target)) + if (entry.enabled) "" else " · ${ca("disabled")}"
+                    val row = w.switchRow(address, subtitle, entry.enabled) { enabled ->
+                        val conflict = app.profile.setCustomAddressEnabled(entry.id, enabled)
+                        if (conflict != null) {
+                            toast(ca("toggleConflict", "address" to short(conflict.address), "target" to short(conflict.target)))
+                            refresh() // vuelve a mostrar el interruptor desactivado
+                        } else {
+                            toast(ca(if (enabled) "enabledToast" else "disabledToast", "address" to address))
+                        }
                     }
-                    row.setOnClickListener { editAlias(rule) }
-                    row.addView(w.iconButton(R.drawable.icarus_trash, "Eliminar ${rule.name}") {
-                        w.dialog("Eliminar regla", "Se eliminará «${rule.name}».", positive = "Eliminar", destructive = true) {
-                            app.profile.removeAliasRule(rule.id)
+                    row.setOnClickListener { editAddress(entry) }
+                    row.contentDescription = "Editar $address"
+                    row.addView(w.iconButton(R.drawable.icarus_trash, "Eliminar $address") {
+                        w.dialog(ca("deleteTitle"), ca("deleteBody", "address" to address, "target" to short(entry.target)), positive = "Eliminar", destructive = true) {
+                            app.profile.removeCustomAddress(entry.id)
+                            toast(ca("deleted"))
                             true
                         }.show()
                     }, 1)
@@ -319,73 +334,108 @@ class SettingsActivity : ScreenActivity() {
                 }
             })
         }
-        addView(w.hint(app.sharedText("aliasManager", "priorityNote")).apply { setPadding(dp(4), dp(12), dp(4), 0) })
+        val howTo = app.strings.optJSONObject("customAddresses")?.optJSONObject("howTo")
+        addView(w.sectionLabel(howTo?.optString("title").orEmpty()))
+        addView(w.card {
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            val steps = howTo?.optJSONArray("steps")
+            for (index in 0 until (steps?.length() ?: 0)) addView(w.text("${index + 1}. ${steps!!.optString(index)}", 14f, p.fg2).apply { setPadding(0, dp(4), 0, dp(4)) })
+            addView(w.hint(howTo?.optString("security").orEmpty()).apply { setPadding(0, dp(8), 0, 0) })
+        })
     }
 
-    private fun matchName(type: AliasMatchType) = app.strings.optJSONObject("aliasManager")?.optJSONObject("matchTypes")?.optString(type.id).orEmpty()
+    /** Páginas que ya tiene el usuario, para elegir el destino sin escribirlo. */
+    private fun destinationChoices(): List<String> {
+        val seen = LinkedHashSet<String>()
+        for (url in app.profile.shortcuts.map { it.url } + app.history.list().sortedByDescending { it.visitedAt }.map { it.url }) {
+            val parsed = UrlUtils.parseWebUrl(url) ?: continue
+            seen.add("${parsed.protocol}//${parsed.host}/")
+            if (seen.size >= 8) break
+        }
+        return seen.toList()
+    }
 
-    private fun editAlias(rule: AliasRule?) {
-        val shared = app.strings.optJSONObject("aliasManager")
-        var matchType = rule?.matchType ?: AliasMatchType.EXACT
-        val name = w.field("Nombre de la regla", rule?.name.orEmpty(), "Ej. Buscador del trabajo")
-        val pattern = w.field("URL original o patrón de coincidencia", rule?.pattern.orEmpty())
-        val displayName = w.field("Nombre visible del sitio", rule?.displayName.orEmpty(), "Ej. Buscar")
-        val alias = w.field("Alias mostrado en ICARUS", rule?.alias.orEmpty(), "buscar.icarus")
-        val target = w.field("URL de destino real", rule?.targetUrl.orEmpty(), "https://www.ejemplo.com/")
+    /** Crear o editar una dirección: los conflictos se muestran en el campo y nunca se sobrescribe otra entrada. */
+    private fun editAddress(entry: CustomAddress?, initialTarget: String? = null) {
+        val target = w.field(caForm("target"), entry?.target?.let(::short) ?: initialTarget?.let(::short).orEmpty(), caForm("targetPlaceholder"),
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
+        val address = w.field(caForm("address"), entry?.address?.let(::short).orEmpty(), caForm("addressPlaceholder"),
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
         val enabled = CheckBox(this).apply {
-            text = "Regla activa"
-            isChecked = rule?.enabled ?: true
+            text = caForm("enabled")
+            isChecked = entry?.enabled ?: true
             textStyle(15f, p.fg1)
             buttonTintList = android.content.res.ColorStateList.valueOf(look.accent)
         }
-        val matchHint = w.hint("")
-        val typeRow = w.horizontal(spacingDp = 6)
-        fun renderTypes() {
-            typeRow.removeAllViews()
-            for (type in AliasMatchType.entries) {
-                val active = type == matchType
-                typeRow.addView(TextView(this).apply {
-                    text = matchName(type)
-                    gravity = Gravity.CENTER
-                    textStyle(14f, if (active) look.onAccent else p.fg1, bold = active)
-                    background = pressable(look, rounded(if (active) look.accent else p.surface2, 18, p.border1), 18)
-                    minHeight = dp(40)
-                    setOnClickListener {
-                        matchType = type
-                        renderTypes()
-                    }
-                }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        val preview = w.text("", 14f, p.fg2)
+        fun updatePreview() {
+            val result = CustomAddresses.validate(target.value, address.value, true)
+            preview.text = if (result is CustomAddresses.Validation.Ok) {
+                val shownTarget = short(result.target)
+                val shownAddress = short(result.address)
+                val example = "${result.target.trimEnd('/')}/pagina?x=1"
+                val exampleShown = CustomAddresses.displayUrlFor(example, listOf(CustomAddress("preview", result.target, result.address, true, "", "")))?.url ?: example
+                listOf(
+                    caForm("previewShows", "target" to shownTarget, "address" to shownAddress),
+                    caForm("previewOpens", "address" to shownAddress, "target" to shownTarget),
+                    caForm("previewPaths", "real" to short(example), "shown" to short(exampleShown)),
+                ).joinToString("\n")
+            } else {
+                caForm("previewIncomplete")
             }
-            matchHint.text = shared?.optJSONObject("matchHints")?.optString(matchType.id).orEmpty()
-            pattern.edit.hint = shared?.optJSONObject("patternPlaceholders")?.optString(matchType.id).orEmpty()
         }
-        renderTypes()
+        val watcher = object : android.text.TextWatcher {
+            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(text: android.text.Editable?) = updatePreview()
+        }
+        target.edit.addTextChangedListener(watcher)
+        address.edit.addTextChangedListener(watcher)
+        updatePreview()
+        val choices = destinationChoices()
         val content = w.vertical(spacingDp = 12) {
-            addView(name.view)
-            addView(w.text("Tipo de coincidencia", 14f, p.fg2, bold = true))
-            addView(typeRow, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-            addView(matchHint)
-            addView(pattern.view)
-            addView(displayName.view)
-            addView(w.hint(app.sharedText("aliasManager", "displayNameHint")))
-            addView(alias.view)
-            addView(w.hint(app.sharedText("aliasManager", "aliasHint")))
             addView(target.view)
-            addView(w.hint(app.sharedText("aliasManager", "targetHint")))
-            addView(w.button("Usar la URL original") { target.edit.setText(pattern.value) })
+            addView(w.hint(caForm("targetHint")))
+            if (choices.isNotEmpty()) {
+                addView(w.hint(caForm("chooseFrom")))
+                addView(HorizontalScrollView(context).apply {
+                    isHorizontalScrollBarEnabled = false
+                    addView(w.horizontal(spacingDp = 6) {
+                        for (choice in choices) {
+                            addView(TextView(context).apply {
+                                text = short(choice)
+                                textStyle(14f, p.fg1)
+                                background = pressable(look, rounded(p.surface2, 16, p.border1), 16)
+                                setPadding(dp(12), dp(8), dp(12), dp(8))
+                                setOnClickListener { target.edit.setText(short(choice)) }
+                            })
+                        }
+                    })
+                })
+            }
+            addView(address.view)
+            addView(w.hint(caForm("addressHint")))
+            addView(w.text(caForm("preview"), 14f, p.fg2, bold = true))
+            addView(preview)
+            addView(w.hint(caForm("limitation")))
             addView(enabled)
         }
-        w.dialog(if (rule == null) "Nueva regla" else "Editar regla", content = content, positive = "Guardar") {
-            val input = AliasRules.Input(name.value, matchType, pattern.value, displayName.value, alias.value, target.value, enabled.isChecked)
-            when (val result = app.profile.saveAliasRule(input, rule?.id)) {
-                is AliasRules.Validation.Ok -> true
-                is AliasRules.Validation.Errors -> {
-                    val message = { field: String -> result.errors[field]?.let { app.sharedText("aliasErrors", it) } }
-                    name.setError(message("name"))
-                    pattern.setError(message("pattern"))
-                    displayName.setError(message("displayName"))
-                    alias.setError(message("alias"))
-                    target.setError(message("targetUrl"))
+        w.dialog(if (entry == null) caForm("createTitle") else caForm("editTitle"), content = content, positive = "Guardar") {
+            when (val result = app.profile.saveCustomAddress(target.value, address.value, enabled.isChecked, entry?.id)) {
+                is CustomAddresses.Validation.Ok -> {
+                    toast(if (entry == null) ca("created", "address" to short(result.address)) else ca("saved"))
+                    true
+                }
+                is CustomAddresses.Validation.Errors -> {
+                    fun message(field: String): String? {
+                        val code = result.errors[field] ?: return null
+                        if (code == "limit") return ca("limit")
+                        val other = result.conflicts[field]
+                        return app.sharedText("customAddressErrors", code,
+                            "address" to other?.address?.let(::short).orEmpty(), "target" to other?.target?.let(::short).orEmpty())
+                    }
+                    target.setError(message("target"))
+                    address.setError(message("address"))
                     false
                 }
             }
@@ -563,5 +613,9 @@ class SettingsActivity : ScreenActivity() {
 
     companion object {
         const val EXTRA_SECTION = "section"
+        /** Con la sección "addresses": entrada que se abre para editar. */
+        const val EXTRA_EDIT_ID = "editId"
+        /** Con la sección "addresses": destino con el que se empieza una entrada nueva. */
+        const val EXTRA_TARGET = "target"
     }
 }

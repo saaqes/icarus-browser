@@ -38,6 +38,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import android.window.OnBackInvokedDispatcher
+import io.github.saaqes.icarusbrowser.core.CustomAddresses
 import io.github.saaqes.icarusbrowser.core.InputResolution
 import io.github.saaqes.icarusbrowser.core.InputResolver
 import io.github.saaqes.icarusbrowser.core.InternalPage
@@ -467,7 +468,7 @@ class MainActivity : Activity(), TabHost {
                 tab.webView?.let { if (it.parent != webHolder) attachWebView(it) }
             }
         }
-        omnibox.setUrl(error?.url ?: if (tab.showingNewTab) InternalPage.NEW_TAB.url else tab.url)
+        omnibox.setUrl(error?.url ?: if (tab.showingNewTab) InternalPage.NEW_TAB.url else tab.url, certificateError = error?.kind == PageError.Kind.CERTIFICATE)
         updateChrome()
     }
 
@@ -511,12 +512,12 @@ class MainActivity : Activity(), TabHost {
         omnibox.clearFocus()
         suggestions.hide()
         val settings = app.profile.settings
-        when (val result = InputResolver.resolve(text, settings.searchProvider, app.profile.aliasRules)) {
+        // Las direcciones personalizadas se resuelven aquí: WebView siempre recibe la URL real.
+        when (val result = InputResolver.resolve(text, settings.searchProvider, app.profile.customAddresses)) {
             InputResolution.Empty -> Unit
             is InputResolution.Url -> navigate(result.url)
             is InputResolution.Search -> navigate(result.url)
-            is InputResolution.Alias -> navigate(result.url)
-            is InputResolution.AliasUnresolved -> showMessage(Omnibox.aliasProblem(result))
+            is InputResolution.Custom -> navigate(result.url)
             is InputResolution.Internal -> openInternal(result.page)
             is InputResolution.InternalUnknown -> showMessage("La página interna «${result.text}» no existe.")
             is InputResolution.Blocked -> if (result.dangerous) {
@@ -547,25 +548,47 @@ class MainActivity : Activity(), TabHost {
         startActivity(Intent(this, SettingsActivity::class.java).apply { if (section != null) putExtra(SettingsActivity.EXTRA_SECTION, section) })
     }
 
+    /**
+     * Información del sitio: estado real de la conexión y, si se muestra una dirección
+     * personalizada, a qué sitio van las solicitudes (nunca se oculta al pedirla).
+     */
     private fun showSiteInfo() {
         val tab = currentTab ?: return
         if (tab.showingNewTab) {
             omnibox.focus()
             return
         }
-        val display = AddressFormat.display(tab.url)
+        val certificate = tab.error?.kind == PageError.Kind.CERTIFICATE
+        val url = if (certificate) tab.error!!.url else tab.url
+        val display = AddressFormat.display(url, applyCustom = !certificate)
+        val realHost = UrlUtils.parseWebUrl(url)?.host ?: url
+        val shownHost = CustomAddresses.formatAddress(display.full, false).host
         val lines = ArrayList<String>()
         when {
-            display.secure -> lines.add("La conexión con este sitio es segura (HTTPS). El certificado lo comprueba WebView de Android.")
-            display.insecure -> lines.add("La conexión no es segura: lo que envíes o recibas en este sitio puede leerse o modificarse por el camino.")
+            certificate -> lines.add("${app.sharedText("addressBar", "insecureTitle")}. ${app.sharedText("addressBar", "dangerousBody", "host" to realHost)}")
+            display.secure -> lines.add("${app.sharedText("addressBar", "secureTitle")}. WebView de Android verificó el certificado de $realHost.")
+            display.insecure -> lines.add("${app.sharedText("addressBar", "insecureTitle")}. ${app.sharedText("addressBar", "insecureBody")}")
         }
-        if (display.alias != null) lines.add("«${display.alias}» es un alias visual de ICARUS, no un dominio de Internet.")
+        val custom = display.custom
+        if (custom != null) {
+            lines.add("${app.sharedText("addressBar", "customTitle")}: ${app.sharedText("addressBar", "customBody", "shown" to shownHost, "real" to realHost)}")
+        }
         val content = w.vertical(spacingDp = 8) {
-            addView(w.text("Dirección real", 13f, look.palette.fg3, bold = true))
-            addView(w.text(tab.url, 14f, look.palette.fg1).apply { setTextIsSelectable(true) })
+            addView(w.button("Copiar dirección") { copy(display.full) }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
         }
-        w.dialog(AddressFormat.title(tab.url, tab.title), lines.joinToString("\n\n"), content, positive = "Copiar dirección", negative = "Cerrar") {
-            copy(tab.url)
+        val origin = UrlUtils.parseWebUrl(url)?.let { "${it.protocol}//${it.host}/" }
+        w.dialog(
+            shownHost,
+            lines.joinToString("\n\n"),
+            content,
+            positive = if (certificate || origin == null) null else if (custom != null) "Editar dirección personalizada" else "Personalizar dirección",
+            negative = "Cerrar",
+        ) {
+            startActivity(
+                Intent(this, SettingsActivity::class.java)
+                    .putExtra(SettingsActivity.EXTRA_SECTION, "addresses")
+                    .apply { if (custom != null) putExtra(SettingsActivity.EXTRA_EDIT_ID, custom.id) else putExtra(SettingsActivity.EXTRA_TARGET, origin) },
+            )
             true
         }.show()
     }
@@ -1010,7 +1033,7 @@ class MainActivity : Activity(), TabHost {
 
     /* ------------------------- Ayuda para las pruebas ------------------------- */
 
-    /** Texto visible en la barra de direcciones (alias o host). */
+    /** Texto visible en la barra de direcciones (dirección personalizada o real, en forma corta). */
     val addressText: String get() = omnibox.text
     val tabCount: Int get() = tabs.size
 

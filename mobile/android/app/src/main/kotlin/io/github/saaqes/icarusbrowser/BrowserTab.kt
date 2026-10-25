@@ -21,10 +21,8 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import io.github.saaqes.icarusbrowser.core.AliasRules
 import io.github.saaqes.icarusbrowser.core.InternalPage
 import io.github.saaqes.icarusbrowser.core.SitePermission
-import io.github.saaqes.icarusbrowser.core.TypedAlias
 import io.github.saaqes.icarusbrowser.core.UrlUtils
 import io.github.saaqes.icarusbrowser.core.shield.ResourceTypes
 import java.io.ByteArrayInputStream
@@ -224,19 +222,11 @@ class BrowserTab(private val host: TabHost, initialUrl: String?) {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val uri = request.url
             return when (uri.scheme?.lowercase()) {
+                // Los enlaces de las páginas van a su URL real: las direcciones personalizadas
+                // solo se resuelven cuando el usuario las escribe en la barra.
                 "http", "https" -> {
-                    val hostname = uri.host.orEmpty()
-                    if (UrlUtils.isAliasHost(hostname)) {
-                        // Un enlace a un alias .icarus abre su destino real si la regla está activa.
-                        when (val alias = AliasRules.resolveTyped(hostname, app.profile.aliasRules)) {
-                            is TypedAlias.Resolved -> view.loadUrl(alias.url)
-                            else -> host.showMessage("El alias $hostname no está configurado o está desactivado.")
-                        }
-                        true
-                    } else {
-                        if (request.isForMainFrame) lastMainFrameRequest = uri.toString()
-                        false
-                    }
+                    if (request.isForMainFrame) lastMainFrameRequest = uri.toString()
+                    false
                 }
                 "about" -> uri.toString() != "about:blank"
                 // Las páginas no pueden navegar a archivos locales, código ni a las páginas internas de ICARUS.

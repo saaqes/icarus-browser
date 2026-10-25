@@ -100,6 +100,16 @@ class IcarusApp : Application() {
     /** Texto compartido con escritorio (mobile/shared/strings.json), p. ej. sharedText("aliasErrors", "required"). */
     fun sharedText(group: String, key: String): String = strings.optJSONObject(group)?.optString(key).orEmpty().ifEmpty { key }
 
+    /** Texto compartido con sus parámetros `{nombre}` sustituidos. */
+    fun sharedText(group: String, key: String, vararg params: Pair<String, String>): String =
+        params.fold(sharedText(group, key)) { text, (name, value) -> text.replace("{$name}", value) }
+
+    /** Texto de un grupo anidado (p. ej. `customAddresses.form`). */
+    fun sharedText(group: String, subgroup: String, key: String, vararg params: Pair<String, String>): String {
+        val text = strings.optJSONObject(group)?.optJSONObject(subgroup)?.optString(key).orEmpty().ifEmpty { key }
+        return params.fold(text) { acc, (name, value) -> acc.replace("{$name}", value) }
+    }
+
     /**
      * Las solicitudes de los service workers no pasan por el WebViewClient de las
      * pestañas: se filtran aquí, usando el Referer como página de origen. Si no lo

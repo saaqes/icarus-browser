@@ -14,45 +14,47 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
-import io.github.saaqes.icarusbrowser.core.AliasRules
+import io.github.saaqes.icarusbrowser.core.CustomAddress
+import io.github.saaqes.icarusbrowser.core.CustomAddresses
 import io.github.saaqes.icarusbrowser.core.InputResolution
 import io.github.saaqes.icarusbrowser.core.InputResolver
 import io.github.saaqes.icarusbrowser.core.InternalPage
 import io.github.saaqes.icarusbrowser.core.UrlUtils
 
-/** Cómo se presenta una dirección: el alias si hay regla activa, o el host y la ruta. */
+/**
+ * Cómo se presenta una dirección, igual que en escritorio y en Chrome: la dirección
+ * personalizada si la página está dentro de su destino; si no, la real. Sin foco,
+ * en forma corta (sin https:// ni www.); al editar, completa.
+ */
 object AddressFormat {
-    data class Display(val text: String, val alias: String?, val secure: Boolean, val insecure: Boolean)
+    /**
+     * `text`: lo que se ve sin foco; `full`: lo que se edita; `secure`/`insecure`:
+     * protocolo real de la página; `custom`: entrada aplicada (o null).
+     */
+    data class Display(val text: String, val full: String, val secure: Boolean, val insecure: Boolean, val custom: CustomAddress?)
 
-    fun display(url: String, showAliases: Boolean = IcarusApp.instance.profile.settings.showAliases): Display {
-        if (url == InternalPage.NEW_TAB.url) return Display("", null, secure = false, insecure = false)
-        val parsed = UrlUtils.parseWebUrl(url) ?: return Display(url, null, secure = false, insecure = false)
-        if (showAliases) {
-            AliasRules.findMatch(url, IcarusApp.instance.profile.aliasRules)?.let { match ->
-                return Display(match.rule.alias, match.rule.alias, secure = parsed.protocol == "https:", insecure = parsed.protocol == "http:")
-            }
-        }
-        val path = (parsed.pathname + parsed.search).let { if (it == "/") "" else it }
-        return if (parsed.protocol == "https:") {
-            Display(parsed.host.removePrefix("www.") + path, null, secure = true, insecure = false)
-        } else {
-            Display("http://${parsed.host}$path", null, secure = false, insecure = !UrlUtils.isLoopbackHost(parsed.hostname))
-        }
+    fun display(url: String, applyCustom: Boolean = true): Display {
+        if (url == InternalPage.NEW_TAB.url) return Display("", "", secure = false, insecure = false, custom = null)
+        val parsed = UrlUtils.parseWebUrl(url) ?: return Display(url, url, secure = false, insecure = false, custom = null)
+        val profile = IcarusApp.instance.profile
+        val match = if (applyCustom) CustomAddresses.displayUrlFor(url, profile.customAddresses) else null
+        val shown = match?.url ?: url
+        val text = CustomAddresses.formatAddress(shown, profile.settings.showFullUrls).toString()
+        return Display(text, CustomAddresses.formatAddress(shown, true).toString(), parsed.protocol == "https:", parsed.protocol == "http:", match?.entry)
     }
 
-    /** Título visible de una página: el nombre de la regla de alias, el título o el host. */
+    /** Título visible de una página: el de la página o, si no tiene, su dirección visible. */
     fun title(url: String, pageTitle: String): String {
         if (url == InternalPage.NEW_TAB.url) return "Nueva pestaña"
-        if (IcarusApp.instance.profile.settings.showAliases) {
-            AliasRules.findMatch(url, IcarusApp.instance.profile.aliasRules)?.let { return it.rule.displayName }
-        }
-        return pageTitle.ifBlank { UrlUtils.parseWebUrl(url)?.hostname ?: url }
+        return pageTitle.ifBlank { display(url).let { CustomAddresses.shortAddress(it.full) } }
     }
 }
 
 /**
- * Barra de direcciones. Sin foco muestra el alias o el host; al tocarla muestra la
- * URL real completa. Las sugerencias usan el mismo resolvedor que escritorio.
+ * Barra de direcciones, como en Chrome: una sola dirección (la personalizada si
+ * existe); al tocarla, la dirección completa seleccionada; mientras se escribe,
+ * nada la sustituye. El icono indica la conexión real y, con un certificado no
+ * válido, se muestra la dirección real que falló.
  */
 class Omnibox(
     private val context: Context,
@@ -64,6 +66,7 @@ class Omnibox(
 ) {
     private val p = w.look.palette
     private var realUrl: String = InternalPage.NEW_TAB.url
+    private var certificateError = false
     private var updating = false
 
     private val securityIcon = ImageView(context).apply {
@@ -95,7 +98,7 @@ class Omnibox(
         setOnFocusChangeListener { _, focused ->
             updating = true
             if (focused) {
-                setText(if (realUrl == InternalPage.NEW_TAB.url) "" else realUrl)
+                setText(currentDisplay().full)
                 selectAll()
             } else {
                 showDisplay()
@@ -122,10 +125,18 @@ class Omnibox(
         addView(edit, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { gravity = Gravity.CENTER_VERTICAL })
     }
 
-    fun setUrl(url: String) {
+    /** `certificateError`: la página no se cargó porque su certificado no es válido. */
+    fun setUrl(url: String, certificateError: Boolean = false) {
         realUrl = url
+        this.certificateError = certificateError
         if (!edit.hasFocus()) showDisplay()
         refreshIcon()
+    }
+
+    /** Con un error de certificado, la dirección real (sin dirección personalizada) y completa. */
+    private fun currentDisplay(): AddressFormat.Display {
+        val display = AddressFormat.display(realUrl, applyCustom = !certificateError)
+        return if (certificateError) display.copy(text = display.full) else display
     }
 
     fun focus() {
@@ -147,17 +158,16 @@ class Omnibox(
     }
 
     private fun showDisplay() {
-        val display = AddressFormat.display(realUrl)
-        edit.setText(display.text)
+        edit.setText(currentDisplay().text)
     }
 
     private fun refreshIcon() {
-        val display = AddressFormat.display(realUrl)
+        val display = currentDisplay()
         val (icon, color, description) = when {
-            edit.hasFocus() || realUrl == InternalPage.NEW_TAB.url -> Triple(R.drawable.icarus_search, p.omniboxDim, "Buscar")
-            display.alias != null -> Triple(R.drawable.icarus_tag, w.look.accent, "Alias de ICARUS: ver la dirección real")
-            display.secure -> Triple(R.drawable.icarus_lock, p.fg2, "Conexión segura")
-            display.insecure -> Triple(R.drawable.icarus_warning, p.danger, "Conexión no segura")
+            realUrl == InternalPage.NEW_TAB.url -> Triple(R.drawable.icarus_search, p.omniboxDim, "Buscar")
+            certificateError -> Triple(R.drawable.icarus_warning, p.danger, "No seguro: el certificado no es válido")
+            display.secure -> Triple(R.drawable.icarus_sliders, p.fg2, "Información del sitio")
+            display.insecure -> Triple(R.drawable.icarus_warning, p.warning, "No seguro: ver información del sitio")
             else -> Triple(R.drawable.icarus_info, p.fg2, "Información del sitio")
         }
         securityIcon.setIcon(icon, color)
@@ -171,19 +181,19 @@ class Omnibox(
         fun suggestions(query: String, open: (String) -> Unit): List<Suggestion> {
             val app = IcarusApp.instance
             val settings = app.profile.settings
-            val rules = app.profile.aliasRules
+            val entries = app.profile.customAddresses
             val result = ArrayList<Suggestion>()
             val trimmed = query.trim()
+            val shown = { url: String -> CustomAddresses.shortAddress(AddressFormat.display(url).full) }
             if (trimmed.isNotEmpty()) {
-                when (val resolution = InputResolver.resolve(trimmed, settings.searchProvider, rules)) {
-                    is InputResolution.Url -> result.add(Suggestion(R.drawable.icarus_globe, "Ir a ${resolution.url}", null) { open(trimmed) })
+                when (val resolution = InputResolver.resolve(trimmed, settings.searchProvider, entries)) {
+                    is InputResolution.Url -> result.add(Suggestion(R.drawable.icarus_globe, "Ir a ${shown(resolution.url)}", null) { open(trimmed) })
+                    is InputResolution.Custom -> result.add(
+                        Suggestion(R.drawable.icarus_globe, "Ir a ${CustomAddresses.shortAddress(resolution.address)}", "Dirección personalizada") { open(trimmed) },
+                    )
                     is InputResolution.Search -> result.add(
                         Suggestion(R.drawable.icarus_search, "Buscar «${resolution.query}»", "con ${resolution.provider.displayName}") { open(trimmed) },
                     )
-                    is InputResolution.Alias -> result.add(
-                        Suggestion(R.drawable.icarus_tag, "Abrir ${resolution.rule.alias}", "Alias de ICARUS → ${resolution.url}") { open(trimmed) },
-                    )
-                    is InputResolution.AliasUnresolved -> result.add(Suggestion(R.drawable.icarus_warning, resolution.alias, aliasProblem(resolution), null))
                     is InputResolution.Internal -> result.add(Suggestion(R.drawable.icarus_page, "Abrir ${internalName(resolution.page)}", resolution.page.url) { open(trimmed) })
                     is InputResolution.InternalUnknown -> result.add(Suggestion(R.drawable.icarus_warning, "Página interna desconocida", trimmed, null))
                     is InputResolution.Blocked -> result.add(Suggestion(R.drawable.icarus_shield, blockedMessage(resolution), null, null))
@@ -191,21 +201,22 @@ class Omnibox(
                 }
             }
             val needle = trimmed.lowercase()
-            val shortcuts = app.profile.shortcuts.filter { needle.isEmpty() || it.title.lowercase().contains(needle) || it.url.lowercase().contains(needle) }
-            shortcuts.take(if (needle.isEmpty()) 0 else 3).forEach { shortcut ->
-                result.add(Suggestion(R.drawable.icarus_sparkle, shortcut.title, AddressFormat.display(shortcut.url).text) { open(shortcut.url) })
+            if (needle.isNotEmpty()) {
+                CustomAddresses.startingWith(trimmed, entries)
+                    .filter { entry -> result.none { it.subtitle == "Dirección personalizada" && it.title.endsWith(CustomAddresses.shortAddress(entry.address)) } }
+                    .take(2)
+                    .forEach { entry -> result.add(Suggestion(R.drawable.icarus_globe, CustomAddresses.shortAddress(entry.address), "Dirección personalizada") { open(entry.target) }) }
+            }
+            // Accesos directos e historial se comparan y se muestran con la dirección visible.
+            val matches = { title: String, url: String -> needle.isEmpty() || title.lowercase().contains(needle) || shown(url).lowercase().contains(needle) }
+            app.profile.shortcuts.filter { matches(it.title, it.url) }.take(if (needle.isEmpty()) 0 else 3).forEach { shortcut ->
+                result.add(Suggestion(R.drawable.icarus_sparkle, shortcut.title, shown(shortcut.url)) { open(shortcut.url) })
             }
             val seen = HashSet<String>()
-            app.history.search(trimmed).asSequence().filter { seen.add(it.url) }.take(if (needle.isEmpty()) 6 else 5).forEach { item ->
-                result.add(Suggestion(R.drawable.icarus_clock, AddressFormat.title(item.url, item.title), AddressFormat.display(item.url).text) { open(item.url) })
+            app.history.search("").asSequence().filter { matches(it.title, it.url) && seen.add(it.url) }.take(if (needle.isEmpty()) 6 else 5).forEach { item ->
+                result.add(Suggestion(R.drawable.icarus_clock, AddressFormat.title(item.url, item.title), shown(item.url)) { open(item.url) })
             }
             return result
-        }
-
-        fun aliasProblem(resolution: InputResolution.AliasUnresolved) = if (resolution.reason == "disabled") {
-            "La regla del alias «${resolution.alias}» está desactivada."
-        } else {
-            "«${resolution.alias}» no corresponde a ninguna regla de alias. Los alias .icarus no son dominios de Internet."
         }
 
         fun blockedMessage(resolution: InputResolution.Blocked) = if (resolution.dangerous) {
@@ -235,7 +246,7 @@ class SuggestionsView(context: Context, private val w: Widgets) {
     fun show(items: List<Omnibox.Suggestion>) {
         view.removeAllViews()
         if (items.isEmpty()) {
-            view.addView(w.hint("Escribe una dirección, una búsqueda o un alias .icarus.").apply { setPadding(w.dp(16), w.dp(16), w.dp(16), w.dp(16)) })
+            view.addView(w.hint("Escribe una dirección o una búsqueda.").apply { setPadding(w.dp(16), w.dp(16), w.dp(16), w.dp(16)) })
         }
         for (item in items) {
             view.addView(w.row(item.icon, item.title, item.subtitle, onClick = item.action?.let { action -> { _: View -> action() } }))

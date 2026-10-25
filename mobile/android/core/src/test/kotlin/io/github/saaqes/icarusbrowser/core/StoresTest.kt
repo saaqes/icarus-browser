@@ -66,18 +66,22 @@ class StoresTest {
         assertEquals("required", errors["title"])
         assertEquals("unsafe-protocol", errors["url"])
         assertEquals("duplicate-url", assertIs<Profile.ShortcutResult.Errors>(profile.saveShortcut("Otra", "https://docs.ejemplo.com/")).errors["url"])
-        assertEquals("alias-url", assertIs<Profile.ShortcutResult.Errors>(profile.saveShortcut("Alias", "buscar.icarus")).errors["url"])
+        // `.icarus` ya no está reservado: es una dirección más.
+        assertEquals("https://buscar.icarus/", assertIs<Profile.ShortcutResult.Ok>(profile.saveShortcut("Antes alias", "buscar.icarus")).shortcut.url)
         repeat(Profile.MAX_SHORTCUTS) { profile.saveShortcut("S$it", "https://s$it.ejemplo.com/") }
         assertEquals(Profile.MAX_SHORTCUTS, profile.shortcuts.size)
         assertTrue(assertIs<Profile.ShortcutResult.Errors>(profile.saveShortcut("Una más", "https://mas.com/")).limit)
     }
 
     @Test
-    fun `preferencias, alias, permisos y sesión se guardan`() {
+    fun `preferencias, direcciones personalizadas, permisos y sesión se guardan`() {
         val profile = Profile(dir, defaults)
         profile.updateSettings { it.copy(theme = ThemeId.PANORAMA, colorMode = ColorMode.DARK, searchProvider = SearchProvider.DUCKDUCKGO, accent = "teal") }
-        val input = AliasRules.Input("Correo", AliasMatchType.HOST, "mail.google.com", "Correo", "correo.icarus", "https://mail.google.com/", true)
-        assertIs<AliasRules.Validation.Ok>(profile.saveAliasRule(input))
+        profile.updateSettings { it.copy(showFullUrls = true) }
+        assertIs<CustomAddresses.Validation.Ok>(profile.saveCustomAddress("bot.deriv.me", "miweb.com", true))
+        // No sobrescribe otra entrada: devuelve el conflicto.
+        val conflict = assertIs<CustomAddresses.Validation.Errors>(profile.saveCustomAddress("otro.com", "miweb.com", true))
+        assertEquals("address-in-use", conflict.errors["address"])
         profile.setPermission("https://mapas.com", SitePermission.LOCATION, true)
         profile.setPermission("https://mapas.com", SitePermission.CAMERA, false)
         profile.saveSession(listOf("https://a.com/", "javascript:alert(1)", "icarus://nueva-pestana", "https://b.com/"), 2)
@@ -88,8 +92,9 @@ class StoresTest {
         assertEquals(ColorMode.DARK, reopened.settings.colorMode)
         assertEquals(SearchProvider.DUCKDUCKGO, reopened.settings.searchProvider)
         assertEquals("teal", reopened.settings.accent)
-        assertEquals("correo.icarus", reopened.aliasRules.last().alias)
-        assertEquals("https://mail.google.com/x", AliasRules.findMatch("https://mail.google.com/x", reopened.aliasRules)?.realUrl)
+        assertTrue(reopened.settings.showFullUrls)
+        assertEquals(listOf("https://miweb.com/"), reopened.customAddresses.map { it.address })
+        assertEquals("https://miweb.com/x?y=1", CustomAddresses.displayUrlFor("https://bot.deriv.me/x?y=1", reopened.customAddresses)?.url)
         assertEquals(true, reopened.permission("https://mapas.com", SitePermission.LOCATION))
         assertEquals(false, reopened.permission("https://mapas.com", SitePermission.CAMERA))
         assertNull(reopened.permission("https://mapas.com", SitePermission.MICROPHONE))
@@ -114,5 +119,20 @@ class StoresTest {
                 assertEquals(!dark, light, "$theme dark=$dark")
             }
         }
+    }
+
+    @Test
+    fun `convierte las reglas de alias guardadas por versiones anteriores`() {
+        File(dir, "profile.json").writeText(
+            """{"version":1,"aliasRules":[
+              {"id":"default-search","matchType":"exact","pattern":"https://www.google.com/","alias":"buscar.icarus","targetUrl":"https://www.google.com/","enabled":true},
+              {"id":"mia","matchType":"host","pattern":"bot.deriv.me","alias":"bot.icarus","targetUrl":"https://bot.deriv.me/","enabled":true,"createdAt":"2026-02-01T00:00:00.000Z","updatedAt":"2026-02-02T00:00:00.000Z"}
+            ]}""".trimIndent(),
+        )
+        val profile = Profile(dir, defaults)
+        assertEquals(listOf(CustomAddress("mia", "https://bot.deriv.me/", "https://bot.icarus/", true, "2026-02-01T00:00:00.000Z", "2026-02-02T00:00:00.000Z")), profile.customAddresses)
+        assertEquals(null, profile.setCustomAddressEnabled("mia", false))
+        profile.removeCustomAddress("mia")
+        assertTrue(profile.customAddresses.isEmpty())
     }
 }

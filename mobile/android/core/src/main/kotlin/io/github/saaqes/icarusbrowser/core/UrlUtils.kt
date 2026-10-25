@@ -7,9 +7,6 @@ package io.github.saaqes.icarusbrowser.core
 object UrlUtils {
     val WEB_PROTOCOLS = setOf("http:", "https:")
 
-    /** Sufijo reservado para los alias visuales de ICARUS. No es un dominio de Internet. */
-    const val ALIAS_SUFFIX = ".icarus"
-
     /** Protocolos que nunca se abren porque pueden ejecutar código o leer datos locales. */
     val DANGEROUS_PROTOCOLS = setOf("javascript:", "data:", "vbscript:", "file:", "blob:")
 
@@ -23,7 +20,6 @@ object UrlUtils {
     private val HOST_WITH_PORT = Regex("^(.*):([^:\\]]*)$")
     private val PROTOCOL = Regex("^([a-z][a-z0-9+.-]*):", RegexOption.IGNORE_CASE)
     private val HOST_WITH_PORT_NOT_SCHEME = Regex("^[^:/]+:\\d+(?:[/?#]|$)")
-    private val ALIAS_LIKE = Regex("^[^/?#]+\\.icarus(?:[/?#]|$)", RegexOption.IGNORE_CASE)
 
     fun parseWebUrl(text: String): WebUrl? = WebUrl.parse(text.trim())?.takeIf { it.hostname.isNotEmpty() }
 
@@ -33,11 +29,6 @@ object UrlUtils {
     }
 
     fun isIpLiteral(hostname: String): Boolean = IPV4.matches(hostname) || IPV6_BRACKETED.matches(hostname)
-
-    fun isAliasHost(hostname: String): Boolean {
-        val host = hostname.lowercase().removeSuffix(".")
-        return host == "icarus" || host.endsWith(ALIAS_SUFFIX)
-    }
 
     /** ¿Parece `text` un host con puerto opcional (ej. `ejemplo.com`, `localhost:3000`)? */
     fun looksLikeHost(text: String): Boolean {
@@ -60,14 +51,14 @@ object UrlUtils {
 
     sealed interface Normalized {
         data class Ok(val url: String, val parsed: WebUrl) : Normalized
-        /** `empty`, `unsafe-protocol`, `unsupported-protocol`, `invalid` o `alias`. */
+        /** `empty`, `unsafe-protocol`, `unsupported-protocol` o `invalid`. */
         data class Failure(val reason: String) : Normalized
     }
 
     /**
      * Normaliza una URL escrita por el usuario en formularios (accesos directos,
-     * página principal, reglas). Acepta `ejemplo.com` y lo convierte en
-     * `https://ejemplo.com/`. Rechaza protocolos peligrosos y alias `.icarus`.
+     * página principal). Acepta `ejemplo.com` y lo convierte en
+     * `https://ejemplo.com/`. Rechaza protocolos peligrosos.
      */
     fun normalizeUserUrl(text: String): Normalized {
         val trimmed = text.trim()
@@ -82,16 +73,13 @@ object UrlUtils {
             if (protocol !in WEB_PROTOCOLS) return Normalized.Failure("unsupported-protocol")
         } else {
             val hostPart = trimmed.split('/', '?', '#')[0]
-            if (!looksLikeHost(hostPart)) {
-                return Normalized.Failure(if (ALIAS_LIKE.containsMatchIn(trimmed)) "alias" else "invalid")
-            }
+            if (!looksLikeHost(hostPart)) return Normalized.Failure("invalid")
             val bareHost = hostPart.replace(Regex(":\\d+$"), "")
             val scheme = if (isLoopbackHost(bareHost) || isIpLiteral(bareHost)) "http" else "https"
             candidate = "$scheme://$trimmed"
         }
 
         val parsed = parseWebUrl(candidate) ?: return Normalized.Failure("invalid")
-        if (isAliasHost(parsed.hostname)) return Normalized.Failure("alias")
         if (parsed.hasCredentials) return Normalized.Failure("invalid")
         return Normalized.Ok(parsed.href, parsed)
     }

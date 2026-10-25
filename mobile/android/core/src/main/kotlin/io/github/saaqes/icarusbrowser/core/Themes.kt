@@ -20,6 +20,7 @@ class Palette(private val colors: Map<String, Int>) {
     val fg2 get() = this["fg-2"]
     val fg3 get() = this["fg-3"]
     val danger get() = this["danger"]
+    val warning get() = this["warning"]
     val success get() = this["success"]
     val accent get() = this["accent"]
 
