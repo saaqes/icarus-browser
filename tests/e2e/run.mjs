@@ -242,6 +242,13 @@ function pageEval(urlPart, code) {
     [urlPart, code],
   );
 }
+/** Evalúa código en la página de la pestaña visible (no en otra pestaña con una URL parecida). */
+function visiblePageEval(code) {
+  return app.evaluate(({ BrowserWindow }, source) => {
+    const view = BrowserWindow.getAllWindows()[0].contentView.children.find((child) => child.getVisible() && !child.webContents.isDestroyed());
+    return view ? view.webContents.executeJavaScript(source, true) : '__sin_pagina__';
+  }, code);
+}
 async function openSettings(section) {
   await win.getByRole('button', { name: 'Configuración', exact: true }).first().click();
   await win.getByRole('button', { name: section, exact: true }).click();
@@ -354,6 +361,8 @@ await step('8. Enlaces target=_blank abren pestañas de ICARUS (no ventanas)', a
   const windowsBefore = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
   await pageEval('/a.html', "document.getElementById('blank').click()");
   await eventually(async () => (await win.getByRole('tab').count()) === 3, 'No se abrió una tercera pestaña');
+  // La vista de la pestaña nueva se crea después de la pestaña: se espera a que exista.
+  await eventually(async () => (await views()).length === 3, 'La pestaña nueva no tiene su vista web');
   const windowsAfter = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
   assert(windowsBefore === windowsAfter, 'Se creó una ventana emergente');
 });
@@ -470,7 +479,8 @@ await step('14. Descargas reales', async () => {
   }, 'La descarga no se completó');
   assert(existsSync(item.savePath), 'El archivo no existe en disco');
   assert(readFileSync(item.savePath, 'utf8').includes('Contenido de prueba'), 'El contenido descargado no coincide');
-  assert(await win.locator('.downloads-btn').isVisible(), 'No aparece el botón de descargas');
+  // La interfaz recibe el aviso de la descarga un instante después que el proceso principal.
+  await eventually(() => win.locator('.downloads-btn').isVisible(), 'No aparece el botón de descargas');
   return item.savePath;
 });
 
@@ -849,18 +859,21 @@ if (process.env.ICARUS_E2E_INTERNET === '1') {
   for (const url of sites) {
     await step(`Internet: ${url}`, async () => {
       await go(url);
-      const host = new URL(url).hostname;
+      // Se comprueba la pestaña visible: otra pestaña abierta antes puede tener el mismo sitio.
+      const domain = new URL(url).hostname.replace(/^www\./, '');
       const outcome = await eventually(async () => {
         if (await win.locator('.error-page').count()) {
           return { error: `${await win.locator('#error-page-title').innerText()} · ${await win.locator('.error-card__details').innerText()}` };
         }
-        const title = await pageEval(host, 'document.readyState === "complete" ? document.title : ""');
-        return title && title !== '__sin_pagina__' ? { title } : null;
+        const current = (await visibleUrl()) ?? '';
+        const host = URL.canParse(current) ? new URL(current).hostname : '';
+        if (host !== domain && !host.endsWith(`.${domain}`)) return null;
+        const title = await visiblePageEval('document.readyState === "complete" ? document.title : ""');
+        return title && title !== '__sin_pagina__' ? { title, url: current } : null;
       }, `No se cargó ${url}`, 45_000);
       assert(!outcome.error, outcome.error?.replace(/\s+/g, ' '));
-      const finalUrl = (await views()).find((view) => view.visible)?.url ?? '';
-      assert(finalUrl.startsWith('https://'), `La página no se cargó por HTTPS (${finalUrl})`);
-      return `«${outcome.title}» · ${new URL(finalUrl).host}`;
+      assert(outcome.url.startsWith('https://'), `La página no se cargó por HTTPS (${outcome.url})`);
+      return `«${outcome.title}» · ${new URL(outcome.url).host}`;
     });
   }
 }
