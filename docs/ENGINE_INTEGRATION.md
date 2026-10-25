@@ -68,14 +68,15 @@ Errores de navegación: `did-fail-load` se clasifica en `network`, `certificate`
 
 La interfaz usa otra sesión (`icarus-ui`, en memoria) que no comparte nada con las páginas.
 
-## Alias de URL
+## Direcciones personalizadas
 
-Los alias se aplican en la interfaz sobre la URL que informa Chromium en cada evento `tab-state`:
+Son una capa de la interfaz, común a los estilos y al motor: el proceso principal y Chromium no saben nada de ellas.
 
-- La vista carga siempre la URL real; Chromium valida su certificado como en cualquier otra página.
-- Escribir `buscar.icarus` solo navega a la URL de destino de una regla activa; nunca se crea un dominio, un registro DNS ni un certificado falso.
-- Cuando la URL real deja de coincidir con la regla (la página redirige o el usuario sigue un enlace), la barra muestra la URL real nueva sin alias.
-- El panel de información de la página muestra la URL real, el alias y la regla por separado.
+- **Mostrar**: en cada evento `tab-state`, `describePage()` (`src/services/tabs/pages.ts`) pasa la URL real que informa Chromium por `displayUrlFor()`; si está dentro de un destino activo, la barra, la pestaña y el historial muestran la misma ruta, consulta y fragmento bajo la dirección personalizada. La URL real de la pestaña (`page.url`) no cambia nunca.
+- **Navegar**: `resolveInput()` convierte lo escrito en la barra. Si está dentro de una dirección personalizada, se pide a Chromium la URL real equivalente (`tabs.navigate` con la URL del destino). La vista carga siempre la URL real y Chromium valida su certificado como en cualquier otra página: no hay proxy, protocolo propio, DNS ni certificados.
+- **Seguridad**: el icono de la barra sale del protocolo real y de los errores de Chromium. Con un error de certificado (`did-fail-load` −200…−299) la barra muestra la dirección real que falló, sin dirección personalizada. Los avisos de permisos y de autenticación llegan del proceso principal con el origen real.
+- Cuando la URL real sale del destino (redirección a otro sitio o un enlace), `displayUrlFor()` deja de coincidir y la barra muestra la URL real nueva.
+- Los enlaces que una página haga a la dirección personalizada no se resuelven: van al sitio real con ese nombre. Solo se resuelve lo que escribe el usuario.
 
 ## Persistencia en escritorio
 
@@ -83,7 +84,7 @@ Todo se guarda en la carpeta de datos de usuario de Electron (`%APPDATA%\ICARUS 
 
 | Archivo | Contenido |
 | --- | --- |
-| `ui-storage.json` | Las claves `icarus.*` de la interfaz (preferencias, accesos directos, alias, widgets, fondo, sesión) |
+| `ui-storage.json` | Las claves `icarus.*` de la interfaz (preferencias, accesos directos, direcciones personalizadas en `icarus.aliasRules`, widgets, fondo, sesión) |
 | `preferences.json` | Descargas (preguntar dónde guardar, carpeta) y privacidad (borrar al salir) |
 | `history.json` | Historial (máximo 10 000 visitas) |
 | `downloads.json` | Lista de descargas |

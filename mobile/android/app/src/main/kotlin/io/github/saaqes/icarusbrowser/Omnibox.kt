@@ -95,6 +95,21 @@ class Omnibox(
                 false
             }
         }
+        // Escape con teclado físico, como en Chrome: el primero recupera la dirección, el segundo sale de la barra.
+        setOnKeyListener { _, keyCode, event ->
+            if (keyCode != KeyEvent.KEYCODE_ESCAPE || event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            val full = currentDisplay().full
+            if (text.toString() != full) {
+                updating = true
+                setText(full)
+                selectAll()
+                updating = false
+                onQueryChanged(full)
+            } else {
+                this@Omnibox.clearFocus()
+            }
+            true
+        }
         setOnFocusChangeListener { _, focused ->
             updating = true
             if (focused) {

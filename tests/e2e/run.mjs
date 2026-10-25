@@ -786,6 +786,38 @@ if (!tlsServer) {
   });
 }
 
+await step('29. G · La barra se comporta igual en los estilos Esencial (Chrome) y Panorama (Edge)', async () => {
+  const seen = [];
+  for (const [name, id] of [['Esencial', 'google-inspired'], ['Panorama', 'edge-inspired']]) {
+    await win.keyboard.press('Control+T');
+    await win.getByRole('button', { name: 'Personalizar', exact: true }).first().click();
+    await win.locator('.theme-card', { hasText: name }).click();
+    await eventually(async () => (await win.locator('.icarus-root').getAttribute('data-theme')) === id, `No se aplicó ${name}`);
+    await win.keyboard.press('Escape');
+    await go('otraweb.com/a.html');
+    await waitForActiveTab('Página A');
+    await expectShown('otraweb.com/a.html', `En ${name}`);
+    assert(!(await visibleChrome()).includes('127.0.0.1'), `En ${name} se ve la dirección original`);
+    assert((await securityState()) === 'insecure', `En ${name}, estado de seguridad inesperado: ${await securityState()}`);
+    // Clic: dirección completa seleccionada; escribir la reemplaza y Escape la recupera.
+    await addressBar().click();
+    assert((await addressBar().inputValue()) === 'http://otraweb.com/a.html', `En ${name}, el campo no tiene la dirección completa`);
+    await win.keyboard.type('x');
+    assert((await addressBar().inputValue()) === 'x', `En ${name}, el clic no seleccionó toda la dirección`);
+    await win.keyboard.press('Escape');
+    assert((await addressBar().inputValue()) === 'http://otraweb.com/a.html', `En ${name}, Escape no recuperó la dirección`);
+    await win.keyboard.press('Escape');
+    // La información del sitio dice qué sitio recibe las solicitudes.
+    await win.locator('.omnibox__info').click();
+    const custom = win.getByTestId('site-custom-address');
+    await custom.waitFor();
+    assert((await custom.innerText()).includes('127.0.0.1'), `En ${name}, la información del sitio no nombra el sitio real`);
+    await win.keyboard.press('Escape');
+    seen.push(name);
+  }
+  return `${seen.join(' y ')}: misma barra, misma dirección y misma seguridad`;
+});
+
 if (process.env.ICARUS_E2E_INTERNET === '1') {
   await step('Internet (A): https://bot.deriv.me/ con la dirección personalizada https://miweb.com/', async () => {
     await addCustomAddress('https://bot.deriv.me', 'https://miweb.com');

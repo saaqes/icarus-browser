@@ -8,11 +8,11 @@ Los archivos de `mobile/shared` se **generan desde el código de escritorio** co
 
 | Archivo | Origen en escritorio |
 | --- | --- |
-| `defaults.json` | Accesos directos y reglas de alias predeterminados |
+| `defaults.json` | Accesos directos predeterminados (y la lista de direcciones personalizadas inicial, vacía) |
 | `shield-basic.txt` | Lista básica de ICARUS Shield (`electron/shield/builtinList.ts`) |
 | `public-suffix-rules.txt` | Public Suffix List (`electron/shield/publicSuffixList.ts`) |
 | `themes.json` | Colores de los tres estilos, leídos de `src/styles/tokens.css` y `src/themes/*/theme.css`, y los acentos |
-| `strings.json` | Textos de error y ayuda de `src/i18n/es.ts` (validación de alias y accesos, errores de listas…) |
+| `strings.json` | Textos de `src/i18n/es.ts`: errores de las direcciones personalizadas (con parámetros `{address}` y `{target}`), editor, información del sitio, accesos y listas |
 | `test-vectors/*.json` | Entradas y resultados calculados por el código de escritorio |
 | `android/app/src/main/res/drawable/icarus_*.xml` | Iconos de `src/components/common/Icon.tsx` convertidos a VectorDrawable |
 
@@ -27,8 +27,9 @@ La comprobación forma parte de `npm run test`, así que CI falla si alguien cam
 
 | Vector | Qué fija |
 | --- | --- |
-| `resolve-input.json` | 45 textos de la barra de direcciones → URL, búsqueda, alias, página interna o bloqueo; y 24 búsquedas codificadas como `encodeURIComponent` |
-| `alias-match.json` | 19 URL reales → regla de alias que se muestra |
+| `resolve-input.json` | 53 textos de la barra de direcciones (con 5 direcciones personalizadas) → URL, dirección personalizada, búsqueda, página interna o bloqueo; y 24 búsquedas codificadas como `encodeURIComponent` |
+| `custom-address-display.json` | 20 URL reales → dirección que muestra la barra, en forma corta y completa |
+| `custom-address-validation.json` | 17 casos del editor (errores por campo y entrada con la que choca) y 8 reglas de alias antiguas → conversión y lista cargada |
 | `registrable-domain.json` | 16 hosts → dominio registrable (incluye comodines y excepciones de la PSL) |
 | `shield-match.json` | Una lista con todas las opciones admitidas → número de reglas, ignoradas y no válidas; y 28 solicitudes → bloqueada o no |
 
@@ -36,7 +37,7 @@ Las pruebas de Kotlin (`mobile/android/core`) y de Swift (`mobile/ios/Tests`) le
 
 ## Android (`mobile/android`)
 
-- **`core/`**: biblioteca Kotlin/JVM sin dependencias del SDK de Android (build de Gradle independiente). Contiene el analizador de URL (equivalente a `new URL()`), la barra de direcciones, búsqueda, páginas internas, reglas de alias y su validación, Public Suffix List, el analizador y el motor de filtros de Shield (adaptación directa de `electron/shield`), `ShieldStore` (listas, descargas y excepciones, como `shieldService.ts`), perfil, historial y paletas. Se prueba con `./gradlew -p core test` sin necesitar el SDK.
+- **`core/`**: biblioteca Kotlin/JVM sin dependencias del SDK de Android (build de Gradle independiente). Contiene el analizador de URL (equivalente a `new URL()`), la barra de direcciones, búsqueda, páginas internas, direcciones personalizadas (mostrar, resolver, validar, migrar alias antiguos), Public Suffix List, el analizador y el motor de filtros de Shield (adaptación directa de `electron/shield`), `ShieldStore` (listas, descargas y excepciones, como `shieldService.ts`), perfil, historial y paletas. Se prueba con `./gradlew -p core test` sin necesitar el SDK.
 - **`app/`**: interfaz construida en código con vistas de Android (sin AndroidX ni bibliotecas de terceros), `minSdk 29` (Android 10) y `targetSdk 35`.
   - Una **WebView** por pestaña, creada al mostrar la pestaña (las restauradas no cargan hasta que se abren). Todas comparten cookies y almacenamiento.
   - **Shield** en `shouldInterceptRequest`: cada subsolicitud se evalúa con el motor del núcleo y, si coincide, se responde con una respuesta vacía, así que nunca sale del dispositivo. El contador de la página y el total cuentan solo esas cancelaciones. Las solicitudes de service workers se filtran con `ServiceWorkerController`, usando el `Referer` como página de origen. WebView no indica el tipo de recurso: se deduce de `Sec-Fetch-Dest`, `Accept` y la extensión (`ResourceTypes.kt`, con pruebas).
@@ -68,14 +69,25 @@ Las pruebas de Kotlin (`mobile/android/core`) y de Swift (`mobile/ios/Tests`) le
   - Todas las peticiones de WebKit (diálogos de JavaScript, permisos, autenticación, descargas) se responden siempre; si llega una mientras otra está abierta, recibe la respuesta segura (cancelar o denegar).
 - **Datos**: `Application Support/ICARUS/` (perfil, historial, Shield, lista de descargas). Las cookies y la caché las guarda WebKit (`WKWebsiteDataStore.default()`), comunes a todas las pestañas.
 
+## Barra de direcciones y direcciones personalizadas
+
+Las dos apps reproducen la barra de escritorio con la misma lógica (`CustomAddresses.kt` / `CustomAddresses.swift`, equivalentes a `src/services/custom-addresses`):
+
+- Sin foco, forma corta (`miweb.com/ruta`); al tocarla, la dirección completa seleccionada. En Android, «Atrás», salir sin pulsar Ir o Escape con un teclado físico recupera la dirección; en iPhone, salir de la barra sin pulsar Ir.
+- Direcciones sin sufijos (`google.com`, `localhost:3000`); el protocolo solo se añade si falta.
+- La dirección personalizada se muestra mientras la página está dentro de su destino; escribirla abre el destino real. El motor (WebView o WebKit) carga siempre la URL real, con su certificado; los enlaces de las páginas no se resuelven.
+- Icono de seguridad real («No seguro» para HTTP, rojo con la dirección real completa si el certificado no es válido) e información del sitio con el sitio que recibe las solicitudes y los botones para copiar la dirección o personalizarla.
+- Configuración → Avanzado → «Personalizar direcciones URL»: lista, edición con vista previa, activar y eliminar; los conflictos se muestran en el campo nombrando la otra entrada. Configuración → Navegación → «Mostrar siempre las URL completas».
+- El perfil (`profile.json`, versión 2) guarda la lista en `customAddresses` y convierte al leerlas las reglas `aliasRules` de versiones anteriores.
+
 ## Pruebas
 
 | Conjunto | Dónde | Qué comprueba |
 | --- | --- | --- |
-| `./gradlew -p core test` (25 pruebas) | Local y CI | Vectores compartidos, validación de alias y accesos, perfil, historial, listas de Shield (con un servidor HTTP local para el descargador) y deducción de tipos de recurso |
-| Prueba instrumentada (`BrowserSmokeTest`) | Emulador de Android 14 en CI | La app real abre una página local con un anuncio y un rastreador: Shield cancela exactamente 2 solicitudes; alias en la barra y al escribirlo; `javascript:` y `file:` bloqueados; búsqueda; certificado no válido real (`self-signed.badssl.com`) con la barra mostrando el sitio que falló; los tres estilos sin perder pestañas; y que Configuración, Shield, «Cambiar nombre de URL», Historial y Descargas abren sin cerrarse. Captura cada pantalla |
-| `swift test` (18 pruebas) | Linux local (Swift 6.1) y macOS en CI | Los mismos vectores; la conversión a reglas de WebKit se comprueba con un evaluador de la semántica de las reglas, que debe bloquear las mismas 28 solicitudes que escritorio, no bloquear nunca la página principal (sí los marcos internos) y, si no cabe todo, dejar fuera filtros completos del final |
-| `ShieldWebKitTests` (5 pruebas) | Simulador de iOS en CI | Con WebKit real: las reglas compilan; un rastreador real se cancela con las reglas y carga sin ellas; una página principal que coincide con un filtro se abre igualmente; EasyList y EasyPrivacy reales se descargan, caben juntas en una lista sin superar el máximo y WebKit la compila; alias en la barra |
+| `./gradlew -p core test` (27 pruebas) | Local y CI | Vectores compartidos, direcciones personalizadas (sin sufijos, nunca HTTP como HTTPS, ida y vuelta, conflictos) y accesos, perfil, historial, listas de Shield (con un servidor HTTP local para el descargador) y deducción de tipos de recurso |
+| Prueba instrumentada (`BrowserSmokeTest`) | Emulador de Android 14 en CI | La app real abre una página local con un anuncio y un rastreador: Shield cancela exactamente 2 solicitudes; la barra muestra solo `miweb.com/pagina.html` para la página local y escribir esa dirección abre la real; `javascript:` y `file:` bloqueados; búsqueda; certificado no válido real (`self-signed.badssl.com`) con la barra mostrando la dirección real completa que falló; los tres estilos sin perder pestañas; y que Configuración, Shield, Direcciones personalizadas, Historial y Descargas abren sin cerrarse. Captura cada pantalla |
+| `swift test` (21 pruebas) | Linux local (Swift 6.1) y macOS en CI | Los mismos vectores (incluidas la dirección visible, la validación y la migración de alias); la conversión a reglas de WebKit se comprueba con un evaluador de la semántica de las reglas, que debe bloquear las mismas 28 solicitudes que escritorio, no bloquear nunca la página principal (sí los marcos internos) y, si no cabe todo, dejar fuera filtros completos del final |
+| `ShieldWebKitTests` (5 pruebas) | Simulador de iOS en CI | Con WebKit real: las reglas compilan; un rastreador real se cancela con las reglas y carga sin ellas; una página principal que coincide con un filtro se abre igualmente; EasyList y EasyPrivacy reales se descargan, caben juntas en una lista sin superar el máximo y WebKit la compila; la dirección personalizada `bot.deriv.me` → `miweb.com` en la barra y al escribirla |
 
 Con las listas completas de EasyList (57 251 filtros de red) y EasyPrivacy (56 333), montadas el 24 de octubre de 2026 desde sus archivos fuente, más la lista básica: WebKit aplica 113 624 filtros, 26 no se pueden expresar (expresiones regulares con `|`, `{n}` o `\s`) y todo cabe en 113 625 reglas, por debajo del máximo de 150 000. La primera versión de la conversión usaba dos reglas por filtro: con estas listas necesitaba unas 224 000, superaba el máximo y dejaba fuera parte de EasyPrivacy y las reglas propias.
 

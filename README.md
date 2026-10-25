@@ -1,6 +1,6 @@
 # ICARUS Browser
 
-Navegador web con identidad propia, interfaz personalizable, bloqueador de anuncios y rastreadores (ICARUS Shield) y un editor avanzado de alias de URL, para Windows, macOS, Android, iPhone y iPad.
+Navegador web con identidad propia, interfaz personalizable, bloqueador de anuncios y rastreadores (ICARUS Shield) y direcciones personalizadas en la barra (por ejemplo, ver `miweb.com` mientras navegas por `bot.deriv.me`), para Windows, macOS, Android, iPhone y iPad.
 
 **Versión 0.2.0 (preliminar).** Cada plataforma tiene su propio paquete; ninguno sirve para otra:
 
@@ -11,7 +11,7 @@ Navegador web con identidad propia, interfaz personalizable, bloqueador de anunc
 | Android 10 o posterior | WebView del sistema (Chromium, actualizado por Google Play) | `.apk` |
 | iPhone y iPad con iOS 16 o posterior | WebKit (el motor que iOS exige) | `.ipa` sin firmar |
 
-En escritorio cada pestaña es una vista real de Chromium que carga las páginas dentro de la ventana de ICARUS; la interfaz (tres estilos, personalización, accesos directos, widgets, configuración y «Cambiar nombre de URL») controla el motor real. Las apps de Android e iPhone son proyectos aparte (`mobile/android`, `mobile/ios`) con interfaz nativa, pero reutilizan la lógica de escritorio: reglas de alias, interpretación de la barra de direcciones, Public Suffix List, filtros de Shield, colores de los estilos y textos se generan desde el código de escritorio en `mobile/shared` y las tres plataformas se prueban con los mismos vectores. Ver [Android, iPhone y iPad](#android-iphone-y-ipad).
+En escritorio cada pestaña es una vista real de Chromium que carga las páginas dentro de la ventana de ICARUS; la interfaz (tres estilos, personalización, accesos directos, widgets, configuración y «Personalizar direcciones URL») controla el motor real. Las apps de Android e iPhone son proyectos aparte (`mobile/android`, `mobile/ios`) con interfaz nativa, pero reutilizan la lógica de escritorio: direcciones personalizadas, interpretación y formato de la barra de direcciones, Public Suffix List, filtros de Shield, colores de los estilos y textos se generan desde el código de escritorio en `mobile/shared` y las tres plataformas se prueban con los mismos vectores. Ver [Android, iPhone y iPad](#android-iphone-y-ipad).
 
 El prototipo web (`dist/icarus-browser.html`) sigue existiendo, pero **no es un navegador ni un instalador**: es solo la interfaz, que entrega las páginas al navegador del sistema. Ver [Versión web](#versión-web-prototipo).
 
@@ -21,11 +21,11 @@ El prototipo web (`dist/icarus-browser.html`) sigue existiendo, pero **no es un 
 | --- | --- | --- |
 | ![Estilo ICARUS](docs/screenshots/icarus.webp) | ![Estilo Esencial](docs/screenshots/esencial.webp) | ![Estilo Panorama](docs/screenshots/panorama.webp) |
 
-| Alias en la barra con la URL real verificable | Editor «Cambiar nombre de URL» |
+| La barra muestra solo la dirección personalizada; la información del sitio dice quién recibe las solicitudes | Editor «Direcciones personalizadas» (Configuración → Avanzado) |
 | --- | --- |
-| ![Alias de URL](docs/screenshots/alias-barra.webp) | ![Cambiar nombre de URL](docs/screenshots/cambiar-nombre-url.webp) |
+| ![Dirección personalizada en la barra](docs/screenshots/direccion-personalizada.webp) | ![Direcciones personalizadas](docs/screenshots/direcciones-personalizadas.webp) |
 
-<sub>Capturas de la interfaz (página de nueva pestaña y editor de alias), comunes a la aplicación de escritorio y al prototipo web.</sub>
+<sub>Aplicación de escritorio con Electron real: una página local por HTTP (`127.0.0.1`) se muestra como `miweb.com/panel?cuenta=demo`. Como la conexión real es HTTP, la barra dice «No seguro»: la dirección personalizada no cambia el estado de seguridad. Las capturas de la nueva pestaña son comunes a escritorio y al prototipo web.</sub>
 
 ![ICARUS Shield en la aplicación de escritorio](docs/screenshots/escritorio-shield.webp)
 
@@ -61,8 +61,8 @@ El prototipo web (`dist/icarus-browser.html`) sigue existiendo, pero **no es un 
 | Páginas web dentro de las pestañas (Chromium) | **Real** |
 | Pestañas: crear, cambiar, cerrar, reabrir, título, icono y carga reales | **Real** |
 | Atrás, adelante, recargar, detener, páginas de error con el código de Chromium | **Real** |
-| Barra de direcciones: URL, búsqueda (Google, Bing, DuckDuckGo), alias, páginas internas | **Real** |
-| Alias de URL aplicados a la navegación real, sin cambiar la URL cargada | **Real** |
+| Barra de direcciones como Chrome y Edge: URL tal como se escribe (`google.com`, `localhost:3000`), búsqueda (Google, Bing, DuckDuckGo), páginas internas | **Real** |
+| Direcciones personalizadas: la barra muestra la dirección elegida y escribirla abre el sitio real | **Real** (resolución interna de ICARUS; no es DNS) |
 | ICARUS Shield: bloqueo de solicitudes con listas EasyList/EasyPrivacy y reglas propias | **Real** (solo bloqueo de red) |
 | Descargas con progreso, cancelación, apertura y carpeta | **Real** |
 | Historial persistente con búsqueda y borrado | **Real** |
@@ -207,15 +207,32 @@ Funcionan también con el foco dentro de una página web.
 | Ctrl + F | Buscar en la página (Intro: siguiente; Mayús + Intro: anterior; Esc: cerrar) |
 | F12, Ctrl + Mayús + I | Herramientas de desarrollo de la página |
 
-### Barra de direcciones
-- Distingue direcciones (`google.com`, `youtube.com`, `es.wikipedia.org`, `https://…`, `localhost:3000`, IP) de búsquedas, que van al proveedor elegido (Google, Bing o DuckDuckGo).
-- Sugerencias de historial, accesos directos, reglas de alias y páginas internas, con lo que ocurrirá al pulsar Enter.
+### Barra de direcciones (como Chrome y Edge)
+- Una sola barra. Sin foco muestra la dirección en forma corta (`miweb.com/panel?cuenta=demo`, sin `https://` ni `www.`); al hacer clic aparece la dirección completa (`https://miweb.com/panel?cuenta=demo`) **seleccionada entera**, de modo que escribir la reemplaza. Configuración → Navegación → «Mostrar siempre las URL completas» la muestra completa también sin foco.
+- Enter navega; **Escape** cancela la edición y recupera la dirección de la página (un segundo Escape sale de la barra). Mientras escribes, la dirección no cambia aunque la página navegue.
+- Acepta las direcciones tal como se escriben: `google.com`, `youtube.com`, `bot.deriv.me`, `icarus.marketing`, `miweb.com`, `localhost:3000`, `192.168.1.10:8080`, `https://ejemplo.com/ruta?x=1#y`. Solo añade el protocolo cuando falta (`https://`, o `http://` para `localhost` y direcciones IP). No hay sufijos obligatorios. Lo demás (texto con espacios o sin forma de dirección) es una búsqueda en Google, Bing o DuckDuckGo.
+- Sugerencias de direcciones personalizadas, historial (también por la dirección visible), accesos directos y páginas internas, con lo que ocurrirá al pulsar Enter. Elegir una sugerencia no altera la dirección de la página actual.
+- Icono de información del sitio con el estado **real** de la conexión, como Chrome: HTTPS aceptado por Chromium (icono de ajustes), «⚠ No seguro» para HTTP, y «No seguro» en rojo con `https` tachado y la **dirección real** completa cuando el certificado no es válido. El panel dice qué sitio recibe las solicitudes, permite copiar la dirección y crear o editar la dirección personalizada del sitio.
 - Bloquea `javascript:`, `data:`, `file:`, `vbscript:`, `blob:` y protocolos desconocidos. Un enlace `mailto:` o `tel:` en una página no abre otras aplicaciones; se muestra un aviso.
 - Páginas internas: `icarus://nueva-pestana`, `icarus://configuracion/<sección>`, `icarus://historial`, `icarus://descargas` e `icarus://en-blanco`.
-- El icono de información muestra la **URL real**, el alias si lo hay y, en HTTPS, que Chromium aceptó el certificado.
 
-### Alias de URL con navegación real
-Los alias del editor «Cambiar nombre de URL» se aplican a la URL que informa Chromium tras cada navegación: la pestaña y la barra muestran el alias y el host real, pero la página se carga siempre desde su URL real y con su certificado. Si la página redirige o sigues un enlace fuera de la regla, el alias desaparece. Escribir un alias (`buscar.icarus`) abre el destino de su regla activa. No se crean dominios, registros DNS ni certificados falsos.
+### Direcciones personalizadas
+Configuración → Avanzado → **«Personalizar direcciones URL»**, o el botón «Personalizar dirección» del icono de información del sitio. Cada entrada relaciona un **destino real** (un sitio o una sección: `bot.deriv.me`, `https://ejemplo.com/docs`, `localhost:3000`) con la **dirección que se mostrará** (`miweb.com`, `https://miweb.com/app`):
+
+- Mientras navegas dentro del destino, la barra, la pestaña, el historial, las sugerencias y los accesos directos muestran **solo** la dirección personalizada, con la ruta, la consulta y el fragmento reales: `https://bot.deriv.me/estrategias?modo=demo#resumen` se ve como `miweb.com/estrategias?modo=demo#resumen`. La dirección original no reaparece al seguir enlaces, con `pushState`, fragmentos, redirecciones dentro del mismo destino, atrás, adelante, recargar, pestañas nuevas, Ctrl+Mayús+T ni al restaurar la sesión.
+- Escribir la dirección personalizada (con o sin ruta) abre la página real equivalente del destino.
+- Si la página redirige **fuera** del destino, la barra muestra la dirección real de llegada: ICARUS nunca pone un nombre a un sitio que no es el que el usuario eligió.
+- Crear, editar, activar/desactivar, eliminar (con confirmación), buscar, vista previa de cómo se verá, importar y exportar. Elegir el destino desde una pestaña abierta, un acceso directo o el historial.
+- Conflictos sin sobrescribir nada: un destino que ya tiene dirección, una dirección que ya se usa, o una dirección que es el destino de otra entrada se marcan en el campo nombrando la otra entrada. Una entrada importada que choca se guarda desactivada.
+- Se guardan en disco (escritorio: `ui-storage.json`, clave `icarus.aliasRules`, para mantener la compatibilidad) y se conservan al reiniciar, restaurar la sesión y actualizar. Las reglas de alias `.icarus` de versiones anteriores se convierten solas: el patrón pasa a ser el destino y el alias, la dirección (las dos reglas de ejemplo sin modificar se descartan).
+
+**Seguridad y límites (lo que ICARUS no hace).** La resolución es interna de ICARUS: Chromium, WebView o WebKit cargan siempre el sitio real, con su certificado; no hay proxy, DNS ni certificados falsos.
+- La dirección personalizada usa siempre el protocolo del destino: una página HTTP nunca se muestra como `https://` (error «La dirección debe usar el mismo protocolo que el destino»), y el icono de seguridad es el de la conexión real.
+- Un error de certificado muestra la dirección real que falló, completa y en rojo, sin dirección personalizada, y no se puede omitir.
+- La información del sitio, los avisos de permisos y de autenticación HTTP, y las excepciones de ICARUS Shield usan el **dominio real** que recibe las solicitudes.
+- `miweb.com` no se convierte en un dominio de Internet: solo existe dentro de ICARUS en este dispositivo. Otros navegadores no la conocen, y «Copiar dirección» copia la dirección personalizada (que fuera de ICARUS lleva a lo que haya publicado en ese dominio, o a ninguna parte). Si existe un sitio real con esa dirección, ICARUS abrirá tu destino en su lugar mientras la entrada esté activa; desactívala para visitar el sitio real.
+- Los enlaces de las páginas van a su URL real: solo lo que escribe el usuario en la barra se resuelve.
+- Para que la dirección funcione fuera de ICARUS haría falta un dominio propio con DNS y certificado apuntando al servidor (o una redirección en el servidor); eso no lo puede hacer un navegador.
 
 ### ICARUS Shield
 Bloquea solicitudes de anuncios y rastreadores antes de que salgan del equipo (scripts, imágenes, iframes, XHR…), con la lista básica incluida, **EasyList** y **EasyPrivacy** (descargadas y actualizadas cada 4 días), la lista de Peter Lowe opcional, listas propias por URL `https://` y reglas propias. El botón del escudo muestra cuántas solicitudes se bloquearon en la página actual y permite desactivar Shield en un sitio. No oculta elementos cosméticos ni bloquea la página principal. Detalles en [docs/SHIELD.md](docs/SHIELD.md).
@@ -255,13 +272,10 @@ Accesos directos: añadir, editar, eliminar, reordenar, abrir en la pestaña act
 ### Configuración (`icarus://configuracion`)
 - **General**: buscador, inicio (pestaña nueva o restaurar pestañas), página principal, estilo, idioma y restaurar valores.
 - **Apariencia**: todos los controles de personalización.
-- **Navegación**: nueva pestaña, dónde abrir los accesos, iconos de sitios y gestor de accesos directos.
+- **Navegación**: nueva pestaña, dónde abrir los accesos, iconos de sitios, «Mostrar siempre las URL completas» y gestor de accesos directos.
 - **Privacidad**, **ICARUS Shield** y **Descargas** (solo en escritorio).
-- **Avanzado**: alias en la interfaz, botón discreto **«Cambiar nombre de URL»**, exportar e importar la configuración en JSON, estado real del motor y carpeta de datos.
+- **Avanzado**: **«Personalizar direcciones URL»**, exportar e importar la configuración en JSON, estado real del motor y carpeta de datos.
 - **Acerca de ICARUS**: versión, motor, plataformas y atajos.
-
-### «Cambiar nombre de URL» (Configuración → Avanzado)
-No aparece en la página de inicio ni en la barra principal. Panel completo para reglas de alias visual: tipo de coincidencia (URL exacta, prefijo o host con comodín `*.dominio`), URL original o patrón, nombre visible, alias `.icarus`, URL de destino real, estado y fechas. Crear, editar, cancelar con aviso, eliminar con confirmación, activar/desactivar, buscar, vista previa, probador de URL, restaurar ejemplos, exportar e importar, detección de conflictos y prioridad determinista (exacta > prefijo más largo > host concreto > comodín; en empate, la más antigua).
 
 ## Android, iPhone y iPad
 
@@ -271,13 +285,15 @@ Las apps móviles tienen interfaz nativa (vistas de Android en Kotlin; SwiftUI e
 | --- | --- | --- | --- |
 | Motor | Chromium 152 (Electron) | WebView del sistema (Chromium) | WebKit |
 | Pestañas, atrás/adelante, recargar, restaurar al abrir | Sí | Sí | Sí |
-| Barra de direcciones: URL, búsqueda, alias `.icarus`, `icarus://…`, sugerencias | Sí | Sí | Sí |
+| Barra como Chrome y Edge: forma corta y completa, selección al editar, URL sin sufijos, `icarus://…`, sugerencias | Sí | Sí | Sí (sin tecla Escape en pantalla: salir de la barra recupera la dirección) |
+| Direcciones personalizadas (misma lógica y mismas pruebas en las tres plataformas) | Sí | Sí | Sí |
+| Icono de seguridad real, «No seguro», error de certificado con la dirección real | Sí | Sí | Sí |
 | ICARUS Shield: bloqueo de solicitudes reales | `webRequest` de Chromium | `shouldInterceptRequest` (también service workers) | Reglas de contenido de WebKit (`WKContentRuleList`) |
 | Contador de bloqueos | Real, por página y total | Real, por página y total | **No hay**: WebKit no informa de lo que bloquea |
 | Listas (básica, EasyList, EasyPrivacy, Peter Lowe, propias), reglas propias y excepciones por sitio | Sí | Sí | Sí; los filtros que WebKit no puede expresar se omiten y se cuentan (26 de 113 650 en EasyList y EasyPrivacy) |
 | Certificados no válidos | Bloqueados, sin opción de continuar | Igual | Igual |
 | Descargas | Gestor propio | DownloadManager de Android (carpeta Descargas) | WKDownload (Archivos → En mi iPhone → ICARUS → Descargas) |
-| Historial, accesos directos y «Cambiar nombre de URL» | Sí | Sí | Sí |
+| Historial y accesos directos | Sí | Sí | Sí |
 | Permisos de sitios | Cámara, micrófono, ubicación, notificaciones… | Ubicación, cámara y micrófono | Cámara y micrófono (la ubicación la pregunta WebKit) |
 | Autenticación HTTP y buscar en la página | Sí | Sí | Sí (buscador de WebKit) |
 | Personalización | Estilo, modo, acento, fondos, widgets | Estilo, modo y acento | Estilo, modo y acento |
@@ -314,7 +330,9 @@ Si el alojamiento bloquea ventanas emergentes: `VITE_ICARUS_EXTERNAL_OPENING=con
 - **Plataformas**: hay paquetes para Windows x64, macOS (arm64 y x64), Android e iPhone/iPad. El código de escritorio también funciona en Linux (las pruebas E2E se ejecutan allí), pero no se publica un paquete para Linux.
 - **macOS**: firma ad hoc sin Developer ID ni notarización (Gatekeeper avisa la primera vez); sin actualizaciones automáticas.
 - **Android**: todas las pestañas comparten cookies y almacenamiento de WebView; las cookies de terceros están bloqueadas (comportamiento de WebView). WebView no indica el tipo de cada recurso, así que Shield lo deduce y una regla limitada a un tipo (p. ej. `$image`) puede no aplicarse a un recurso que no se reconozca. Algunos servicios (como el inicio de sesión de Google) rechazan los navegadores basados en WebView. El APK de CI se firma con una clave de depuración (ver [Instalar en Android](#instalar-en-android)). Las descargas `blob:` y `data:` no son compatibles.
-- **iPhone y iPad**: WebKit es obligatorio; Shield no tiene contador porque WebKit no informa de lo que bloquea; el `.ipa` hay que firmarlo con un Apple ID (7 días con una cuenta gratuita). Sin fondos, widgets ni copia de seguridad en las apps móviles.
+- **Direcciones personalizadas**: existen solo dentro de ICARUS en el dispositivo donde se crean (no son dominios de Internet ni se sincronizan entre dispositivos). Mientras una entrada está activa, la dirección elegida tapa al sitio real que pudiera existir con ese nombre. Los enlaces de las páginas hacia la dirección personalizada van al sitio real con ese nombre, no al destino. Ver [Direcciones personalizadas](#direcciones-personalizadas).
+- **Chrome y Edge**: ICARUS no tiene una versión basada en Edge o WebView2; en Windows y macOS usa siempre el mismo Chromium de Electron. «Esencial» (inspirado en Chrome) y «Panorama» (inspirado en Edge) son estilos de la misma interfaz y comparten la misma barra de direcciones y la misma capa de direcciones personalizadas, que Android (WebView) e iPhone (WebKit) reproducen con la misma lógica y los mismos vectores de prueba.
+- **iPhone y iPad**: WebKit es obligatorio; la barra no tiene tecla Escape en pantalla (salir de la barra sin pulsar Ir recupera la dirección); Shield no tiene contador porque WebKit no informa de lo que bloquea; el `.ipa` hay que firmarlo con un Apple ID (7 días con una cuenta gratuita). Sin fondos, widgets ni copia de seguridad en las apps móviles.
 
 ## Estructura del código
 
@@ -341,12 +359,13 @@ icarus-browser/
 │   ├── components/BrowserShell/ Ventana, controlador de pestañas, WebArea, Shield, descargas, avisos
 │   ├── components/InternalPages/ Historial, descargas, página externa (web), en blanco
 │   ├── components/Settings/     Secciones, incluidas Privacidad, ICARUS Shield y Descargas
-│   └── …                        Barra de direcciones, temas, accesos, widgets, alias, i18n
+│   ├── services/custom-addresses/ Direcciones personalizadas: ubicaciones, mostrar y resolver, validación, formato
+│   └── …                        Barra de direcciones, temas, accesos, widgets, i18n
 ├── mobile/
-│   ├── shared/                  Generado desde escritorio: alias y accesos predeterminados, lista básica de
+│   ├── shared/                  Generado desde escritorio: valores predeterminados, lista básica de
 │   │                            Shield, Public Suffix List, colores, textos y vectores de prueba
 │   ├── android/                 App de Android (Kotlin)
-│   │   ├── core/                Núcleo sin SDK de Android (URL, alias, Shield, perfil, historial) y pruebas
+│   │   ├── core/                Núcleo sin SDK de Android (URL, direcciones personalizadas, Shield, perfil, historial) y pruebas
 │   │   └── app/                 Interfaz, pestañas con WebView, Shield, descargas, ajustes y prueba en emulador
 │   └── ios/                     App de iPhone y iPad (Swift)
 │       ├── Sources/IcarusCore/  Núcleo (incluye la conversión a reglas de WebKit) y Tests/
@@ -366,7 +385,7 @@ En escritorio todo se guarda en `%APPDATA%\ICARUS Browser` (Windows):
 
 | Archivo | Contenido |
 | --- | --- |
-| `ui-storage.json` | Preferencias, accesos directos, reglas de alias, widgets, fondo y pestañas (claves `icarus.*`) |
+| `ui-storage.json` | Preferencias, accesos directos, direcciones personalizadas (`icarus.aliasRules`), widgets, fondo y pestañas (claves `icarus.*`) |
 | `preferences.json` | Descargas y privacidad |
 | `history.json` · `downloads.json` | Historial y lista de descargas |
 | `shield/` | Configuración y listas de Shield |
@@ -384,24 +403,24 @@ Resumen (completo en [docs/SECURITY.md](docs/SECURITY.md)):
 - Permisos preguntados al usuario o denegados; ejecutables descargados nunca se abren desde ICARUS.
 - Fusibles de Electron: sin `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` ni `--inspect`, integridad de `app.asar`, cookies cifradas.
 - El ejecutable no contiene claves ni credenciales.
-- Los alias viven en el espacio `.icarus`, no pueden degradar HTTPS a HTTP y el host real siempre se muestra.
+- Las direcciones personalizadas son solo presentación y resolución interna: el motor carga siempre el sitio real con su certificado, una página HTTP nunca se muestra como HTTPS, el icono de seguridad es el de la conexión real, un error de certificado muestra la dirección real y la información del sitio nombra el dominio que recibe las solicitudes.
 
 ## Pruebas
 
 | Conjunto | Qué comprueba | Dónde se ejecuta | Resultado |
 | --- | --- | --- | --- |
-| `npm run test` (125 pruebas, 14 archivos) | Servicios, componentes, filtros de Shield, dominios, rutas seguras, archivos JSON, menú de macOS y que `mobile/shared` esté al día | Linux (local y CI), Windows y macOS (CI) | 125/125 |
-| `npm run test:e2e` (25 pasos + 3 sitios reales) | Ver abajo | Linux (local y CI), Windows y macOS (CI) | 28/28 en Windows, Linux y macOS en CI; 25/25 en local |
+| `npm run test` (130 pruebas, 14 archivos) | Servicios (incluidas las direcciones personalizadas: mostrar, resolver, validar, conflictos, migración de alias), componentes (barra y editor), filtros de Shield, dominios, rutas seguras, archivos JSON, menú de macOS y que `mobile/shared` esté al día | Linux (local y CI), Windows y macOS (CI) | 130/130 |
+| `npm run test:e2e` (29 pasos + `bot.deriv.me` y 3 sitios reales) | Ver abajo | Linux (local y CI), Windows y macOS (CI) | 29/29 en local (Linux); resultados de CI en la sección de entrega |
 | `npm run test:smoke` | Ejecutable empaquetado: arranque, página dentro de la pestaña, sin puente nativo en la web, datos en disco | Linux, Windows (sin instalar y ya instalado) y macOS (empaquetado e instalado desde el `.dmg`) | Superada |
 | Instalación silenciosa | `Setup.exe /S`, prueba de humo del navegador instalado y desinstalación silenciosa | Windows (CI) | Superada |
-| `./gradlew -p core test` (Android, 25 pruebas) | Vectores compartidos con escritorio, validación, perfil, historial, listas de Shield y tipos de recurso | Linux (local y CI) | 25/25 |
-| Emulador de Android 14 (2 pruebas) | La app real: Shield cancela 2 solicitudes reales, alias, protocolos bloqueados, búsqueda, certificado no válido real, tres estilos; y Configuración, Shield, «Cambiar nombre de URL», Historial y Descargas abren sin cerrarse | CI (Ubuntu) | 2/2, con capturas |
-| `swift test` (iPhone, 18 pruebas) | Vectores compartidos y conversión a reglas de WebKit con un evaluador de su semántica: mismas 28 solicitudes que escritorio, la página principal nunca se bloquea y recorte por el límite de reglas | Linux local (Swift 6.1) y macOS (CI) | 18/18 |
-| Simulador de iOS (5 pruebas) | WebKit real: reglas compiladas, un rastreador real cancelado (y cargado sin reglas), EasyList y EasyPrivacy reales juntas (113 630 reglas, ninguna fuera del límite), `example.com` se abre como página principal aunque `\|\|example.com^` esté en las reglas, alias | CI (macOS) | 5/5, con capturas |
+| `./gradlew -p core test` (Android, 27 pruebas) | Vectores compartidos con escritorio (barra, dirección visible, validación y conflictos, migración de alias), perfil, historial, listas de Shield y tipos de recurso | Linux (local y CI) | 27/27 |
+| Emulador de Android 14 (2 pruebas) | La app real: Shield cancela 2 solicitudes reales, dirección personalizada `miweb.com` en la barra y al escribirla, protocolos bloqueados, búsqueda, certificado no válido real con la dirección real, tres estilos; y Configuración, Shield, Direcciones personalizadas, Historial y Descargas abren sin cerrarse | CI (Ubuntu) | 2/2, con capturas |
+| `swift test` (iPhone, 21 pruebas) | Vectores compartidos (barra, dirección visible, validación, migración de alias) y conversión a reglas de WebKit con un evaluador de su semántica: mismas 28 solicitudes que escritorio, la página principal nunca se bloquea y recorte por el límite de reglas | Linux local (Swift 6.1) y macOS (CI) | 21/21 |
+| Simulador de iOS (5 pruebas) | WebKit real: reglas compiladas, un rastreador real cancelado (y cargado sin reglas), EasyList y EasyPrivacy reales juntas (113 630 reglas, ninguna fuera del límite), `example.com` se abre como página principal aunque `\|\|example.com^` esté en las reglas, dirección personalizada `bot.deriv.me` → `miweb.com` | CI (macOS) | 5/5, con capturas |
 
-Pasos E2E con Electron real y servidores HTTP y HTTPS locales: 1 iniciar · 2 abrir una página dentro de la pestaña · 3 buscar desde la barra · 4 volver atrás · 5 dos pestañas y cambiar · 6 atrás y adelante · 7 recargar · 8 `target=_blank` como pestaña · 9 cerrar y crear pestañas libera vistas · 10 los tres estilos · 11 menús sobre la página · 12 alias con navegación real y URL real conservada · 13 Shield bloquea una solicitud real y el contador lo refleja · 14 descarga real a disco · 15 historial · 16 icono real del sitio y detener la carga · 17 Ctrl+L desde la página (selecciona toda la dirección), Ctrl+W, Ctrl+Mayús+T y Ctrl+Tab · 18 el alias se retira cuando la regla deja de coincidir · 19 `javascript:`, `mailto:` y `file:` bloqueados en la barra y en enlaces · 20 certificado autofirmado rechazado sin opción de omitirlo (necesita `openssl`; si falta, el paso se marca como omitido) · 21 permiso de ubicación preguntado con el origen real y denegado · 22 autenticación HTTP: cancelar (401), contraseña incorrecta (se vuelve a pedir) y correcta, con la página oculta bajo el diálogo · 23 buscar en la página con Ctrl+F desde la página (1 de 3, siguiente, anterior, sin resultados, Escape) · 24 cerrar, reabrir y conservar estilo, reglas de Shield, historial y alias · 25 borrar el historial.
+Pasos E2E con Electron real y servidores HTTP y HTTPS locales: 1 iniciar · 2 abrir una página dentro de la pestaña · 3 buscar desde la barra · 4 volver atrás · 5 dos pestañas y cambiar · 6 atrás y adelante · 7 recargar · 8 `target=_blank` como pestaña · 9 cerrar y crear pestañas libera vistas · 10 los tres estilos · 11 menús sobre la página · 12 (A) dirección personalizada `miweb.com` sin sufijos: la barra solo la muestra, Chromium carga la URL real, HTTP indicado como «No seguro», escribirla abre la página real y Escape recupera la dirección · 13 Shield bloquea una solicitud real y el contador lo refleja · 14 descarga real a disco · 15 historial · 16 icono real del sitio y detener la carga · 17 Ctrl+L desde la página (selecciona toda la dirección), Ctrl+W, Ctrl+Mayús+T y Ctrl+Tab · 18 (B, D) editar la dirección a `otraweb.com` y mantenerla con enlaces, `pushState`, fragmentos y redirecciones internas; una redirección a otro sitio muestra la dirección real · 19 `javascript:`, `mailto:` y `file:` bloqueados en la barra y en enlaces · 20 certificado autofirmado rechazado sin opción de omitirlo (necesita `openssl`; si falta, el paso se marca como omitido) · 21 permiso de ubicación preguntado con el origen real y denegado · 22 autenticación HTTP: cancelar (401), contraseña incorrecta (se vuelve a pedir) y correcta, con la página oculta bajo el diálogo · 23 buscar en la página con Ctrl+F desde la página (1 de 3, siguiente, anterior, sin resultados, Escape) · 24 (E) cerrar, reabrir y conservar estilo, reglas de Shield, historial y la dirección personalizada (sesión restaurada) · 25 borrar el historial · 26 (C) `google.com` navega a `https://google.com/` · 27 (F) pestaña nueva, atrás, adelante, recargar y Ctrl+Mayús+T conservan la dirección personalizada · 28 (H) certificado no válido en un destino personalizado: barra con la dirección real, `https` tachado y «No seguro» · 29 (G) mismo comportamiento en los estilos Esencial (Chrome) y Panorama (Edge).
 
-`ICARUS_E2E_INTERNET=1` añade sitios reales por HTTPS (Wikipedia, Google y YouTube por defecto, o `ICARUS_E2E_SITES`): comprueba que cargan sin página de error y que la URL final es `https://`. Los flujos de GitHub Actions lo activan en Linux, Windows y macOS. En el entorno donde se desarrolló esta versión, la red solo permitía algunos dominios: **github.com cargó dentro de ICARUS con TLS verificado**, mientras que Wikipedia, Google, YouTube y easylist.to estaban bloqueados por el proxy del entorno (`CONNECT 403`), así que esas páginas y la descarga de EasyList no pudieron probarse allí. En GitHub Actions, sin esas restricciones, el paso 3 sí cargó la búsqueda real de Google. No hubo una máquina Windows, un Mac, un teléfono Android ni un iPhone físicos: las pruebas de esas plataformas son las de los ejecutores de GitHub Actions (Windows, macOS en Apple Silicon, emulador de Android 14 y simulador de iPhone). Instalar el `.ipa` en un iPhone real requiere firmarlo con un Apple ID, algo que no se puede hacer desde CI sin la cuenta del usuario.
+`ICARUS_E2E_INTERNET=1` añade sitios reales por HTTPS: `https://bot.deriv.me/` con la dirección personalizada `https://miweb.com/` (la barra muestra `miweb.com` y la conexión real se indica como segura) y Wikipedia, Google y YouTube (o `ICARUS_E2E_SITES`), que deben cargar sin página de error con URL final `https://`. Los flujos de GitHub Actions lo activan en Linux, Windows y macOS. En el entorno donde se desarrolló esta versión, la red solo permitía algunos dominios: **github.com cargó dentro de ICARUS con TLS verificado**, mientras que Wikipedia, Google, YouTube y easylist.to estaban bloqueados por el proxy del entorno (`CONNECT 403`), así que esas páginas y la descarga de EasyList no pudieron probarse allí. En GitHub Actions, sin esas restricciones, el paso 3 sí cargó la búsqueda real de Google. En la sesión de la corrección de la barra de direcciones, el proxy del entorno interceptaba TLS con su propia autoridad: Chromium rechazó ese certificado y la barra mostró «No seguro» con la dirección real tachada, como debe; por eso `bot.deriv.me` solo se prueba en CI. No hubo una máquina Windows, un Mac, un teléfono Android ni un iPhone físicos: las pruebas de esas plataformas son las de los ejecutores de GitHub Actions (Windows, macOS en Apple Silicon, emulador de Android 14 y simulador de iPhone). Instalar el `.ipa` en un iPhone real requiere firmarlo con un Apple ID, algo que no se puede hacer desde CI sin la cuenta del usuario.
 
 La prueba de humo habla directamente el protocolo DevTools, porque el ejecutable empaquetado tiene desactivado `--inspect`. En Windows, Playwright se quedaba esperando a veces si se conectaba mientras Electron creaba la ventana; por eso las pruebas E2E usan `ICARUS_STARTUP_DELAY_MS=2000`, que retrasa la ventana dos segundos solo en la versión sin empaquetar.
 
