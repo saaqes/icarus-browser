@@ -248,7 +248,7 @@ struct MenuSheet: View {
                                 view?.findInteraction?.presentFindNavigator(showingReplace: false)
                             }
                         }
-                        row("doc.on.doc", "Copiar dirección real") { UIPasteboard.general.string = tab.url; show(nil) }
+                        row("doc.on.doc", "Copiar dirección") { UIPasteboard.general.string = AddressFormat.display(tab.url).full; show(nil) }
                         row("star", "Añadir a accesos directos") {
                             switch services.profile.saveShortcut(title: String(AddressFormat.title(tab.url, tab.title).prefix(Profile.shortcutTitleMax)), url: tab.url) {
                             case .ok: browser.notice = "Acceso directo añadido."
@@ -257,12 +257,6 @@ struct MenuSheet: View {
                                     : errors.values.first.map { services.text("shortcutErrors", $0) } ?? "No se pudo añadir."
                             }
                             show(nil)
-                        }
-                        if let alias = AddressFormat.display(tab.url).alias {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("«\(alias)» es un alias visual de ICARUS. Dirección real:").font(.footnote).foregroundColor(.secondary)
-                                Text(tab.url).font(.footnote).textSelection(.enabled)
-                            }
                         }
                     }
                 }
@@ -291,6 +285,69 @@ struct MenuSheet: View {
 
     private func row(_ icon: String, _ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) { Label(title, systemImage: icon) }
+    }
+}
+
+/// Información del sitio, como el panel del icono de la barra en Chrome: estado real de
+/// la conexión y, si se muestra una dirección personalizada, a qué sitio van de verdad
+/// las solicitudes (nunca se oculta al pedir la información de seguridad).
+struct SiteInfoSheet: View {
+    @ObservedObject var tab: BrowserTab
+    let look: Look
+    let customize: (CustomAddressRequest) -> Void
+    @ObservedObject private var services = AppServices.shared
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let certificate = tab.error?.kind == .certificate
+        let url = certificate ? tab.error!.url : (tab.error?.url ?? tab.url)
+        let display = AddressFormat.display(url, applyCustom: !certificate)
+        let realHost = UrlUtils.parseWebURL(url)?.host ?? url
+        let shownHost = CustomAddresses.formatAddress(display.full, full: false).host
+        let origin = UrlUtils.parseWebURL(url).map { "\($0.protocol)//\($0.host)/" }
+        NavigationStack {
+            List {
+                Section {
+                    if certificate {
+                        info("exclamationmark.triangle.fill", look.danger, services.text("addressBar", "insecureTitle"),
+                             services.text("addressBar", "dangerousBody", ["host": realHost]))
+                    } else if display.secure {
+                        info("lock", look.fg2, services.text("addressBar", "secureTitle"), "WebKit verificó el certificado de \(realHost). La información que envíes viaja cifrada.")
+                    } else if display.insecure {
+                        info("exclamationmark.triangle", look.color("warning"), services.text("addressBar", "insecureTitle"), services.text("addressBar", "insecureBody"))
+                    }
+                    if display.custom != nil {
+                        info("globe", look.fg2, services.text("addressBar", "customTitle"),
+                             services.text("addressBar", "customBody", ["shown": shownHost, "real": realHost]))
+                    }
+                }
+                Section {
+                    Button { UIPasteboard.general.string = display.full; dismiss() } label: { Label("Copiar dirección", systemImage: "doc.on.doc") }
+                    if !certificate, let origin {
+                        Button {
+                            customize(display.custom.map { CustomAddressRequest(editId: $0.id) } ?? CustomAddressRequest(target: origin))
+                        } label: {
+                            Label(display.custom == nil ? "Personalizar dirección" : "Editar dirección personalizada", systemImage: "pencil")
+                        }
+                    }
+                }
+            }
+            .navigationTitle(shownHost)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func info(_ icon: String, _ color: Color, _ title: String, _ body: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon).foregroundColor(color).frame(width: 22)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.headline)
+                Text(body).font(.subheadline).foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

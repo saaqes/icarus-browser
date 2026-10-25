@@ -76,6 +76,23 @@ final class AppServices: ObservableObject {
         (((strings[group] as? [String: Any])?[subgroup] as? [String: Any])?[key] as? String) ?? key
     }
 
+    func textList(_ group: String, _ subgroup: String, _ key: String) -> [String] {
+        ((strings[group] as? [String: Any])?[subgroup] as? [String: Any])?[key] as? [String] ?? []
+    }
+
+    /// Texto compartido con sus parámetros `{nombre}` sustituidos.
+    func text(_ group: String, _ key: String, _ params: [String: String]) -> String {
+        AppServices.fill(text(group, key), params)
+    }
+
+    func text(_ group: String, _ subgroup: String, _ key: String, _ params: [String: String]) -> String {
+        AppServices.fill(text(group, subgroup, key), params)
+    }
+
+    private static func fill(_ template: String, _ params: [String: String]) -> String {
+        params.reduce(template) { text, param in text.replacingOccurrences(of: "{\(param.key)}", with: param.value) }
+    }
+
     private static let ruleListId = "icarus-shield"
     private static let compiledKey = "icarus.shield.compiled"
     /// Huella de las listas con las que se compilaron las reglas que hay en WebKit.

@@ -15,10 +15,8 @@ enum Shared {
         return try JSONSerialization.jsonObject(with: data) as! [String: Any]
     }
 
-    static func rules(_ value: Any?) throws -> [AliasRule] {
-        let data = try JSONSerialization.data(withJSONObject: value ?? [])
-        return try JSONDecoder().decode([AliasRule].self, from: data)
-    }
+    /// Entradas de los vectores, leídas como las guardadas por la app.
+    static func customAddresses(_ value: Any?) -> [CustomAddress] { CustomAddresses.sanitize(value) }
 
     static let suffixes: PublicSuffixList = PublicSuffixList(rules: try! text("public-suffix-rules.txt"))
 }

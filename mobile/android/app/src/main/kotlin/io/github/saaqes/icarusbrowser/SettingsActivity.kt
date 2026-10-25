@@ -357,9 +357,10 @@ class SettingsActivity : ScreenActivity() {
 
     /** Crear o editar una dirección: los conflictos se muestran en el campo y nunca se sobrescribe otra entrada. */
     private fun editAddress(entry: CustomAddress?, initialTarget: String? = null) {
-        val target = w.field(caForm("target"), entry?.target?.let(::short) ?: initialTarget?.let(::short).orEmpty(), caForm("targetPlaceholder"),
+        // Completas, como en escritorio: así se conserva el protocolo (p. ej. un destino http://).
+        val target = w.field(caForm("target"), entry?.target ?: initialTarget.orEmpty(), caForm("targetPlaceholder"),
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
-        val address = w.field(caForm("address"), entry?.address?.let(::short).orEmpty(), caForm("addressPlaceholder"),
+        val address = w.field(caForm("address"), entry?.address.orEmpty(), caForm("addressPlaceholder"),
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
         val enabled = CheckBox(this).apply {
             text = caForm("enabled")
@@ -407,7 +408,7 @@ class SettingsActivity : ScreenActivity() {
                                 textStyle(14f, p.fg1)
                                 background = pressable(look, rounded(p.surface2, 16, p.border1), 16)
                                 setPadding(dp(12), dp(8), dp(12), dp(8))
-                                setOnClickListener { target.edit.setText(short(choice)) }
+                                setOnClickListener { target.edit.setText(choice) }
                             })
                         }
                     })

@@ -4,8 +4,6 @@ import Foundation
 /// y a UrlUtils.kt (Android). Solo se consideran navegables las URL http(s).
 public enum UrlUtils {
     public static let webProtocols: Set<String> = ["http:", "https:"]
-    /// Sufijo reservado para los alias visuales de ICARUS. No es un dominio de Internet.
-    public static let aliasSuffix = ".icarus"
     /// Protocolos que nunca se abren porque pueden ejecutar código o leer datos locales.
     public static let dangerousProtocols: Set<String> = ["javascript:", "data:", "vbscript:", "file:", "blob:"]
 
@@ -19,7 +17,6 @@ public enum UrlUtils {
     static let hostWithPort = Pattern("^(.*):([^:\\]]*)$")
     static let protocolPattern = Pattern("^([a-z][a-z0-9+.-]*):", caseInsensitive: true)
     static let hostWithPortNotScheme = Pattern("^[^:/]+:\\d+(?:[/?#]|$)")
-    static let aliasLike = Pattern("^[^/?#]+\\.icarus(?:[/?#]|$)", caseInsensitive: true)
 
     public static func parseWebURL(_ text: String) -> WebURL? {
         guard let url = WebURL.parse(text.trimmed), !url.hostname.isEmpty else { return nil }
@@ -32,11 +29,6 @@ public enum UrlUtils {
     }
 
     public static func isIPLiteral(_ hostname: String) -> Bool { ipv4.matches(hostname) || ipv6Bracketed.matches(hostname) }
-
-    public static func isAliasHost(_ hostname: String) -> Bool {
-        let host = hostname.lowercased().removingSuffix(".")
-        return host == "icarus" || host.hasSuffix(aliasSuffix)
-    }
 
     /// ¿Parece `text` un host con puerto opcional (ej. `ejemplo.com`, `localhost:3000`)?
     public static func looksLikeHost(_ text: String) -> Bool {
@@ -60,12 +52,12 @@ public enum UrlUtils {
 
     public enum Normalized {
         case ok(url: String, parsed: WebURL)
-        /// `empty`, `unsafe-protocol`, `unsupported-protocol`, `invalid` o `alias`.
+        /// `empty`, `unsafe-protocol`, `unsupported-protocol` o `invalid`.
         case failure(reason: String)
     }
 
-    /// Normaliza una URL escrita en formularios (accesos directos, reglas). Acepta
-    /// `ejemplo.com` como `https://ejemplo.com/`. Rechaza protocolos peligrosos y alias.
+    /// Normaliza una URL escrita en formularios (accesos directos, página principal).
+    /// Acepta `ejemplo.com` como `https://ejemplo.com/`. Rechaza protocolos peligrosos.
     public static func normalizeUserURL(_ text: String) -> Normalized {
         let value = text.trimmed
         if value.isEmpty { return .failure(reason: "empty") }
@@ -78,15 +70,12 @@ public enum UrlUtils {
             if !webProtocols.contains(proto) { return .failure(reason: "unsupported-protocol") }
         } else {
             let hostPart = String(value.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "/" || $0 == "?" || $0 == "#" }).first ?? "")
-            if !looksLikeHost(hostPart) {
-                return .failure(reason: aliasLike.contains(value) ? "alias" : "invalid")
-            }
+            if !looksLikeHost(hostPart) { return .failure(reason: "invalid") }
             let bareHost = Pattern(":\\d+$").replacing(hostPart, with: "")
             let scheme = isLoopbackHost(bareHost) || isIPLiteral(bareHost) ? "http" : "https"
             candidate = "\(scheme)://\(value)"
         }
         guard let parsed = parseWebURL(candidate) else { return .failure(reason: "invalid") }
-        if isAliasHost(parsed.hostname) { return .failure(reason: "alias") }
         if parsed.hasCredentials { return .failure(reason: "invalid") }
         return .ok(url: parsed.href, parsed: parsed)
     }

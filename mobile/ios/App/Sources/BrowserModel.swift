@@ -1,38 +1,38 @@
 import SwiftUI
 import WebKit
 
-/// Cómo se presenta una dirección: el alias si hay regla activa, o el host y la ruta.
+/// Cómo se presenta una dirección, igual que en escritorio, Android y Chrome: la dirección
+/// personalizada si la página está dentro de su destino; si no, la real. Sin foco, en
+/// forma corta (sin https:// ni www.); al editar, completa.
 enum AddressFormat {
+    /// `text`: lo que se ve sin foco; `full`: lo que se edita; `secure`/`insecure`:
+    /// protocolo real de la página; `custom`: entrada aplicada (o nil).
     struct Display {
         let text: String
-        let alias: String?
+        let full: String
         let secure: Bool
         let insecure: Bool
+        let custom: CustomAddress?
     }
 
     @MainActor
-    static func display(_ url: String) -> Display {
+    static func display(_ url: String, applyCustom: Bool = true) -> Display {
         let services = AppServices.shared
-        if url == InternalPage.newTab.url { return Display(text: "", alias: nil, secure: false, insecure: false) }
-        guard let parsed = UrlUtils.parseWebURL(url) else { return Display(text: url, alias: nil, secure: false, insecure: false) }
-        if services.settings.showAliases, let match = AliasRules.findMatch(url, services.profile.aliasRules) {
-            return Display(text: match.rule.alias, alias: match.rule.alias, secure: parsed.protocol == "https:", insecure: parsed.protocol == "http:")
-        }
-        let path = parsed.pathname + parsed.search == "/" ? "" : parsed.pathname + parsed.search
-        if parsed.protocol == "https:" {
-            return Display(text: parsed.host.removingPrefix("www.") + path, alias: nil, secure: true, insecure: false)
-        }
-        return Display(text: "http://\(parsed.host)\(path)", alias: nil, secure: false, insecure: !UrlUtils.isLoopbackHost(parsed.hostname))
+        if url == InternalPage.newTab.url { return Display(text: "", full: "", secure: false, insecure: false, custom: nil) }
+        guard let parsed = UrlUtils.parseWebURL(url) else { return Display(text: url, full: url, secure: false, insecure: false, custom: nil) }
+        let match = applyCustom ? CustomAddresses.displayURL(for: url, services.profile.customAddresses) : nil
+        let shown = match?.url ?? url
+        let text = CustomAddresses.formatAddress(shown, full: services.settings.showFullUrls).description
+        return Display(text: text, full: CustomAddresses.formatAddress(shown, full: true).description,
+                       secure: parsed.protocol == "https:", insecure: parsed.protocol == "http:", custom: match?.entry)
     }
 
-    /// Título visible: el nombre de la regla de alias, el título o el host.
+    /// Título visible de una página: el de la página o, si no tiene, su dirección visible.
     @MainActor
     static func title(_ url: String, _ pageTitle: String) -> String {
         if url == InternalPage.newTab.url { return "Nueva pestaña" }
-        let services = AppServices.shared
-        if services.settings.showAliases, let match = AliasRules.findMatch(url, services.profile.aliasRules) { return match.rule.displayName }
         if !pageTitle.trimmed.isEmpty { return pageTitle }
-        return UrlUtils.parseWebURL(url)?.hostname ?? url
+        return CustomAddresses.shortAddress(display(url).full)
     }
 }
 
@@ -111,13 +111,10 @@ final class BrowserModel: ObservableObject {
     /// Abre lo escrito en la barra de direcciones (mismo resolvedor que escritorio y Android).
     func submit(_ text: String) {
         let settings = services.settings
-        switch InputResolver.resolve(text, provider: settings.searchProvider, rules: services.profile.aliasRules) {
+        switch InputResolver.resolve(text, provider: settings.searchProvider, customAddresses: services.profile.customAddresses) {
         case .empty: break
-        case .url(let url), .search(let url, _, _), .alias(let url, _): navigate(url)
-        case .aliasUnresolved(let alias, let reason):
-            notice = reason == "disabled"
-                ? "La regla del alias «\(alias)» está desactivada."
-                : "«\(alias)» no corresponde a ninguna regla de alias. Los alias .icarus no son dominios de Internet."
+        // Una dirección personalizada abre su destino real; la barra seguirá mostrando la personalizada.
+        case .url(let url), .search(let url, _, _), .custom(let url, _, _): navigate(url)
         case .internal(let page): openInternal(page)
         case .internalUnknown(let value): notice = "La página interna «\(value)» no existe."
         case .blocked(let proto, let dangerous):
@@ -164,13 +161,12 @@ final class BrowserModel: ObservableObject {
         var result: [Suggestion] = []
         let settings = services.settings
         if !value.isEmpty {
-            switch InputResolver.resolve(value, provider: settings.searchProvider, rules: services.profile.aliasRules) {
-            case .url(let url): result.append(Suggestion(icon: "globe", title: "Ir a \(url)", subtitle: nil, target: value))
+            switch InputResolver.resolve(value, provider: settings.searchProvider, customAddresses: services.profile.customAddresses) {
+            case .url(let url):
+                result.append(Suggestion(icon: "globe", title: "Ir a \(CustomAddresses.shortAddress(AddressFormat.display(url).full))", subtitle: nil, target: value))
             case .search(_, let q, let provider): result.append(Suggestion(icon: "magnifyingglass", title: "Buscar «\(q)»", subtitle: "con \(provider.displayName)", target: value))
-            case .alias(let url, let rule): result.append(Suggestion(icon: "tag", title: "Abrir \(rule.alias)", subtitle: "Alias de ICARUS → \(url)", target: value))
-            case .aliasUnresolved(let alias, let reason):
-                result.append(Suggestion(icon: "exclamationmark.triangle", title: alias,
-                                         subtitle: reason == "disabled" ? "La regla de este alias está desactivada." : "No hay ninguna regla para este alias.", target: nil))
+            case .custom(_, let address, _):
+                result.append(Suggestion(icon: "globe", title: "Ir a \(CustomAddresses.shortAddress(address))", subtitle: "Dirección personalizada", target: value))
             case .internal(let page): result.append(Suggestion(icon: "doc", title: "Abrir \(page.url)", subtitle: nil, target: value))
             case .internalUnknown: result.append(Suggestion(icon: "exclamationmark.triangle", title: "Página interna desconocida", subtitle: value, target: nil))
             case .blocked(let proto, let dangerous):
@@ -181,12 +177,23 @@ final class BrowserModel: ObservableObject {
         }
         let needle = value.lowercased()
         if !needle.isEmpty {
+            // Direcciones personalizadas que empiezan por lo escrito (como el autocompletado de Chrome).
+            let typed = result.first?.subtitle == "Dirección personalizada" ? result.first?.title : nil
+            for entry in CustomAddresses.startingWith(value, services.profile.customAddresses).prefix(3) {
+                let shown = CustomAddresses.shortAddress(entry.address)
+                if typed == "Ir a \(shown)" { continue }
+                result.append(Suggestion(icon: "globe", title: shown, subtitle: "Dirección personalizada", target: entry.target))
+            }
             for shortcut in services.profile.shortcuts.filter({ $0.title.lowercased().contains(needle) || $0.url.lowercased().contains(needle) }).prefix(3) {
                 result.append(Suggestion(icon: "star", title: shortcut.title, subtitle: AddressFormat.display(shortcut.url).text, target: shortcut.url))
             }
         }
         var seen = Set<String>()
-        for item in services.history.search(value) where seen.insert(item.url).inserted {
+        // También coincide con la dirección visible (la personalizada), no solo con la real.
+        let history = needle.isEmpty ? services.history.list() : services.history.list().filter { item in
+            item.title.lowercased().contains(needle) || item.url.lowercased().contains(needle) || AddressFormat.display(item.url).full.lowercased().contains(needle)
+        }
+        for item in history where seen.insert(item.url).inserted {
             result.append(Suggestion(icon: "clock", title: AddressFormat.title(item.url, item.title), subtitle: AddressFormat.display(item.url).text, target: item.url))
             if seen.count >= (needle.isEmpty ? 6 : 5) { break }
         }

@@ -22,8 +22,8 @@ public struct Settings: Codable, Equatable {
     public var saveHistory = true
     public var restoreSession = true
     public var showShortcuts = true
-    /// «Aplicar alias de URL en la interfaz» (Configuración → Avanzado en escritorio).
-    public var showAliases = true
+    /// «Mostrar siempre las URL completas»: sin foco, la barra muestra `https://` y `www.`.
+    public var showFullUrls = false
 
     public init() {}
 
@@ -39,7 +39,7 @@ public struct Settings: Codable, Equatable {
         saveHistory = (try? container.decodeIfPresent(Bool.self, forKey: .saveHistory)) ?? defaults.saveHistory
         restoreSession = (try? container.decodeIfPresent(Bool.self, forKey: .restoreSession)) ?? defaults.restoreSession
         showShortcuts = (try? container.decodeIfPresent(Bool.self, forKey: .showShortcuts)) ?? defaults.showShortcuts
-        showAliases = (try? container.decodeIfPresent(Bool.self, forKey: .showAliases)) ?? defaults.showAliases
+        showFullUrls = (try? container.decodeIfPresent(Bool.self, forKey: .showFullUrls)) ?? defaults.showFullUrls
     }
 }
 
@@ -60,14 +60,15 @@ public enum SitePermission: String, Codable, CaseIterable {
     case camera, microphone
 }
 
-/// Datos del usuario en el dispositivo: preferencias, accesos directos, reglas de alias,
-/// decisiones de permisos y sesión. Se guardan en `profile.json` (escritura atómica).
+/// Datos del usuario en el dispositivo: preferencias, accesos directos, direcciones
+/// personalizadas, decisiones de permisos y sesión. Se guardan en `profile.json` (escritura atómica).
 public final class Profile {
     private struct Data: Codable {
-        var version = 1
+        /// 2: direcciones personalizadas (antes, reglas de alias en `aliasRules`).
+        var version = 2
         var settings = Settings()
         var shortcuts: [Shortcut]
-        var aliasRules: [AliasRule]
+        var customAddresses: [CustomAddress]
         /// origen → permiso → permitido.
         var permissions: [String: [String: Bool]] = [:]
         var session = SavedSession()
@@ -79,7 +80,6 @@ public final class Profile {
 
     private let file: URL
     private let defaultShortcuts: [Shortcut]
-    private let defaultAliasRules: [AliasRule]
     private var data: Data
     private let lock = NSLock()
     public var onChange: () -> Void = {}
@@ -87,14 +87,13 @@ public final class Profile {
     public init(directory: URL, defaultsJSON: Foundation.Data) throws {
         struct Defaults: Decodable {
             let shortcuts: [Shortcut]
-            let aliasRules: [AliasRule]
         }
         let defaults = try JSONDecoder().decode(Defaults.self, from: defaultsJSON)
         defaultShortcuts = defaults.shortcuts
-        defaultAliasRules = defaults.aliasRules
         file = directory.appendingPathComponent("profile.json")
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        data = Data(shortcuts: defaults.shortcuts, aliasRules: defaults.aliasRules)
+        let rawDefaults = try? JSONSerialization.jsonObject(with: defaultsJSON) as? [String: Any]
+        data = Data(shortcuts: defaults.shortcuts, customAddresses: CustomAddresses.sanitize(rawDefaults?["customAddresses"]))
         if let stored = try? Foundation.Data(contentsOf: file), let decoded = Profile.decode(stored, defaults: self) {
             data = decoded
         }
@@ -103,7 +102,7 @@ public final class Profile {
     /// Descarta lo que no sea válido, como sanitize.ts en escritorio.
     private static func decode(_ stored: Foundation.Data, defaults: Profile) -> Data? {
         guard let raw = try? JSONSerialization.jsonObject(with: stored) as? [String: Any] else { return nil }
-        var result = Data(shortcuts: defaults.defaultShortcuts, aliasRules: defaults.defaultAliasRules)
+        var result = Data(shortcuts: defaults.defaultShortcuts, customAddresses: [])
         if let settings = raw["settings"], let encoded = try? JSONSerialization.data(withJSONObject: settings),
            let decoded = try? JSONDecoder().decode(Settings.self, from: encoded) {
             result.settings = decoded
@@ -117,15 +116,8 @@ public final class Profile {
                 return Shortcut(id: (item["id"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? UUID().uuidString, title: title, url: url)
             }.prefix(maxShortcuts).map { $0 }
         }
-        if let rules = raw["aliasRules"], let encoded = try? JSONSerialization.data(withJSONObject: rules),
-           let decoded = try? JSONDecoder().decode([AliasRule].self, from: encoded) {
-            result.aliasRules = decoded.filter { rule in
-                let input = AliasRules.Input(name: rule.name, matchType: rule.matchType, pattern: rule.pattern, displayName: rule.displayName,
-                                             alias: rule.alias, targetUrl: rule.targetUrl, enabled: rule.enabled)
-                if case .ok = AliasRules.validate(input, others: []) { return !rule.id.isEmpty }
-                return false
-            }
-        }
+        // Las versiones anteriores guardaban reglas de alias: se convierten al leerlas.
+        result.customAddresses = CustomAddresses.sanitize(raw["customAddresses"] ?? raw["aliasRules"])
         if let permissions = raw["permissions"] as? [String: [String: Bool]] {
             result.permissions = permissions.filter { origin, _ in origin.range(of: "^https?://[^/\\s]+$", options: .regularExpression) != nil }
         }
@@ -143,7 +135,7 @@ public final class Profile {
 
     public var settings: Settings { lock.locked { data.settings } }
     public var shortcuts: [Shortcut] { lock.locked { data.shortcuts } }
-    public var aliasRules: [AliasRule] { lock.locked { data.aliasRules } }
+    public var customAddresses: [CustomAddress] { lock.locked { data.customAddresses } }
     public var session: SavedSession { lock.locked { data.session } }
 
     public func updateSettings(_ transform: (inout Settings) -> Void) {
@@ -172,7 +164,6 @@ public final class Profile {
         case .failure(let reason):
             switch reason {
             case "empty": errors["url"] = "required"
-            case "alias": errors["url"] = "alias-url"
             case "invalid": errors["url"] = "invalid-url"
             default: errors["url"] = "unsafe-protocol"
             }
@@ -192,33 +183,50 @@ public final class Profile {
     public func removeShortcut(id: String) { change { $0.shortcuts.removeAll { $0.id == id } } }
     public func resetShortcuts() { change { $0.shortcuts = defaultShortcuts } }
 
-    /* -------------------------------- Reglas de alias -------------------------------- */
+    /* ------------------------- Direcciones personalizadas ------------------------- */
 
+    /// Crea o edita una entrada. Devuelve los errores (con la entrada que choca) sin tocar las demás.
     @discardableResult
-    public func saveAliasRule(_ input: AliasRules.Input, editingId: String? = nil) -> AliasRules.Validation {
-        let result = AliasRules.validate(input, others: aliasRules, editingId: editingId)
-        guard case .ok(let value) = result else { return result }
-        let now = ISO8601DateFormatter().string(from: Date())
+    public func saveCustomAddress(target: String, address: String, enabled: Bool, editingId: String? = nil) -> CustomAddresses.Validation {
+        let current = customAddresses
+        if editingId == nil && current.count >= CustomAddresses.max { return .errors(["target": "limit"], conflicts: [:]) }
+        let result = CustomAddresses.validate(target: target, address: address, enabled: enabled, entries: current, editingId: editingId)
+        guard case .ok(let cleanTarget, let cleanAddress, let isEnabled) = result else { return result }
+        let now = Profile.timestamp()
         change { data in
-            let existing = data.aliasRules.firstIndex { $0.id == editingId }
-            let rule = AliasRule(id: existing.map { data.aliasRules[$0].id } ?? UUID().uuidString, name: value.name, matchType: value.matchType,
-                                 pattern: value.pattern, displayName: value.displayName, alias: value.alias, targetUrl: value.targetUrl,
-                                 enabled: value.enabled, createdAt: existing.map { data.aliasRules[$0].createdAt } ?? now, updatedAt: now)
-            if let existing { data.aliasRules[existing] = rule } else { data.aliasRules.append(rule) }
+            let existing = data.customAddresses.firstIndex { $0.id == editingId }
+            let entry = CustomAddress(id: existing.map { data.customAddresses[$0].id } ?? UUID().uuidString, target: cleanTarget, address: cleanAddress,
+                                      enabled: isEnabled, createdAt: existing.map { data.customAddresses[$0].createdAt } ?? now, updatedAt: now)
+            if let existing { data.customAddresses[existing] = entry } else { data.customAddresses.append(entry) }
         }
         return result
     }
 
-    public func setAliasEnabled(id: String, enabled: Bool) {
-        change { data in
-            guard let index = data.aliasRules.firstIndex(where: { $0.id == id }) else { return }
-            data.aliasRules[index].enabled = enabled
-            data.aliasRules[index].updatedAt = ISO8601DateFormatter().string(from: Date())
+    /// Activa o desactiva. No activa una entrada que choca con otra activa: devuelve esa otra.
+    @discardableResult
+    public func setCustomAddressEnabled(id: String, enabled: Bool) -> CustomAddress? {
+        let current = customAddresses
+        guard let entry = current.first(where: { $0.id == id }) else { return nil }
+        if enabled, let target = CustomAddresses.parseLocation(entry.target), let address = CustomAddresses.parseLocation(entry.address) {
+            let conflicts = CustomAddresses.findConflicts(target: target, address: address, current, exceptId: id).conflicts
+            if let other = conflicts["target"] ?? conflicts["address"] { return other }
         }
+        change { data in
+            guard let index = data.customAddresses.firstIndex(where: { $0.id == id }) else { return }
+            data.customAddresses[index].enabled = enabled
+            data.customAddresses[index].updatedAt = Profile.timestamp()
+        }
+        return nil
     }
 
-    public func removeAliasRule(id: String) { change { $0.aliasRules.removeAll { $0.id == id } } }
-    public func resetAliasRules() { change { $0.aliasRules = defaultAliasRules } }
+    public func removeCustomAddress(id: String) { change { $0.customAddresses.removeAll { $0.id == id } } }
+
+    /// Fecha ISO 8601 con milisegundos, como `new Date().toISOString()` en escritorio.
+    private static func timestamp() -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: Date())
+    }
 
     /* ---------------------------------- Permisos ---------------------------------- */
 

@@ -11,8 +11,14 @@ struct IcarusBrowserApp: App {
 }
 
 enum Sheet: String, Identifiable {
-    case tabs, menu, shield, settings, history, downloads, newShortcut
+    case tabs, menu, shield, settings, history, downloads, newShortcut, siteInfo, editAddress
     var id: String { rawValue }
+}
+
+/// Qué abrir en el editor de direcciones personalizadas (desde la información del sitio).
+struct CustomAddressRequest: Equatable {
+    var editId: String?
+    var target: String?
 }
 
 struct ContentView: View {
@@ -61,6 +67,7 @@ struct BrowserScreen: View {
     @FocusState private var addressFocused: Bool
     @State private var fieldOne = ""
     @State private var fieldTwo = ""
+    @State private var addressRequest = CustomAddressRequest()
 
     var body: some View {
         ZStack {
@@ -82,7 +89,11 @@ struct BrowserScreen: View {
         .sheet(item: $sheet) { sheetView($0) }
         .onChange(of: browser.internalSheet) { _ in presentInternalPage() }
         .onChange(of: addressFocused) { focused in
-            addressText = focused ? (tab.showingNewTab ? "" : (tab.error?.url ?? tab.url)) : displayText
+            // Como Chrome: al editar se ve la dirección completa (la personalizada si la hay) y se selecciona entera.
+            addressText = focused ? (tab.showingNewTab ? "" : currentDisplay.full) : displayText
+            if focused && !addressText.isEmpty {
+                DispatchQueue.main.async { UIApplication.shared.sendAction(#selector(UIResponder.selectAll(_:)), to: nil, from: nil, for: nil) }
+            }
         }
         .onChange(of: tab.url) { _ in if !addressFocused { addressText = displayText } }
         .onChange(of: services.revision) { _ in if !addressFocused { addressText = displayText } }
@@ -110,28 +121,44 @@ struct BrowserScreen: View {
         browser.internalSheet = nil
     }
 
+    private var certificateError: Bool { tab.error?.kind == .certificate }
+
+    /// Con un error de certificado se muestra la dirección real que falló, completa y sin
+    /// dirección personalizada; si no, la de la página (o la de la página que no cargó).
+    private var currentDisplay: AddressFormat.Display {
+        if certificateError, let error = tab.error { return AddressFormat.display(error.url, applyCustom: false) }
+        return AddressFormat.display(tab.showingNewTab ? InternalPage.newTab.url : (tab.error?.url ?? tab.url))
+    }
+
     private var displayText: String {
-        if let error = tab.error { return AddressFormat.display(error.url).text }
-        return AddressFormat.display(tab.showingNewTab ? InternalPage.newTab.url : tab.url).text
+        let display = currentDisplay
+        return certificateError ? display.full : display.text
     }
 
     // MARK: Barra de direcciones
 
-    private var securityIcon: (name: String, color: Color, label: String) {
-        let display = AddressFormat.display(tab.showingNewTab ? InternalPage.newTab.url : (tab.error?.url ?? tab.url))
-        if addressFocused || tab.showingNewTab { return ("magnifyingglass", look.fg3, "Buscar") }
-        if display.alias != nil { return ("tag", look.accent, "Alias de ICARUS: ver la dirección real") }
-        if display.secure { return ("lock.fill", look.fg2, "Conexión segura") }
-        if display.insecure { return ("exclamationmark.triangle.fill", look.danger, "Conexión no segura") }
-        return ("info.circle", look.fg2, "Información del sitio")
+    /// Icono de la información del sitio, con el estado real de la conexión (como Chrome).
+    private var securityIcon: (name: String, color: Color, label: String, notSecure: Bool) {
+        let display = currentDisplay
+        if addressFocused || tab.showingNewTab { return ("magnifyingglass", look.fg3, "Buscar", false) }
+        if certificateError { return ("exclamationmark.triangle.fill", look.danger, "No seguro: el certificado no es válido", true) }
+        if display.secure { return ("slider.horizontal.3", look.fg2, "Información del sitio", false) }
+        if display.insecure { return ("exclamationmark.triangle", look.color("warning"), "No seguro: ver información del sitio", true) }
+        return ("info.circle", look.fg2, "Información del sitio", false)
     }
 
     private var addressBar: some View {
         HStack(spacing: 6) {
             Button {
-                if tab.showingNewTab { addressFocused = true } else { sheet = .menu }
+                if tab.showingNewTab { addressFocused = true } else { sheet = .siteInfo }
             } label: {
-                Image(systemName: securityIcon.name).foregroundColor(securityIcon.color).frame(width: 32, height: 36)
+                HStack(spacing: 4) {
+                    Image(systemName: securityIcon.name).foregroundColor(securityIcon.color)
+                    if securityIcon.notSecure && !addressFocused {
+                        Text(services.text("addressBar", "notSecure")).font(.subheadline).foregroundColor(securityIcon.color).lineLimit(1).fixedSize()
+                    }
+                }
+                .frame(minWidth: 32, minHeight: 36)
             }
             .accessibilityLabel(securityIcon.label)
             TextField("Busca o escribe una dirección", text: $addressText)
@@ -291,6 +318,17 @@ struct BrowserScreen: View {
         switch sheet {
         case .tabs: TabsSheet(browser: browser, look: look) { self.sheet = nil }
         case .menu: MenuSheet(browser: browser, tab: tab, look: look) { next in self.sheet = next }
+        case .siteInfo:
+            SiteInfoSheet(tab: tab, look: look) { request in
+                addressRequest = request
+                self.sheet = .editAddress
+            }
+        case .editAddress:
+            NavigationStack {
+                CustomAddressForm(entry: addressRequest.editId.flatMap { id in services.profile.customAddresses.first { $0.id == id } },
+                                  initialTarget: addressRequest.target)
+            }
+            .preferredColorScheme(look.dark ? .dark : .light)
         case .shield: ShieldSheet(tab: tab, look: look) { self.sheet = .settings }
         case .settings: SettingsView(initialSection: nil).preferredColorScheme(look.dark ? .dark : .light)
         case .history: HistoryView(browser: browser) { self.sheet = nil }
@@ -397,7 +435,7 @@ struct SuggestionsList: View {
         ScrollView {
             VStack(spacing: 0) {
                 if items.isEmpty {
-                    Text("Escribe una dirección, una búsqueda o un alias .icarus.").font(.subheadline).foregroundColor(look.fg3).padding()
+                    Text("Escribe una dirección o una búsqueda.").font(.subheadline).foregroundColor(look.fg3).padding()
                 }
                 ForEach(items) { item in
                     Button {

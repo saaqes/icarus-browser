@@ -1,0 +1,477 @@
+import Foundation
+
+/// Dirección personalizada, equivalente a src/services/custom-addresses (escritorio) y
+/// CustomAddresses.kt (Android); misma forma JSON en las tres plataformas.
+///
+/// El usuario asigna a un destino real (`https://bot.deriv.me/`) la dirección que quiere
+/// ver en la barra (`https://miweb.com/`). Mientras se navega dentro del destino, la barra
+/// muestra la dirección personalizada con la misma ruta, consulta y fragmento; al
+/// escribirla, ICARUS navega al destino real. La resolución es interna: WebKit siempre
+/// carga el sitio real, con su certificado.
+public struct CustomAddress: Codable, Equatable, Identifiable {
+    public var id: String
+    /// Destino real: `protocolo://host[:puerto]/ruta-base`, sin consulta ni fragmento.
+    public var target: String
+    /// Dirección que muestra la barra, siempre con el protocolo del destino.
+    public var address: String
+    public var enabled: Bool
+    public var createdAt: String
+    public var updatedAt: String
+
+    public init(id: String, target: String, address: String, enabled: Bool, createdAt: String, updatedAt: String) {
+        self.id = id
+        self.target = target
+        self.address = address
+        self.enabled = enabled
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+/// `protocolo://host[:puerto]` más una ruta base sin barra final (vacía = todo el sitio).
+public struct Location: Equatable {
+    public let `protocol`: String
+    public let host: String
+    public let path: String
+
+    /// Forma guardada: `https://miweb.com/` o `https://miweb.com/ruta`.
+    public func format() -> String { "\(`protocol`)//\(host)\(path.isEmpty ? "/" : path)" }
+    public var label: String { host + path }
+}
+
+/// Dirección para la barra: protocolo visible (vacío en la forma corta), host y resto.
+public struct AddressParts: Equatable, CustomStringConvertible {
+    public let prefix: String
+    public let host: String
+    public let rest: String
+    public var description: String { prefix + host + rest }
+}
+
+public enum CustomAddresses {
+    public static let max = 200
+    private static let epoch = "2026-01-01T00:00:00.000Z"
+
+    public enum LocationResult: Equatable {
+        case ok(Location)
+        /// `required`, `invalid-url`, `unsupported-protocol` o `has-query`.
+        case failure(String)
+
+        var location: Location? { if case .ok(let location) = self { return location } else { return nil } }
+    }
+
+    public struct DisplayMatch: Equatable {
+        public let entry: CustomAddress
+        public let url: String
+    }
+
+    /// `url` es el destino real; `address`, lo escrito con el protocolo de la entrada.
+    public struct Resolution: Equatable {
+        public let entry: CustomAddress
+        public let url: String
+        public let address: String
+    }
+
+    public enum Validation: Equatable {
+        case ok(target: String, address: String, enabled: Bool)
+        /// Errores por campo (`target`, `address`) y la entrada con la que choca cada uno.
+        case errors([String: String], conflicts: [String: CustomAddress])
+    }
+
+    public enum Legacy: Equatable {
+        case entry(target: String, address: String, enabled: Bool)
+        case skip
+        case invalid
+    }
+
+    private static let trailingSlashes = Pattern("/+$")
+    private static let hostWithPortThenPath = Pattern("^[^:/]+:\\d+(?:/|$)")
+    private static let portSuffix = Pattern(":\\d+$")
+    private static let isoDate = Pattern("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$")
+    private static let aliasPrefix = Pattern("^(?:https?|icarus)://")
+
+    /* --------------------------------- Ubicaciones --------------------------------- */
+
+    private static func hashOf(_ url: WebURL) -> String { (url.fragment?.isEmpty ?? true) ? "" : "#\(url.fragment!)" }
+
+    private static func fromURL(_ url: WebURL) -> Location {
+        Location(protocol: url.protocol, host: url.host, path: trailingSlashes.replacing(url.pathname, with: ""))
+    }
+
+    /// Lee una ubicación ya guardada (forma canónica).
+    public static func parseLocation(_ text: String) -> Location? {
+        guard let url = UrlUtils.parseWebURL(text), !url.hasCredentials, url.search.isEmpty, hashOf(url).isEmpty else { return nil }
+        return fromURL(url)
+    }
+
+    /// Normaliza lo que escribe el usuario: `miweb.com`, `localhost:3000`,
+    /// `https://ejemplo.com/ruta`… Sin protocolo se usa `defaultProtocol` (el del
+    /// destino) o https (http para localhost y direcciones IP).
+    public static func normalizeLocationInput(_ text: String, defaultProtocol: String? = nil) -> LocationResult {
+        let value = text.trimmed
+        if value.isEmpty { return .failure("required") }
+        if value.contains(where: { $0.isWhitespace }) { return .failure("invalid-url") }
+        if value.contains("?") || value.contains("#") { return .failure("has-query") }
+
+        let proto = UrlUtils.getProtocol(value)
+        let hostWithPort = proto != nil && hostWithPortThenPath.contains(value)
+        var candidate = value
+        if let proto, !hostWithPort {
+            if UrlUtils.isDangerousProtocol(proto) || !UrlUtils.webProtocols.contains(proto) { return .failure("unsupported-protocol") }
+        } else {
+            let hostPart = String(value.split(separator: "/", omittingEmptySubsequences: false).first ?? "")
+            if !UrlUtils.looksLikeHost(hostPart) { return .failure("invalid-url") }
+            let bareHost = portSuffix.replacing(hostPart, with: "")
+            let fallback = UrlUtils.isLoopbackHost(bareHost) || UrlUtils.isIPLiteral(bareHost) ? "http:" : "https:"
+            candidate = "\(defaultProtocol ?? fallback)//\(value)"
+        }
+        guard let url = UrlUtils.parseWebURL(candidate), !url.hasCredentials, UrlUtils.looksLikeHost(url.host) else { return .failure("invalid-url") }
+        return .ok(fromURL(url))
+    }
+
+    /// Si `url` está dentro de `location`, el resto de la ruta (vacío o con `/` inicial).
+    public static func remainderWithin(_ location: Location, _ url: WebURL, anyProtocol: Bool = false) -> String? {
+        if !anyProtocol && url.protocol != location.protocol { return nil }
+        if url.host != location.host || url.hasCredentials { return nil }
+        let pathname = url.pathname
+        if location.path.isEmpty { return pathname == "/" ? "" : pathname }
+        if pathname == location.path { return "" }
+        return pathname.hasPrefix(location.path + "/") ? String(pathname.dropFirst(location.path.count)) : nil
+    }
+
+    /// La URL equivalente bajo otra ubicación.
+    public static func urlWithin(_ location: Location, _ rest: String, _ url: WebURL) -> String {
+        let path = location.path + rest
+        return "\(location.protocol)//\(location.host)\(path.isEmpty ? "/" : path)\(url.search)\(hashOf(url))"
+    }
+
+    /// ¿Comparten alguna dirección? Se ignora el protocolo.
+    public static func overlap(_ a: Location, _ b: Location) -> Bool {
+        if a.host != b.host { return false }
+        let (shorter, longer) = a.path.count <= b.path.count ? (a.path, b.path) : (b.path, a.path)
+        return shorter.isEmpty || longer == shorter || longer.hasPrefix(shorter + "/")
+    }
+
+    /* ----------------------------------- Aplicar ----------------------------------- */
+
+    private struct Parsed {
+        let entry: CustomAddress
+        let target: Location
+        let address: Location
+    }
+
+    /// Entradas activas y válidas, de la más específica a la menos (en empate, la más antigua).
+    private static func active(_ entries: [CustomAddress]) -> [Parsed] {
+        let parsed = entries.filter(\.enabled).compactMap { entry -> Parsed? in
+            guard let target = parseLocation(entry.target), let address = parseLocation(entry.address), target.protocol == address.protocol else { return nil }
+            return Parsed(entry: entry, target: target, address: address)
+        }
+        // Orden estable, como `sortedWith` en Kotlin y `sort` en JavaScript.
+        return parsed.enumerated().sorted { a, b in
+            if a.element.target.path.count != b.element.target.path.count { return a.element.target.path.count > b.element.target.path.count }
+            if a.element.entry.createdAt != b.element.entry.createdAt { return a.element.entry.createdAt < b.element.entry.createdAt }
+            return a.offset < b.offset
+        }.map(\.element)
+    }
+
+    /// URL real → dirección que muestra la barra (o nil si no hay entrada para ella).
+    public static func displayURL(for href: String, _ entries: [CustomAddress]) -> DisplayMatch? {
+        guard let url = UrlUtils.parseWebURL(href) else { return nil }
+        for item in active(entries) {
+            guard let rest = remainderWithin(item.target, url) else { continue }
+            return DisplayMatch(entry: item.entry, url: urlWithin(item.address, rest, url))
+        }
+        return nil
+    }
+
+    /// URL escrita dentro de una dirección personalizada → URL real del destino.
+    public static func resolve(_ url: WebURL, _ entries: [CustomAddress], explicitProtocol: Bool) -> Resolution? {
+        var best: (item: Parsed, rest: String)? = nil
+        for item in active(entries) {
+            guard let rest = remainderWithin(item.address, url, anyProtocol: !explicitProtocol) else { continue }
+            if best == nil || item.address.path.count > best!.item.address.path.count { best = (item, rest) }
+        }
+        guard let best else { return nil }
+        return Resolution(entry: best.item.entry, url: urlWithin(best.item.target, best.rest, url), address: urlWithin(best.item.address, best.rest, url))
+    }
+
+    /// Entradas activas cuya dirección empieza por lo escrito (para sugerencias).
+    public static func startingWith(_ text: String, _ entries: [CustomAddress]) -> [CustomAddress] {
+        let needle = text.trimmed.lowercased().removingPrefix("https://").removingPrefix("http://").removingPrefix("www.")
+        if needle.isEmpty { return [] }
+        return active(entries).filter { $0.address.label.hasPrefix(needle) || $0.address.label.removingPrefix("www.").hasPrefix(needle) }.map(\.entry)
+    }
+
+    /// Dirección para la barra: forma corta (sin foco, como Chrome) o completa.
+    public static func formatAddress(_ href: String, full: Bool) -> AddressParts {
+        guard let url = UrlUtils.parseWebURL(href) else { return AddressParts(prefix: "", host: href, rest: "") }
+        let path = url.pathname + url.search + hashOf(url)
+        if full { return AddressParts(prefix: "\(url.protocol)//", host: url.host, rest: path) }
+        return AddressParts(prefix: "", host: url.host.removingPrefix("www."), rest: path == "/" ? "" : path)
+    }
+
+    public static func shortAddress(_ href: String) -> String {
+        let parts = formatAddress(href, full: false)
+        return parts.host + parts.rest
+    }
+
+    /* ---------------------------------- Validación ---------------------------------- */
+
+    /// Primera entrada activa (distinta de `exceptId`) que choca con estas ubicaciones.
+    public static func findConflicts(target: Location, address: Location, _ entries: [CustomAddress], exceptId: String?)
+        -> (errors: [String: String], conflicts: [String: CustomAddress]) {
+        var errors: [String: String] = [:]
+        var conflicts: [String: CustomAddress] = [:]
+        for other in entries where other.enabled && other.id != exceptId {
+            guard let otherTarget = parseLocation(other.target), let otherAddress = parseLocation(other.address) else { continue }
+            if errors["target"] == nil {
+                if overlap(target, otherTarget) { errors["target"] = "target-in-use" } else if overlap(target, otherAddress) { errors["target"] = "target-is-address" }
+                if errors["target"] != nil { conflicts["target"] = other }
+            }
+            if errors["address"] == nil {
+                if overlap(address, otherAddress) { errors["address"] = "address-in-use" } else if overlap(address, otherTarget) { errors["address"] = "address-is-target" }
+                if errors["address"] != nil { conflicts["address"] = other }
+            }
+        }
+        return (errors, conflicts)
+    }
+
+    /// Valida como la versión de escritorio: la dirección usa el protocolo del destino,
+    /// no puede estar dentro de su propio destino y, si está activa, ningún destino ni
+    /// dirección se solapa con los de otra entrada activa.
+    public static func validate(target targetText: String, address addressText: String, enabled: Bool,
+                                entries: [CustomAddress] = [], editingId: String? = nil) -> Validation {
+        var errors: [String: String] = [:]
+        let target = normalizeLocationInput(targetText)
+        if case .failure(let error) = target { errors["target"] = error }
+        let address = normalizeLocationInput(addressText, defaultProtocol: target.location?.protocol)
+        if case .failure(let error) = address {
+            errors["address"] = error
+        } else if let targetLocation = target.location, let addressLocation = address.location {
+            if addressLocation.protocol != targetLocation.protocol { errors["address"] = "protocol-mismatch" }
+            else if overlap(addressLocation, targetLocation) { errors["address"] = "same-as-target" }
+        }
+        var conflicts: [String: CustomAddress] = [:]
+        if let targetLocation = target.location, let addressLocation = address.location, errors.isEmpty, enabled {
+            let found = findConflicts(target: targetLocation, address: addressLocation, entries, exceptId: editingId)
+            errors.merge(found.errors) { current, _ in current }
+            conflicts = found.conflicts
+        }
+        guard let targetLocation = target.location, let addressLocation = address.location, errors.isEmpty else {
+            return .errors(errors, conflicts: conflicts)
+        }
+        return .ok(target: targetLocation.format(), address: addressLocation.format(), enabled: enabled)
+    }
+
+    /* ---------------------------- Carga y reglas antiguas ---------------------------- */
+
+    /// Reglas de ejemplo de versiones anteriores: si nadie las tocó, no se migran.
+    private static let legacyDefaults: [String: (alias: String, pattern: String)] = [
+        "default-search": ("buscar.icarus", "https://www.google.com/"),
+        "default-wiki": ("wiki.icarus", "es.wikipedia.org"),
+    ]
+
+    /// Convierte una regla de alias antigua: el patrón pasa a ser el destino y el alias, la dirección.
+    public static func convertLegacy(_ raw: [String: Any]) -> Legacy {
+        guard let pattern = raw["pattern"] as? String, let alias = raw["alias"] as? String else { return .invalid }
+        if let id = raw["id"] as? String, let legacy = legacyDefaults[id], legacy.alias == alias, legacy.pattern == pattern { return .skip }
+
+        var target: String? = nil
+        switch raw["matchType"] as? String {
+        case "host":
+            let host = pattern.trimmed.lowercased().removingPrefix("*.")
+            let destination = (raw["targetUrl"] as? String).flatMap { UrlUtils.parseWebURL($0) }
+            let proto = destination != nil && destination!.hostname == host ? destination!.protocol : "https:"
+            target = "\(proto)//\(host)/"
+        case "exact", "prefix":
+            target = UrlUtils.parseWebURL(pattern).map { "\($0.protocol)//\($0.host)\($0.pathname)" }
+        default:
+            break
+        }
+        let name = trailingSlashes.replacing(aliasPrefix.replacing(alias.trimmed.lowercased(), with: ""), with: "")
+        guard let location = target.flatMap(parseLocation), !name.isEmpty else { return .invalid }
+        return .entry(target: location.format(), address: "\(location.protocol)//\(name)", enabled: raw["enabled"] as? Bool == true)
+    }
+
+    private static func date(_ value: Any?, fallback: String) -> String {
+        if let text = value as? String, isoDate.matches(text) { return text }
+        return fallback
+    }
+
+    private enum Read {
+        case entry(CustomAddress)
+        case skip
+        case invalid
+    }
+
+    /// Lee una entrada (nueva o antigua).
+    private static func readEntry(_ raw: [String: Any], fallbackDate: String) -> Read {
+        guard let id = raw["id"] as? String, !id.trimmed.isEmpty else { return .invalid }
+        let input: (target: String, address: String, enabled: Bool)
+        if raw["alias"] != nil || raw["matchType"] != nil {
+            switch convertLegacy(raw) {
+            case .entry(let target, let address, let enabled): input = (target, address, enabled)
+            case .skip: return .skip
+            case .invalid: return .invalid
+            }
+        } else {
+            guard let target = raw["target"] as? String, let address = raw["address"] as? String else { return .invalid }
+            input = (target, address, raw["enabled"] as? Bool == true)
+        }
+        guard case .ok(let target, let address, _) = validate(target: input.target, address: input.address, enabled: false) else { return .invalid }
+        return .entry(CustomAddress(id: String(id.trimmed.prefix(100)), target: target, address: address, enabled: input.enabled,
+                                    createdAt: date(raw["createdAt"], fallback: fallbackDate), updatedAt: date(raw["updatedAt"], fallback: fallbackDate)))
+    }
+
+    /// Añade una entrada; si choca con otra activa, se guarda desactivada (nunca se pierde).
+    public static func appendResolvingConflicts(_ entries: [CustomAddress], _ entry: CustomAddress) -> (entries: [CustomAddress], disabled: Bool) {
+        if entry.enabled, let target = parseLocation(entry.target), let address = parseLocation(entry.address),
+           !findConflicts(target: target, address: address, entries, exceptId: entry.id).errors.isEmpty {
+            var disabled = entry
+            disabled.enabled = false
+            return (entries + [disabled], true)
+        }
+        return (entries + [entry], false)
+    }
+
+    /// Lista guardada (o reglas de alias de versiones anteriores) → entradas válidas.
+    public static func sanitize(_ array: Any?) -> [CustomAddress] {
+        guard let items = array as? [Any] else { return [] }
+        var seen = Set<String>()
+        var entries: [CustomAddress] = []
+        for item in items.prefix(max) {
+            guard let raw = item as? [String: Any], case .entry(let entry) = readEntry(raw, fallbackDate: epoch), seen.insert(entry.id).inserted else { continue }
+            entries = appendResolvingConflicts(entries, entry).entries
+        }
+        return entries
+    }
+}
+
+/// Resultado de interpretar la barra de direcciones (equivale a resolveInput.ts).
+public enum InputResolution: Equatable {
+    case empty
+    case url(String)
+    case search(url: String, query: String, provider: SearchProvider)
+    /// Dirección personalizada: `address` es lo escrito y `url`, el destino real.
+    case custom(url: String, address: String, entry: CustomAddress)
+    case `internal`(InternalPage)
+    case internalUnknown(String)
+    case blocked(protocol: String, dangerous: Bool)
+
+    public var kind: String {
+        switch self {
+        case .empty: return "empty"
+        case .url: return "url"
+        case .search: return "search"
+        case .custom: return "custom"
+        case .internal: return "internal"
+        case .internalUnknown: return "internal-unknown"
+        case .blocked: return "blocked"
+        }
+    }
+}
+
+/// Interpreta el texto de la barra: dirección web, dirección personalizada, búsqueda,
+/// página interna o protocolo bloqueado. Las direcciones se aceptan tal como se
+/// escriben; solo se añade el protocolo si falta.
+public enum InputResolver {
+    public static func resolve(_ text: String, provider: SearchProvider, customAddresses: [CustomAddress]) -> InputResolution {
+        let value = text.trimmed
+        if value.isEmpty { return .empty }
+        let search = InputResolution.search(url: provider.searchURL(value), query: value, provider: provider)
+
+        func web(_ url: WebURL, explicitProtocol: Bool) -> InputResolution {
+            if let custom = CustomAddresses.resolve(url, customAddresses, explicitProtocol: explicitProtocol) {
+                return .custom(url: custom.url, address: custom.address, entry: custom.entry)
+            }
+            return .url(url.href)
+        }
+
+        // Con espacios siempre es una búsqueda (p. ej. «cómo funciona javascript: …»).
+        if value.contains(where: { $0.isWhitespace }) { return search }
+
+        let proto = UrlUtils.getProtocol(value)
+        let isHostWithPort = proto != nil && UrlUtils.startsWithHostAndPort(value)
+        if let proto, !isHostWithPort {
+            if proto == InternalPage.protocolName {
+                return InternalPage.parse(value).map { .internal($0) } ?? .internalUnknown(value)
+            }
+            if UrlUtils.webProtocols.contains(proto) {
+                if let url = UrlUtils.parseWebURL(value), !url.hasCredentials { return web(url, explicitProtocol: true) }
+                return search
+            }
+            return .blocked(protocol: proto, dangerous: UrlUtils.isDangerousProtocol(proto))
+        }
+
+        switch UrlUtils.normalizeUserURL(value) {
+        case .ok(_, let parsed): return web(parsed, explicitProtocol: false)
+        case .failure: return search
+        }
+    }
+}
+
+/// Dominio registrable (eTLD+1) según la Public Suffix List (ICANN y PRIVATE), como
+/// electron/shield/domains.ts. Las reglas vienen de mobile/shared/public-suffix-rules.txt.
+public final class PublicSuffixList {
+    private var exact = Set<String>()
+    private var wildcard = Set<String>()
+    private var exception = Set<String>()
+    private var cache: [String: String] = [:]
+    private let lock = NSLock()
+    private static let ipv4 = Pattern("^\\d{1,3}(\\.\\d{1,3}){3}$")
+
+    public init(rules: String) {
+        for line in rules.split(whereSeparator: { $0 == "\n" || $0 == "\r\n" }) {
+            let rule = String(line).trimmed
+            if rule.isEmpty || rule.hasPrefix("//") { continue }
+            if rule.hasPrefix("!") {
+                exception.insert(String(rule.dropFirst()))
+            } else if rule.hasPrefix("*.") {
+                wildcard.insert(String(rule.dropFirst(2)))
+            } else {
+                exact.insert(rule)
+            }
+        }
+    }
+
+    public var ruleCount: Int { exact.count + wildcard.count + exception.count }
+
+    public func publicSuffix(_ host: String) -> String {
+        let labels = host.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        for index in labels.indices {
+            let candidate = labels[index...].joined(separator: ".")
+            // Una excepción («!www.ck») anula el comodín: el sufijo es lo que queda a su derecha.
+            if exception.contains(candidate) { return labels[(index + 1)...].joined(separator: ".") }
+            if exact.contains(candidate) { return candidate }
+            if index + 1 < labels.count && wildcard.contains(labels[(index + 1)...].joined(separator: ".")) { return candidate }
+        }
+        // Regla implícita «*»: el último nivel es el sufijo.
+        return labels.last ?? host
+    }
+
+    public func registrableDomain(_ hostname: String) -> String {
+        let host = hostname.lowercased().removingSuffix(".")
+        if host.isEmpty || PublicSuffixList.ipv4.matches(host) || host.contains(":") || host.hasPrefix("[") { return host }
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = cache[host] { return cached }
+        let suffix = publicSuffix(host)
+        let domain: String
+        if suffix == host {
+            domain = host
+        } else {
+            let labels = host.split(separator: ".", omittingEmptySubsequences: false)
+            domain = labels.suffix(suffix.split(separator: ".", omittingEmptySubsequences: false).count + 1).joined(separator: ".")
+        }
+        if cache.count > 4000 { cache.removeAll() }
+        cache[host] = domain
+        return domain
+    }
+
+    public func isThirdParty(requestHost: String, pageHost: String) -> Bool {
+        if pageHost.isEmpty { return false }
+        return registrableDomain(requestHost) != registrableDomain(pageHost)
+    }
+
+    /// ¿Es `host` igual a `domain` o un subdominio suyo?
+    public static func hostMatchesDomain(_ host: String, _ domain: String) -> Bool { host == domain || host.hasSuffix(".\(domain)") }
+}

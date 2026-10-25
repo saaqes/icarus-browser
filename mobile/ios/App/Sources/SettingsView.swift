@@ -42,6 +42,12 @@ struct SettingsView: View {
                     Toggle("Mostrar accesos directos", isOn: binding(\.showShortcuts))
                     NavigationLink("Accesos directos (\(services.profile.shortcuts.count) de \(Profile.maxShortcuts))") { ShortcutsList() }
                     Toggle("Restaurar pestañas al abrir", isOn: binding(\.restoreSession))
+                    Toggle(isOn: binding(\.showFullUrls)) {
+                        VStack(alignment: .leading) {
+                            Text(services.text("addressBar", "showFullUrls"))
+                            Text(services.text("addressBar", "showFullUrlsHint")).font(.footnote).foregroundColor(.secondary)
+                        }
+                    }
                 }
                 Section("Protección") {
                     NavigationLink {
@@ -56,19 +62,16 @@ struct SettingsView: View {
                     NavigationLink("Permisos de sitios") { PermissionsList() }
                 }
                 Section {
-                    Toggle(isOn: binding(\.showAliases)) {
-                        VStack(alignment: .leading) {
-                            Text("Aplicar alias de URL en la interfaz")
-                            Text("Muestra los alias configurados en la barra de direcciones, las pestañas y el historial.").font(.footnote).foregroundColor(.secondary)
-                        }
-                    }
                     NavigationLink {
-                        AliasList()
+                        CustomAddressList()
                     } label: {
-                        let rules = services.profile.aliasRules
+                        let entries = services.profile.customAddresses
                         VStack(alignment: .leading) {
-                            Text("Cambiar nombre de URL")
-                            Text("\(rules.filter(\.enabled).count) de \(rules.count) reglas activas").font(.footnote).foregroundColor(.secondary)
+                            Text("Personalizar direcciones URL")
+                            Text("Elige qué dirección muestra la barra para un sitio (por ejemplo, miweb.com en lugar de bot.deriv.me).")
+                                .font(.footnote).foregroundColor(.secondary)
+                            Text(entries.isEmpty ? "Ninguna dirección personalizada" : "\(entries.filter(\.enabled).count) de \(entries.count) direcciones activas")
+                                .font(.footnote).foregroundColor(.secondary)
                         }
                     }
                 } header: {
@@ -336,129 +339,177 @@ struct ShieldSettings: View {
     }
 }
 
-// MARK: Cambiar nombre de URL
+// MARK: Direcciones personalizadas
 
-struct AliasList: View {
+struct CustomAddressList: View {
     @ObservedObject private var services = AppServices.shared
-    @State private var resetting = false
+    @State private var deleting: CustomAddress?
+    @State private var message: String?
+
+    private func t(_ key: String, _ params: [String: String] = [:]) -> String { services.text("customAddresses", key, params) }
 
     var body: some View {
         List {
             Section {
-                Text(services.text("aliasManager", "subtitle")).font(.footnote).foregroundColor(.secondary)
+                Text(t("subtitle")).font(.footnote).foregroundColor(.secondary)
             }
             Section {
-                ForEach(services.profile.aliasRules) { rule in
-                    NavigationLink {
-                        AliasForm(rule: rule)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(rule.alias)  ←  \(rule.displayName)").foregroundColor(rule.enabled ? .primary : .secondary)
-                            Text("\(services.text("aliasManager", "matchTypes", rule.matchType.rawValue)): \(rule.pattern)").font(.footnote).foregroundColor(.secondary)
+                let entries = services.profile.customAddresses
+                if entries.isEmpty { Text(t("empty")).foregroundColor(.secondary) }
+                ForEach(entries) { entry in
+                    let address = CustomAddresses.shortAddress(entry.address)
+                    HStack {
+                        NavigationLink {
+                            CustomAddressForm(entry: entry, initialTarget: nil)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(address).foregroundColor(entry.enabled ? .primary : .secondary)
+                                Text(t("targetOf", ["target": CustomAddresses.shortAddress(entry.target)]) + (entry.enabled ? "" : " · \(t("disabled"))"))
+                                    .font(.footnote).foregroundColor(.secondary)
+                            }
                         }
+                        Toggle("Activar o desactivar \(address)", isOn: Binding(get: { entry.enabled }, set: { enabled in
+                            if let other = services.profile.setCustomAddressEnabled(id: entry.id, enabled: enabled) {
+                                message = t("toggleConflict", ["address": CustomAddresses.shortAddress(other.address), "target": CustomAddresses.shortAddress(other.target)])
+                            }
+                        }))
+                        .labelsHidden()
                     }
-                    .swipeActions(edge: .leading) {
-                        Button(rule.enabled ? "Desactivar" : "Activar") { services.profile.setAliasEnabled(id: rule.id, enabled: !rule.enabled) }
-                    }
+                    .swipeActions { Button("Eliminar", role: .destructive) { deleting = entry } }
                 }
-                .onDelete { offsets in
-                    offsets.map { services.profile.aliasRules[$0].id }.forEach { services.profile.removeAliasRule(id: $0) }
-                }
-            } footer: {
-                Text(services.text("aliasManager", "priorityNote"))
             }
-            Button("Restaurar reglas predeterminadas", role: .destructive) { resetting = true }
+            Section(services.text("customAddresses", "howTo", "title")) {
+                let steps = services.textList("customAddresses", "howTo", "steps")
+                ForEach(Array(steps.enumerated()), id: \.offset) { index, step in Text("\(index + 1). \(step)").font(.subheadline) }
+                Text(services.text("customAddresses", "howTo", "security")).font(.footnote).foregroundColor(.secondary)
+            }
         }
-        .navigationTitle("Cambiar nombre de URL")
-        .toolbar { NavigationLink { AliasForm(rule: nil) } label: { Image(systemName: "plus") }.accessibilityLabel("Nueva regla") }
-        .confirmationDialog("Se eliminarán tus reglas y se restaurarán las de ejemplo.", isPresented: $resetting, titleVisibility: .visible) {
-            Button("Restaurar", role: .destructive) { services.profile.resetAliasRules() }
+        .navigationTitle(t("title"))
+        .toolbar { NavigationLink { CustomAddressForm(entry: nil, initialTarget: nil) } label: { Image(systemName: "plus") }.accessibilityLabel(t("add")) }
+        .confirmationDialog(t("deleteTitle"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible,
+                            presenting: deleting) { entry in
+            Button("Eliminar", role: .destructive) { services.profile.removeCustomAddress(id: entry.id) }
+        } message: { entry in
+            Text(t("deleteBody", ["address": CustomAddresses.shortAddress(entry.address), "target": CustomAddresses.shortAddress(entry.target)]))
         }
+        .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("Aceptar", role: .cancel) {} }
     }
 }
 
-struct AliasForm: View {
-    let rule: AliasRule?
+/// Crear o editar una dirección: los conflictos se muestran en el campo nombrando la
+/// otra entrada y nunca se sobrescribe otra configuración en silencio.
+struct CustomAddressForm: View {
+    let entry: CustomAddress?
+    let initialTarget: String?
     @ObservedObject private var services = AppServices.shared
     @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var matchType = AliasMatchType.exact
-    @State private var pattern = ""
-    @State private var displayName = ""
-    @State private var alias = ""
     @State private var target = ""
+    @State private var address = ""
     @State private var enabled = true
     @State private var errors: [String: String] = [:]
+    @State private var conflicts: [String: CustomAddress] = [:]
+    @State private var loaded = false
+
+    private func form(_ key: String, _ params: [String: String] = [:]) -> String { services.text("customAddresses", "form", key, params) }
 
     private func error(_ field: String) -> some View {
         Group {
-            if let code = errors[field] { Text(services.text("aliasErrors", code)).font(.footnote).foregroundColor(.red) }
+            if let code = errors[field] {
+                let other = conflicts[field]
+                Text(code == "limit" ? services.text("customAddresses", "limit")
+                     : services.text("customAddressErrors", code, ["address": other.map { CustomAddresses.shortAddress($0.address) } ?? "",
+                                                                  "target": other.map { CustomAddresses.shortAddress($0.target) } ?? ""]))
+                    .font(.footnote).foregroundColor(.red)
+            }
         }
+    }
+
+    /// Páginas que ya tiene el usuario, para elegir el destino sin escribirlo.
+    private var choices: [String] {
+        var seen: [String] = []
+        for url in services.profile.shortcuts.map(\.url) + services.history.list().map(\.url) {
+            guard let parsed = UrlUtils.parseWebURL(url) else { continue }
+            let origin = "\(parsed.protocol)//\(parsed.host)/"
+            if !seen.contains(origin) { seen.append(origin) }
+            if seen.count >= 8 { break }
+        }
+        return seen
+    }
+
+    private var preview: String {
+        guard case .ok(let cleanTarget, let cleanAddress, _) = CustomAddresses.validate(target: target, address: address, enabled: true) else {
+            return form("previewIncomplete")
+        }
+        let shownTarget = CustomAddresses.shortAddress(cleanTarget)
+        let shownAddress = CustomAddresses.shortAddress(cleanAddress)
+        let example = cleanTarget.removingSuffix("/") + "/pagina?x=1"
+        let sample = CustomAddress(id: "preview", target: cleanTarget, address: cleanAddress, enabled: true, createdAt: "", updatedAt: "")
+        let exampleShown = CustomAddresses.displayURL(for: example, [sample])?.url ?? example
+        return [
+            form("previewShows", ["target": shownTarget, "address": shownAddress]),
+            form("previewOpens", ["address": shownAddress, "target": shownTarget]),
+            form("previewPaths", ["real": CustomAddresses.shortAddress(example), "shown": CustomAddresses.shortAddress(exampleShown)]),
+        ].joined(separator: "\n")
     }
 
     var body: some View {
         Form {
             Section {
-                TextField("Nombre de la regla", text: $name)
-                error("name")
-            }
-            Section {
-                Picker("Tipo de coincidencia", selection: $matchType) {
-                    ForEach(AliasMatchType.allCases, id: \.self) { Text(services.text("aliasManager", "matchTypes", $0.rawValue)).tag($0) }
+                TextField(form("targetPlaceholder"), text: $target).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled(true)
+                error("target")
+                if !choices.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(choices, id: \.self) { choice in
+                                Button(CustomAddresses.shortAddress(choice)) { target = choice }.buttonStyle(.bordered)
+                            }
+                        }
+                    }
                 }
-                .pickerStyle(.segmented)
-                TextField(services.text("aliasManager", "patternPlaceholders", matchType.rawValue), text: $pattern)
-                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled(true)
-                error("pattern")
             } header: {
-                Text("Dirección real")
+                Text(form("target"))
             } footer: {
-                Text(services.text("aliasManager", "matchHints", matchType.rawValue))
+                Text(form("targetHint") + (choices.isEmpty ? "" : " " + form("chooseFrom")))
             }
             Section {
-                TextField("Nombre visible del sitio", text: $displayName)
-                error("displayName")
-                TextField("Alias (buscar.icarus)", text: $alias).textInputAutocapitalization(.never).autocorrectionDisabled(true)
-                error("alias")
+                TextField(form("addressPlaceholder"), text: $address).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled(true)
+                error("address")
+            } header: {
+                Text(form("address"))
             } footer: {
-                Text(services.text("aliasManager", "aliasHint"))
+                Text(form("addressHint"))
             }
-            Section {
-                TextField("URL de destino real", text: $target).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled(true)
-                error("targetUrl")
-                Button("Usar la URL original") { target = pattern }
-            } footer: {
-                Text(services.text("aliasManager", "targetHint"))
+            Section(form("preview")) {
+                Text(preview).font(.subheadline)
+                Text(form("limitation")).font(.footnote).foregroundColor(.secondary)
             }
-            Toggle("Regla activa", isOn: $enabled)
-            if let rule {
-                Button("Eliminar regla", role: .destructive) {
-                    services.profile.removeAliasRule(id: rule.id)
-                    dismiss()
-                }
-            }
+            Toggle(form("enabled"), isOn: $enabled)
         }
-        .navigationTitle(rule == nil ? "Nueva regla" : "Editar regla")
+        .navigationTitle(entry == nil ? form("createTitle") : form("editTitle"))
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Guardar") {
-                    let input = AliasRules.Input(name: name, matchType: matchType, pattern: pattern, displayName: displayName, alias: alias, targetUrl: target, enabled: enabled)
-                    switch services.profile.saveAliasRule(input, editingId: rule?.id) {
+                    switch services.profile.saveCustomAddress(target: target, address: address, enabled: enabled, editingId: entry?.id) {
                     case .ok: dismiss()
-                    case .errors(let found): errors = found
+                    case .errors(let found, let others):
+                        errors = found
+                        conflicts = others
                     }
                 }
             }
         }
         .onAppear {
-            guard let rule else { return }
-            name = rule.name
-            matchType = rule.matchType
-            pattern = rule.pattern
-            displayName = rule.displayName
-            alias = rule.alias
-            target = rule.targetUrl
-            enabled = rule.enabled
+            guard !loaded else { return }
+            loaded = true
+            if let entry {
+                // Completas, como en escritorio: así se conserva el protocolo (p. ej. un destino http://).
+                target = entry.target
+                address = entry.address
+                enabled = entry.enabled
+            } else if let initialTarget {
+                target = initialTarget
+            }
         }
     }
 }

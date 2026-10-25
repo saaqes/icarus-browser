@@ -54,9 +54,13 @@ final class StoresTests: XCTestCase {
         XCTAssertTrue(limit)
 
         profile.updateSettings { $0.theme = .panorama; $0.colorMode = .dark; $0.searchProvider = .duckduckgo; $0.accent = "teal" }
-        let input = AliasRules.Input(name: "Correo", matchType: .host, pattern: "mail.google.com", displayName: "Correo", alias: "correo.icarus",
-                                     targetUrl: "https://mail.google.com/", enabled: true)
-        guard case .ok = profile.saveAliasRule(input) else { return XCTFail() }
+        guard case .ok = profile.saveCustomAddress(target: "mail.google.com", address: "correo.miweb.com", enabled: true) else { return XCTFail() }
+        // Nunca se sobrescribe otra entrada en silencio: el conflicto nombra la existente.
+        guard case .errors(let conflict, let other) = profile.saveCustomAddress(target: "otro.com", address: "correo.miweb.com", enabled: true) else {
+            return XCTFail()
+        }
+        XCTAssertEqual(conflict["address"], "address-in-use")
+        XCTAssertEqual(other["address"]?.target, "https://mail.google.com/")
         profile.setPermission(origin: "https://reunion.com", .camera, allowed: true)
         profile.saveSession(urls: ["https://a.com/", "javascript:alert(1)", "icarus://nueva-pestana", "https://b.com/"], activeIndex: 2)
 
@@ -65,7 +69,7 @@ final class StoresTests: XCTestCase {
         XCTAssertEqual(reopened.settings.colorMode, .dark)
         XCTAssertEqual(reopened.settings.searchProvider, .duckduckgo)
         XCTAssertEqual(reopened.settings.accent, "teal")
-        XCTAssertEqual(AliasRules.findMatch("https://mail.google.com/x", reopened.aliasRules)?.rule.alias, "correo.icarus")
+        XCTAssertEqual(CustomAddresses.displayURL(for: "https://mail.google.com/x?y=1", reopened.customAddresses)?.url, "https://correo.miweb.com/x?y=1")
         XCTAssertEqual(reopened.permission(origin: "https://reunion.com", .camera), true)
         XCTAssertNil(reopened.permission(origin: "https://reunion.com", .microphone))
         XCTAssertEqual(reopened.session.urls, ["https://a.com/", "icarus://nueva-pestana", "https://b.com/"])
@@ -148,5 +152,22 @@ final class StoresTests: XCTestCase {
         XCTAssertEqual(reopened.lists.count, 5)
         XCTAssertEqual(reopened.customRules, "||regla-personal.net^\n/roto(/\n")
         XCTAssertEqual(reopened.fingerprint, shield.fingerprint)
+    }
+
+    func testConvierteLasReglasDeAliasGuardadasPorVersionesAnteriores() throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let stored = """
+        {"version":1,"aliasRules":[
+          {"id":"default-search","matchType":"exact","pattern":"https://www.google.com/","alias":"buscar.icarus","targetUrl":"https://www.google.com/","enabled":true},
+          {"id":"mia","matchType":"host","pattern":"bot.deriv.me","alias":"bot.icarus","targetUrl":"https://bot.deriv.me/","enabled":true,"createdAt":"2026-02-01T00:00:00.000Z","updatedAt":"2026-02-02T00:00:00.000Z"}
+        ]}
+        """
+        try Data(stored.utf8).write(to: directory.appendingPathComponent("profile.json"))
+        let profile = try Profile(directory: directory, defaultsJSON: defaults())
+        XCTAssertEqual(profile.customAddresses, [CustomAddress(id: "mia", target: "https://bot.deriv.me/", address: "https://bot.icarus/", enabled: true,
+                                                               createdAt: "2026-02-01T00:00:00.000Z", updatedAt: "2026-02-02T00:00:00.000Z")])
+        XCTAssertNil(profile.setCustomAddressEnabled(id: "mia", enabled: false))
+        profile.removeCustomAddress(id: "mia")
+        XCTAssertTrue(profile.customAddresses.isEmpty)
     }
 }

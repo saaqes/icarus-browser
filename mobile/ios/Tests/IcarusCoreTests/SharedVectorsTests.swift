@@ -7,8 +7,7 @@ final class SharedVectorsTests: XCTestCase {
         switch result {
         case .url(let url): return "url \(url)"
         case .search(let url, _, _): return "search \(url)"
-        case .alias(let url, let rule): return "alias \(url) \(rule.id)"
-        case .aliasUnresolved(let alias, let reason): return "alias-unresolved \(alias) \(reason)"
+        case .custom(let url, let address, let entry): return "custom \(url) \(address) \(entry.id)"
         case .internal(let page): return "internal \(page.kind)"
         case .internalUnknown: return "internal-unknown"
         case .blocked(let proto, let dangerous): return "blocked \(proto) \(dangerous)"
@@ -20,8 +19,7 @@ final class SharedVectorsTests: XCTestCase {
         let kind = item["kind"] as! String
         switch kind {
         case "url", "search": return "\(kind) \(item["url"] as! String)"
-        case "alias": return "alias \(item["url"] as! String) \(item["ruleId"] as! String)"
-        case "alias-unresolved": return "alias-unresolved \(item["alias"] as! String) \(item["reason"] as! String)"
+        case "custom": return "custom \(item["url"] as! String) \(item["address"] as! String) \(item["entryId"] as! String)"
         case "internal": return "internal \(item["page"] as! String)"
         case "blocked": return "blocked \(item["protocol"] as! String) \(item["dangerous"] as! Bool)"
         default: return kind
@@ -30,13 +28,14 @@ final class SharedVectorsTests: XCTestCase {
 
     func testLaBarraDeDireccionesResuelveIgualQueEnEscritorio() throws {
         let data = try Shared.json("test-vectors/resolve-input.json")
-        let rules = try Shared.rules(data["rules"])
+        let entries = Shared.customAddresses(data["customAddresses"])
+        XCTAssertEqual(entries.count, (data["customAddresses"] as! [Any]).count, "entradas de los vectores")
         let cases = data["cases"] as! [[String: Any]]
         XCTAssertGreaterThanOrEqual(cases.count, 40)
         var failures: [String] = []
         for item in cases {
             let input = item["input"] as! String
-            let actual = describe(InputResolver.resolve(input, provider: .google, rules: rules))
+            let actual = describe(InputResolver.resolve(input, provider: .google, customAddresses: entries))
             let expected = describe(item)
             if actual != expected { failures.append("«\(input)»: se esperaba \(expected) y se obtuvo \(actual)") }
         }
@@ -52,16 +51,83 @@ final class SharedVectorsTests: XCTestCase {
         }
     }
 
-    func testLosAliasSeAplicanALasMismasDirecciones() throws {
-        let data = try Shared.json("test-vectors/alias-match.json")
-        let rules = try Shared.rules(data["rules"])
+    func testLaBarraMuestraLaMismaDireccionQueEnEscritorio() throws {
+        let data = try Shared.json("test-vectors/custom-address-display.json")
+        let entries = Shared.customAddresses(data["customAddresses"])
         let cases = data["cases"] as! [[String: Any]]
         XCTAssertGreaterThanOrEqual(cases.count, 15)
         for item in cases {
             let url = item["url"] as! String
-            let match = AliasRules.findMatch(url, rules)
-            XCTAssertEqual(match?.rule.id, item["ruleId"] as? String, url)
-            XCTAssertEqual(match?.realUrl, item["realUrl"] as? String, url)
+            let match = CustomAddresses.displayURL(for: url, entries)
+            let shown = match?.url ?? url
+            XCTAssertEqual(match?.entry.id, item["entryId"] as? String, url)
+            XCTAssertEqual(shown, item["shown"] as? String, url)
+            XCTAssertEqual(CustomAddresses.shortAddress(shown), item["short"] as? String, url)
+            XCTAssertEqual(CustomAddresses.formatAddress(shown, full: true).description, item["full"] as? String, url)
+        }
+    }
+
+    func testElEditorValidaYDetectaConflictosComoEnEscritorio() throws {
+        let data = try Shared.json("test-vectors/custom-address-validation.json")
+        let entries = Shared.customAddresses(data["customAddresses"])
+        let cases = data["cases"] as! [[String: Any]]
+        XCTAssertGreaterThanOrEqual(cases.count, 10)
+        for item in cases {
+            let input = item["input"] as! [String: Any]
+            let label = "\(input)"
+            let result = CustomAddresses.validate(target: input["target"] as! String, address: input["address"] as! String, enabled: input["enabled"] as! Bool,
+                                                  entries: entries, editingId: item["editingId"] as? String)
+            if item["ok"] as! Bool {
+                let value = item["value"] as! [String: Any]
+                XCTAssertEqual(result, .ok(target: value["target"] as! String, address: value["address"] as! String, enabled: value["enabled"] as! Bool), label)
+            } else {
+                guard case .errors(let errors, let conflicts) = result else { XCTFail("debería fallar: \(label)"); continue }
+                XCTAssertEqual(errors, item["errors"] as? [String: String], label)
+                XCTAssertEqual(conflicts.mapValues(\.id), item["conflicts"] as? [String: String], label)
+            }
+        }
+    }
+
+    func testLasReglasDeAliasAntiguasSeConviertenIgualQueEnEscritorio() throws {
+        let legacy = try Shared.json("test-vectors/custom-address-validation.json")["legacy"] as! [String: Any]
+        let rules = legacy["rules"] as! [[String: Any]]
+        for conversion in legacy["conversions"] as! [[String: Any]] {
+            let raw = rules.first { $0["id"] as? String == conversion["id"] as? String }!
+            let expected = conversion["result"] as! [String: Any]
+            let actual = CustomAddresses.convertLegacy(raw)
+            switch expected["kind"] as! String {
+            case "skip": XCTAssertEqual(actual, .skip, "\(raw)")
+            case "invalid": XCTAssertEqual(actual, .invalid, "\(raw)")
+            default:
+                let input = expected["input"] as! [String: Any]
+                XCTAssertEqual(actual, .entry(target: input["target"] as! String, address: input["address"] as! String, enabled: input["enabled"] as! Bool), "\(raw)")
+            }
+        }
+        let loaded = (legacy["loaded"] as! [[String: Any]]).map { item in
+            CustomAddress(id: item["id"] as! String, target: item["target"] as! String, address: item["address"] as! String, enabled: item["enabled"] as! Bool,
+                          createdAt: item["createdAt"] as! String, updatedAt: item["updatedAt"] as! String)
+        }
+        XCTAssertEqual(CustomAddresses.sanitize(rules), loaded)
+    }
+
+    func testDireccionesSinSufijosYNuncaHTTPComoHTTPS() {
+        guard case .ok(let target, let address, _) = CustomAddresses.validate(target: "bot.deriv.me", address: "miweb.com", enabled: true) else {
+            return XCTFail("debería ser válida")
+        }
+        XCTAssertEqual(target, "https://bot.deriv.me/")
+        XCTAssertEqual(address, "https://miweb.com/")
+        guard case .ok(_, let local, _) = CustomAddresses.validate(target: "localhost:3000", address: "miapp.com", enabled: true) else { return XCTFail() }
+        XCTAssertEqual(local, "http://miapp.com/")
+        guard case .errors(let errors, _) = CustomAddresses.validate(target: "http://intranet.ejemplo.com", address: "https://miweb.com", enabled: true) else {
+            return XCTFail()
+        }
+        XCTAssertEqual(errors["address"], "protocol-mismatch")
+        let entries = [CustomAddress(id: "deriv", target: "https://bot.deriv.me/", address: "https://miweb.com/", enabled: true,
+                                     createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z")]
+        XCTAssertNil(CustomAddresses.displayURL(for: "http://bot.deriv.me/", entries))
+        for real in ["https://bot.deriv.me/a/b?c=1#d", "https://bot.deriv.me/"] {
+            let shown = CustomAddresses.displayURL(for: real, entries)!.url
+            XCTAssertEqual(CustomAddresses.resolve(UrlUtils.parseWebURL(shown)!, entries, explicitProtocol: true)?.url, real)
         }
     }
 
@@ -72,28 +138,6 @@ final class SharedVectorsTests: XCTestCase {
         for item in cases {
             XCTAssertEqual(Shared.suffixes.registrableDomain(item["host"] as! String), item["domain"] as? String, item["host"] as! String)
         }
-    }
-
-    func testValidacionDeAlias() {
-        func input(pattern: String = "https://www.google.com/", alias: String = "buscar.icarus", target: String = "https://www.google.com/",
-                   type: AliasMatchType = .exact) -> AliasRules.Input {
-            AliasRules.Input(name: "Búsqueda", matchType: type, pattern: pattern, displayName: "Buscar", alias: alias, targetUrl: target, enabled: true)
-        }
-        guard case .ok(let value) = AliasRules.validate(input(pattern: "WWW.GOOGLE.COM", alias: " https://Buscar.Icarus/ "), others: []) else {
-            return XCTFail("debería ser válida")
-        }
-        XCTAssertEqual(value.pattern, "https://www.google.com/")
-        XCTAssertEqual(value.alias, "buscar.icarus")
-        guard case .errors(let errors) = AliasRules.validate(input(alias: "buscar.com", target: "otro.icarus"), others: []) else { return XCTFail() }
-        XCTAssertEqual(errors["alias"], "alias-format")
-        XCTAssertEqual(errors["targetUrl"], "target-is-alias")
-        guard case .errors(let insecure) = AliasRules.validate(input(target: "http://ejemplo.com/"), others: []) else { return XCTFail() }
-        XCTAssertEqual(insecure["targetUrl"], "insecure-target")
-        guard case .ok = AliasRules.validate(input(target: "http://localhost:3000/"), others: []) else { return XCTFail() }
-        guard case .ok(let host) = AliasRules.validate(input(pattern: "*.Ejemplo.org", alias: "org.icarus", target: "https://ejemplo.org/", type: .host), others: []) else {
-            return XCTFail()
-        }
-        XCTAssertEqual(host.pattern, "*.ejemplo.org")
     }
 
     func testPunycode() {

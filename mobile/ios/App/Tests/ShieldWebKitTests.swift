@@ -132,14 +132,32 @@ final class ShieldWebKitTests: XCTestCase {
         return (webView.title, "WebKit no terminó la carga en 45 s")
     }
 
-    func testLaBarraMuestraAliasYResuelveComoEnEscritorio() {
-        let rules = AppServices.shared.profile.aliasRules
-        guard case .alias(let url, _) = InputResolver.resolve("buscar.icarus", provider: .google, rules: rules) else {
-            return XCTFail("buscar.icarus debe abrir la regla predeterminada")
+    /// Pruebas A, B y D: sin sufijos, la barra muestra solo la dirección personalizada (con
+    /// la ruta real) y escribirla abre el destino real; HTTP nunca se presenta como HTTPS.
+    func testLaBarraMuestraLaDireccionPersonalizadaComoEnEscritorio() {
+        let profile = AppServices.shared.profile
+        profile.customAddresses.forEach { profile.removeCustomAddress(id: $0.id) }
+        defer { profile.customAddresses.forEach { profile.removeCustomAddress(id: $0.id) } }
+        guard case .ok = profile.saveCustomAddress(target: "bot.deriv.me", address: "miweb.com", enabled: true) else {
+            return XCTFail("bot.deriv.me → miweb.com debe ser válida")
         }
-        XCTAssertEqual(url, "https://www.google.com/")
-        XCTAssertEqual(AddressFormat.display("https://www.google.com/").text, "buscar.icarus")
+        XCTAssertEqual(AddressFormat.display("https://bot.deriv.me/").text, "miweb.com")
+        XCTAssertEqual(AddressFormat.display("https://bot.deriv.me/").full, "https://miweb.com/")
+        XCTAssertEqual(AddressFormat.display("https://bot.deriv.me/a/b?c=1#d").text, "miweb.com/a/b?c=1#d")
+        XCTAssertNotNil(AddressFormat.display("https://bot.deriv.me/").custom)
+        XCTAssertTrue(AddressFormat.display("https://bot.deriv.me/").secure)
+        guard case .custom(let url, _, _) = InputResolver.resolve("miweb.com/a?x=1", provider: .google, customAddresses: profile.customAddresses) else {
+            return XCTFail("miweb.com debe abrir el destino real")
+        }
+        XCTAssertEqual(url, "https://bot.deriv.me/a?x=1")
+        // C: cualquier otra dirección se abre tal cual, sin sufijos.
+        guard case .url(let google) = InputResolver.resolve("google.com", provider: .google, customAddresses: profile.customAddresses) else { return XCTFail() }
+        XCTAssertEqual(google, "https://google.com/")
         XCTAssertEqual(AddressFormat.display("https://es.wikipedia.org/wiki/Ícaro").text, "es.wikipedia.org/wiki/%C3%8Dcaro")
+        guard case .errors(let errors, _) = profile.saveCustomAddress(target: "http://intranet.ejemplo.com", address: "https://otra.com", enabled: true) else {
+            return XCTFail()
+        }
+        XCTAssertEqual(errors["address"], "protocol-mismatch")
     }
 }
 

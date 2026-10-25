@@ -245,13 +245,9 @@ final class BrowserTab: NSObject, ObservableObject, Identifiable, WKNavigationDe
         let mainFrame = navigationAction.targetFrame?.isMainFrame ?? true
         if navigationAction.shouldPerformDownload { return decisionHandler(.download, preferences) }
         switch target.scheme?.lowercased() {
+        // Los enlaces de las páginas van a su URL real: las direcciones personalizadas
+        // solo se resuelven cuando el usuario las escribe en la barra.
         case "http", "https":
-            let host = target.host ?? ""
-            if UrlUtils.isAliasHost(host) {
-                // Un enlace a un alias .icarus abre su destino real si la regla está activa.
-                if case .resolved(_, let real) = AliasRules.resolveTyped(host, services.profile.aliasRules) { load(real) }
-                return decisionHandler(.cancel, preferences)
-            }
             if mainFrame {
                 lastMainFrameURL = target.absoluteString
                 applyShield(for: target.absoluteString, in: webView)
