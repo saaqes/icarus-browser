@@ -151,6 +151,12 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   /** Entrada web que muestra ahora la vista de cada pestaña (tramo «vivo»). */
   const liveEntry = useRef(new Map<string, string>());
   const closedTabs = useRef<PageEntry[]>([]);
+  /**
+   * Pestañas ya cerradas. Un efecto de un render anterior (con la pestaña aún activa)
+   * puede ejecutarse después del cierre: sin esta marca volvería a navegarla y el
+   * proceso principal crearía una vista huérfana para una pestaña que ya no existe.
+   */
+  const closedTabIds = useRef(new Set<string>());
 
   // Referencias estables para las acciones (evita recrearlas en cada render).
   const sessionRef = useRef(session);
@@ -214,7 +220,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   /** Carga la URL de una entrada web en la vista de la pestaña. */
   const loadWebEntry = useCallback(
     (tabId: string, entry: HistoryEntry, newSegment: boolean) => {
-      if (entry.page.kind !== 'web') return;
+      if (entry.page.kind !== 'web' || closedTabIds.current.has(tabId)) return;
       liveEntry.current.set(tabId, entry.id);
       void engine.navigate({ tabId, url: entry.page.url, newSegment }).then((outcome) => {
         if (outcome.status === 'rejected') notify('error', m.navigationNotices.rejected);
@@ -333,6 +339,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           entry.page.kind === 'web' && live?.url ? { ...entry.page, url: live.url, title: live.title } : entry.page;
         closedTabs.current = [page, ...closedTabs.current].slice(0, MAX_CLOSED_TABS);
       }
+      closedTabIds.current.add(tabId);
       liveEntry.current.delete(tabId);
       engine.detachTab?.(tabId);
       setWebState((states) => {
@@ -533,6 +540,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       switch (event.type) {
         case 'tab-state': {
           const { state } = event;
+          // Un estado que llega tras cerrar la pestaña no debe volver a crearla.
+          if (closedTabIds.current.has(state.tabId)) return;
           setWebState((states) => ({ ...states, [state.tabId]: state }));
           dispatch({ type: 'tab/loading', tabId: state.tabId, loading: state.loading });
           const entryId = liveEntry.current.get(state.tabId);
