@@ -410,7 +410,7 @@ Resumen (completo en [docs/SECURITY.md](docs/SECURITY.md)):
 | Conjunto | Qué comprueba | Dónde se ejecuta | Resultado |
 | --- | --- | --- | --- |
 | `npm run test` (130 pruebas, 14 archivos) | Servicios (incluidas las direcciones personalizadas: mostrar, resolver, validar, conflictos, migración de alias), componentes (barra y editor), filtros de Shield, dominios, rutas seguras, archivos JSON, menú de macOS y que `mobile/shared` esté al día | Linux (local y CI), Windows y macOS (CI) | 130/130 |
-| `npm run test:e2e` (29 pasos + `bot.deriv.me` y 3 sitios reales) | Ver abajo | Linux (local y CI), Windows y macOS (CI) | 29/29 en local (Linux); resultados de CI en la sección de entrega |
+| `npm run test:e2e` (29 pasos + `bot.deriv.me` y 3 sitios reales) | Ver abajo | Linux (local y CI), Windows y macOS (CI) | 29/29 en local (Linux); 33/33 en CI en Linux, Windows y macOS (con `bot.deriv.me` mostrado como `miweb.com` y conexión segura real) |
 | `npm run test:smoke` | Ejecutable empaquetado: arranque, página dentro de la pestaña, sin puente nativo en la web, datos en disco | Linux, Windows (sin instalar y ya instalado) y macOS (empaquetado e instalado desde el `.dmg`) | Superada |
 | Instalación silenciosa | `Setup.exe /S`, prueba de humo del navegador instalado y desinstalación silenciosa | Windows (CI) | Superada |
 | `./gradlew -p core test` (Android, 27 pruebas) | Vectores compartidos con escritorio (barra, dirección visible, validación y conflictos, migración de alias), perfil, historial, listas de Shield y tipos de recurso | Linux (local y CI) | 27/27 |
