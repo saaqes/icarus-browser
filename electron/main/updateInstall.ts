@@ -19,7 +19,7 @@
 
 import { execFile, spawn } from 'node:child_process';
 import { accessSync, constants, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, join, posix, win32 } from 'node:path';
 import { promisify } from 'node:util';
 import type { UpdateInstallMode } from '../../src/types/native';
 import type { AssetArch, UpdateTarget } from '../update/manifest';
@@ -66,18 +66,19 @@ export function planInstall(env: PlanEnvironment): InstallPlan {
   const exists = env.exists ?? existsSync;
   const arch = archOf(env);
   if (env.platform === 'win32') {
-    const installed = exists(join(dirname(env.execPath), UNINSTALLER));
+    // Las rutas se tratan con las reglas de la plataforma evaluada (las pruebas la simulan en otra).
+    const installed = exists(win32.join(win32.dirname(env.execPath), UNINSTALLER));
     return installed
       ? { mode: 'automatic', target: { platform: 'windows', arch, kinds: ['nsis'] } }
       : { mode: 'manual-portable', target: { platform: 'windows', arch, kinds: ['zip'] } };
   }
   if (env.platform === 'darwin') {
-    const bundlePath = resolve(env.execPath, '..', '..', '..');
+    const bundlePath = posix.resolve(env.execPath, '..', '..', '..');
     const replaceable =
       bundlePath.endsWith('.app') &&
       !bundlePath.includes('/AppTranslocation/') &&
       !bundlePath.startsWith('/Volumes/') &&
-      isWritable(dirname(bundlePath)) &&
+      isWritable(posix.dirname(bundlePath)) &&
       isWritable(bundlePath);
     return replaceable
       ? { mode: 'automatic', target: { platform: 'macos', arch, kinds: ['zip'] }, bundlePath }

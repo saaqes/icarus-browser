@@ -1,0 +1,454 @@
+{
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2C1ED25krZwyXz8B07msIW2cF8+/\nkcXsHrzdRpNQepAR/+KDnqsT74HpipiSwenq87YBRtmzwkrOklLNMLWxqQ==\n-----END PUBLIC KEY-----\n",
+  "versions": [
+    {
+      "text": "0.2.0",
+      "valid": true,
+      "versionCode": 20099
+    },
+    {
+      "text": "0.3.0-preview.1",
+      "valid": true,
+      "versionCode": 30001
+    },
+    {
+      "text": "1.0.0",
+      "valid": true,
+      "versionCode": 1000099
+    },
+    {
+      "text": "2000.99.99",
+      "valid": true,
+      "versionCode": 2000999999
+    },
+    {
+      "text": "0.2",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": "01.2.3",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": "1.2.3-beta.1",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": "1.2.3-preview.0",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": "1.2.3-preview.99",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": "2001.0.0",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": "1.100.0",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": " 1.2.3",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": "v1.2.3",
+      "valid": false,
+      "versionCode": null
+    },
+    {
+      "text": "1.2.3-preview.98",
+      "valid": true,
+      "versionCode": 1020398
+    }
+  ],
+  "order": [
+    "0.2.0",
+    "0.2.1-preview.1",
+    "0.2.1-preview.2",
+    "0.2.1",
+    "0.3.0-preview.1",
+    "0.3.0",
+    "0.10.0",
+    "1.0.0"
+  ],
+  "manifests": [
+    {
+      "name": "estable 0.3.0",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIQDSAN8IrfAVogzsie3EAHu0pqNy6vRSdgilMns91VZtewIgPA8ler3T7/W2yYBX6tMEUPe5bG6XgyMzrZsZL+6dnZY=\n",
+      "signatureValid": true,
+      "parse": "ok",
+      "decisions": [
+        {
+          "current": "0.2.0",
+          "channel": "stable",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "available",
+          "file": "ICARUS-Browser-0.3.0-android.apk"
+        },
+        {
+          "current": "0.3.0",
+          "channel": "stable",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "up-to-date",
+          "file": null
+        },
+        {
+          "current": "0.4.0",
+          "channel": "stable",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "rejected:older",
+          "file": null
+        },
+        {
+          "current": "0.3.0-preview.5",
+          "channel": "preview",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "available",
+          "file": "ICARUS-Browser-0.3.0-android.apk"
+        },
+        {
+          "current": "0.2.0",
+          "channel": "stable",
+          "platform": "ios",
+          "arch": "universal",
+          "kinds": [],
+          "result": "available",
+          "file": null
+        },
+        {
+          "current": "0.2.0",
+          "channel": "stable",
+          "platform": "windows",
+          "arch": "x64",
+          "kinds": [
+            "nsis"
+          ],
+          "result": "available",
+          "file": "ICARUS-Browser-Setup-0.3.0.exe"
+        },
+        {
+          "current": "0.2.0",
+          "channel": "stable",
+          "platform": "macos",
+          "arch": "arm64",
+          "kinds": [
+            "zip"
+          ],
+          "result": "available",
+          "file": "ICARUS-Browser-0.3.0-mac-arm64.zip"
+        }
+      ]
+    },
+    {
+      "name": "preliminar 0.3.0-preview.2",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0-preview.2\",\n  \"channel\": \"preview\",\n  \"tag\": \"v0.3.0-preview.2\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0-preview.2\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-preview.2-android.apk\",\n      \"versionCode\": 30002,\n      \"size\": 1000000,\n      \"sha256\": \"c8c9051077498fcbed6c576184a40c171a81f6f206583a93b444d41fb8787db2\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-preview.2-ios-sin-firmar.ipa\",\n      \"size\": 1000001,\n      \"sha256\": \"db5a2aa2ba3eba577e9ceaa8bac9375ca414ca35d2b27f7e7b3a56c44bd09902\"\n    }\n  ]\n}\n",
+      "signature": "MEUCICzYWGbvmN26bvuhtKu/qgz+Dv8lYKvUeR9jZm4DGGtPAiEAw5TfeqvC2kw6fiysyT7WgBU0aW5DIzV2K8LM5+RP8H4=\n",
+      "signatureValid": true,
+      "parse": "ok",
+      "decisions": [
+        {
+          "current": "0.2.0",
+          "channel": "stable",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "rejected:channel",
+          "file": null
+        },
+        {
+          "current": "0.2.0",
+          "channel": "preview",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "available",
+          "file": "ICARUS-Browser-0.3.0-preview.2-android.apk"
+        },
+        {
+          "current": "0.3.0-preview.2",
+          "channel": "preview",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "up-to-date",
+          "file": null
+        },
+        {
+          "current": "0.3.0",
+          "channel": "preview",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "rejected:older",
+          "file": null
+        },
+        {
+          "current": "0.2.0",
+          "channel": "preview",
+          "platform": "ios",
+          "arch": "universal",
+          "kinds": [],
+          "result": "available",
+          "file": null
+        }
+      ]
+    },
+    {
+      "name": "sin paquete de Android",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.1\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.1\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.1\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.1.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"50c1c7ea9760baded9c6b6ba0043c61bf9b453973de1eea4c08c3df7d30a42b3\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.1-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"43145b2373f74b30ae2a0583128b4864ee1b30af4d5dce057f6bdff7f9188c7d\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQCHDUKmKfTGtEgt4iNBH/TA3KXGlL5a0DO8AwY4i5DUUQIhAI0mwvg3+OB0AEhz0g/Jr9evOxfqxi4+vIpe0pAuL34q\n",
+      "signatureValid": true,
+      "parse": "ok",
+      "decisions": [
+        {
+          "current": "0.3.0",
+          "channel": "stable",
+          "platform": "android",
+          "arch": "universal",
+          "kinds": [
+            "apk"
+          ],
+          "result": "rejected:no-asset",
+          "file": null
+        },
+        {
+          "current": "0.3.0",
+          "channel": "stable",
+          "platform": "ios",
+          "arch": "universal",
+          "kinds": [],
+          "result": "available",
+          "file": null
+        }
+      ]
+    },
+    {
+      "name": "manipulado",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Cambios «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIAvqUlpc/MnNq705GJbQpV6yoa8TmPPRSkhnUtk1YD5tAiEA4zqAukiIXPgu4asfhS+5SILESE9hZgfIpM9qYR6cikw=\n",
+      "signatureValid": false,
+      "parse": "ok",
+      "decisions": []
+    },
+    {
+      "name": "firmado con otra clave",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQCK47UXP1X39rZQ+6RXOWjMUktceqapRXSZcdHKRxxnWAIhAMXdNJpX/gHQECnsLH/pFVeZoyCPDYMHDj+l0VUctdII\n",
+      "signatureValid": false,
+      "parse": "ok",
+      "decisions": []
+    },
+    {
+      "name": "firma vacía",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "\n",
+      "signatureValid": false,
+      "parse": "ok",
+      "decisions": []
+    },
+    {
+      "name": "firma que no es base64",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "no*es*base64\n",
+      "signatureValid": false,
+      "parse": "ok",
+      "decisions": []
+    },
+    {
+      "name": "no es JSON",
+      "text": "{\"schema\": 1, \"product\": ",
+      "signature": "MEUCIERRrUyS6+wBxZ57mQ375exrpLf7ve6OzQvKPjLT+NWMAiEAlr6q6mwh8eXXAc0e8QMchO+iDzX5cu0zGbvXTUbtqtQ=\n",
+      "signatureValid": true,
+      "parse": "not-json",
+      "decisions": []
+    },
+    {
+      "name": "esquema 2",
+      "text": "{\n  \"schema\": 2,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIQDlaDwN68nj/m3kIIVKzK2TrviSLfCkSzsRu3UwMjpOIwIgSTmcStXCCqguDjztyIsW2KCd4uYh3mC4eJp3WxfivtI=\n",
+      "signatureValid": true,
+      "parse": "schema",
+      "decisions": []
+    },
+    {
+      "name": "otro producto",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"otro-navegador\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQD9mmwFrXKXinyfB1eYRKZ0O45WlKQ41nA6754aEk9v6wIhAJdWbCOs4RbFzSrXPKVkwi9rxPhstDXDliVXxPwfxQb3\n",
+      "signatureValid": true,
+      "parse": "product",
+      "decisions": []
+    },
+    {
+      "name": "versión no válida",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIQDYIgCaMfVwEY+Et7OGNKq5qxcqOMgI557lGdnrVGuItAIgKCFF37BFIpbHmF4d0785D5UMvOa/mVcYvQI7iQTddLA=\n",
+      "signatureValid": true,
+      "parse": "version",
+      "decisions": []
+    },
+    {
+      "name": "preliminar marcada como estable",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0-preview.1\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0-preview.1\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0-preview.1\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0-preview.1.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"8121bf39531c9d895f0dd4aed6b6ef3582625f5581c2e8f97d2573de0798fd70\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-preview.1-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"066d3c7df2a847803c8f0e4643b0fd8e95fa4bf668dbc0034dfa114ced87ea6d\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-preview.1-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"1651dcd9a0b4f60e57e11034d9190dffa042a0e0dd5a766a7a6bea62cb15d34c\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-preview.1-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"40bb25c72d9d6188ab43b15be9da9b40dc6e879af8f5ec52f1a5254044da5210\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-preview.1-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"50cc9cb64aa4735fd845494a039928d9f8abd58033974db3fd7ad1ef1ecd698f\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-preview.1-android.apk\",\n      \"versionCode\": 30001,\n      \"size\": 1000005,\n      \"sha256\": \"aa456c9da058bbb38e60fa18503fda20195c70f9657acac3672f2e1b89a43433\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-preview.1-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"9d0fdc76b3926256f6f9a24ee9bfc92966c946e3cf6b507a1101559f15fedfc0\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQCNQ4UwRfPAfLljKYieadF3c+yua3jei5iAwYg22k53vgIhALg5T7V9i9XDJ0/440cyhc4wjh+WnzUpl9tyg+/SObX8\n",
+      "signatureValid": true,
+      "parse": "channel",
+      "decisions": []
+    },
+    {
+      "name": "estable marcada como preliminar",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"preview\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQCN7ETAzc74SgB5pO1dcysULap6yKcwyiWsGl/ikm++ogIhAP50mOg0gM2K83dHV+9Ep6dkxc0yVYEE1nJ9uogeBx8x\n",
+      "signatureValid": true,
+      "parse": "channel",
+      "decisions": []
+    },
+    {
+      "name": "etiqueta distinta",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.1\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIQDxPE2DKVUo7TwmoVlk0RdsVcqkOoxe+oiC1pH3cYuLeQIgY6fBflWCR3d4DS0UYD9QDM/1MNXHN6gOHtHEQb4pDtI=\n",
+      "signatureValid": true,
+      "parse": "tag",
+      "decisions": []
+    },
+    {
+      "name": "commit corto",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123abc\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQC7DJnJDOfYe3w2QjzeMh3CiIA6kyiCJUoN0a6Afm4ggwIhAK0ZzRG10ZWrG3Qp5mQRJfym05BWG2nWR9qpROlmrM8X\n",
+      "signatureValid": true,
+      "parse": "commit",
+      "decisions": []
+    },
+    {
+      "name": "fecha no válida",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"20 de octubre\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQD1FksFoKpORQiVbPAlR0D+DrD74rIp9TBRLc26DajLKAIhAP5/8iRLRbg8jinAE54njelIp4cQ8iufOvib6VdYKkYp\n",
+      "signatureValid": true,
+      "parse": "date",
+      "decisions": []
+    },
+    {
+      "name": "notas demasiado largas",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\"\n    },\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-win-x64.zip\",\n      \"size\": 1000001,\n      \"sha256\": \"fec59d5522c3c51b3b666dfcdcebd60130a94ae03100c759404cd284bdfb8698\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.zip\",\n      \"size\": 1000002,\n      \"sha256\": \"b420c36689aa9815052e86bcb9d1d1a0e6129e257eebae9cce6070f5abe6db11\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"x64\",\n      \"kind\": \"zip\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-x64.zip\",\n      \"size\": 1000003,\n      \"sha256\": \"eae179c1a6bf881dd07f3fba2d5724887336c65709d971c3cef2c53c2ecec473\"\n    },\n    {\n      \"platform\": \"macos\",\n      \"arch\": \"arm64\",\n      \"kind\": \"dmg\",\n      \"file\": \"ICARUS-Browser-0.3.0-mac-arm64.dmg\",\n      \"size\": 1000004,\n      \"sha256\": \"b8d87b2a5dcf26b6a0067033bd9c6f92072b522056bcffaa104ac727914f04ad\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000005,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"ios\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-ios-sin-firmar.ipa\",\n      \"size\": 1000006,\n      \"sha256\": \"c9cbd9258a0f435da2f480a6e80427862f9d88787ec32220207ad3f954f70c2a\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIAtt7MEwHxkVhF+yhM6DJju7bn8xpJwNHpOgCP0iFSHiAiEAmOJnPkNM677wLnIC+lWc51/YxYA9HuZsICptwxDJqwA=\n",
+      "signatureValid": true,
+      "parse": "notes",
+      "decisions": []
+    },
+    {
+      "name": "sin paquetes",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": []\n}\n",
+      "signature": "MEYCIQDZz1cgRwYSmBTJFa1rQDDOCiWLuywhjMTBQYPjFIq6VgIhAPF9JbtL4G0NSrncNdcyWb5amdN/I6G6+N9zSNyP1Xaj\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "archivo de otra versión",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.2.9-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000000,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIB615m1PMYmZymQX2pV905xytFNMrbO2Ciec0Kh6jPY8AiEAy5CWDvR2QAqXwSPN9MuwbvfEZae4OX09f2lnnfBUhOo=\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "archivo con ruta",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"../ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000000,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    }\n  ]\n}\n",
+      "signature": "MEQCICwFCaQLNC5U+zeHIcLrBTLq2iTQuv0q3HWcJC6d1hlNAiAWKk8t1w23/7HhCFqxlR/MHMfCW4ZtWiV1x0jefpp0xw==\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "extensión distinta del tipo",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"ipa\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000000,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIHVCkB8VUBpSjQhOuaK4IKwEN4bW0fBugmIrTVvIAUxeAiEAsnUjpIvXHeCKtDHtz4JH/ZxZ7qIg3uf9364iu0+lj0c=\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "APK sin versionCode",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"size\": 1000000,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQCO9il0KWsWcduzlfaXTyxydhsVzrKRrfrfUzIwa1Dp5gIhAMjsYX8peLn9SEdnywr/URPW/pqQu1/iURjKFdtxOp5g\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "versionCode fuera de Android",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"windows\",\n      \"arch\": \"x64\",\n      \"kind\": \"nsis\",\n      \"file\": \"ICARUS-Browser-Setup-0.3.0.exe\",\n      \"size\": 1000000,\n      \"sha256\": \"53c19317801664b78819f3206a0963ebf42e5d5e266a37a12c6ae103006a293d\",\n      \"versionCode\": 3\n    }\n  ]\n}\n",
+      "signature": "MEYCIQDhI1+QALxVcVkf1m7w66KnCkRnvp+6gtCFO410YSQOLAIhAII7JYSrVQCMTpJ3jxYwEhNkh77I753ivyHjuI+kI9yj\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "SHA-256 en mayúsculas",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000000,\n      \"sha256\": \"2D711642B726B04401627CA9FBAC32F5C8530FB1903CC4DB02258717921A4881\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIQD1CXK227lWxHhcIDkhgZHX0IOmvQ7UZPn7Vdx1gNIWKQIgJyLkPjTFqvEYr/qi0WEquWCY8yYMiJd1ZrhdWgHkW5Y=\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "tamaño cero",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 0,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    }\n  ]\n}\n",
+      "signature": "MEYCIQDbZMkKYovk0TNNi9vbjbQbcFoFddnhqBjIlejkGkIROAIhAJsHL9zDskRy3mkpdQcHl6GABPONZ57iakwUm3FF5zex\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "paquete repetido",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000000,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    },\n    {\n      \"platform\": \"android\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000000,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIQDVJuE261MaO8pBaB3W/CkV2gqs1I5Bn0QGHGDPL9KVQAIgNcxMoPcbnqQo7tr93zBmoEyBUXa44u+L8u/wgWzgCIg=\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    },
+    {
+      "name": "plataforma desconocida",
+      "text": "{\n  \"schema\": 1,\n  \"product\": \"icarus-browser\",\n  \"version\": \"0.3.0\",\n  \"channel\": \"stable\",\n  \"tag\": \"v0.3.0\",\n  \"commit\": \"0123456789abcdef0123456789abcdef01234567\",\n  \"releasedAt\": \"2026-10-20T12:00:00.000Z\",\n  \"notes\": \"Novedades de ICARUS 0.3.0\\n- Mejoras «con acentos» y <etiquetas> como texto.\",\n  \"assets\": [\n    {\n      \"platform\": \"symbian\",\n      \"arch\": \"universal\",\n      \"kind\": \"apk\",\n      \"file\": \"ICARUS-Browser-0.3.0-android.apk\",\n      \"versionCode\": 30099,\n      \"size\": 1000000,\n      \"sha256\": \"0b1c41a88f0f6f35ffb4164c430c659a9b01aa04dfc7799b95481ad52c714430\"\n    }\n  ]\n}\n",
+      "signature": "MEUCIBrS7eYsvMjm867nJPII2/ybyrAU0y6ldyZezH3wJAzRAiEAnaGRJ3FKhaXykWEW63Dt1nQ55NG5z9MKSbaGDHSzRiI=\n",
+      "signatureValid": true,
+      "parse": "assets",
+      "decisions": []
+    }
+  ]
+}

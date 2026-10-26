@@ -242,7 +242,8 @@ describe('servicio de actualizaciones', () => {
 describe('plan de instalación', () => {
   it('Windows: instalador NSIS si existe el desinstalador; si no, versión portátil', () => {
     const exe = 'C:\\Users\\a\\AppData\\Local\\Programs\\ICARUS Browser\\ICARUS Browser.exe';
-    expect(planInstall({ platform: 'win32', arch: 'x64', execPath: exe, exists: () => true })).toMatchObject({ mode: 'automatic', target: { kinds: ['nsis'] } });
+    const uninstaller = 'C:\\Users\\a\\AppData\\Local\\Programs\\ICARUS Browser\\Uninstall ICARUS Browser.exe';
+    expect(planInstall({ platform: 'win32', arch: 'x64', execPath: exe, exists: (path) => path === uninstaller })).toMatchObject({ mode: 'automatic', target: { kinds: ['nsis'] } });
     expect(planInstall({ platform: 'win32', arch: 'x64', execPath: exe, exists: () => false })).toMatchObject({ mode: 'manual-portable', target: { kinds: ['zip'] } });
   });
 
