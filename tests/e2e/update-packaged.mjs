@@ -161,16 +161,30 @@ function parseProcesses(text) {
 
 const alive = (pid) => icarusProcesses().some((item) => item.pid === pid);
 
-/** Cierre normal (como cerrar la ventana): ICARUS guarda sus datos al salir. */
+/**
+ * Cierre normal (como cerrar la ventana o Cmd+Q): ICARUS guarda sus datos al salir.
+ * Devuelve cómo se cerró; si no responde, se termina a la fuerza y se indica.
+ */
 async function closeGracefully(pid) {
-  if (isWindows) spawnSync('taskkill', ['/PID', String(pid)], { stdio: 'ignore' });
-  else spawnSync('/bin/kill', ['-TERM', String(pid)], { stdio: 'ignore' });
-  for (let i = 0; i < 60 && alive(pid); i++) await sleep(500);
-  if (alive(pid)) {
-    if (isWindows) spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });
-    else spawnSync('/bin/kill', ['-KILL', String(pid)], { stdio: 'ignore' });
-    throw new Error(`ICARUS (pid ${pid}) no se cerró al pedírselo`);
+  const waitExit = async (ms) => {
+    for (let i = 0; i < ms / 500 && alive(pid); i++) await sleep(500);
+    return !alive(pid);
+  };
+  if (isWindows) {
+    spawnSync('taskkill', ['/PID', String(pid)], { stdio: 'ignore' });
+    if (await waitExit(30_000)) return 'cerrar la ventana';
+    spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });
+    await waitExit(10_000);
+    return 'terminada a la fuerza (no respondió al cierre)';
   }
+  // macOS: el evento «quit» de las apps (lo mismo que Cmd+Q).
+  spawnSync('/usr/bin/osascript', ['-e', 'quit app id "io.github.saaqes.icarusbrowser"'], { stdio: 'ignore', timeout: 15_000 });
+  if (await waitExit(20_000)) return 'evento quit (Cmd+Q)';
+  spawnSync('/bin/kill', ['-TERM', String(pid)], { stdio: 'ignore' });
+  if (await waitExit(15_000)) return 'SIGTERM';
+  spawnSync('/bin/kill', ['-KILL', String(pid)], { stdio: 'ignore' });
+  await waitExit(10_000);
+  return 'terminada a la fuerza (no respondió a quit ni a SIGTERM)';
 }
 
 /** Arranca el ejecutable instalado con el puerto de depuración y conecta con la interfaz. */
@@ -304,7 +318,7 @@ try {
   const relaunched = await eventually(() => icarusProcesses()[0] ?? null, 'ICARUS no se volvió a abrir tras instalar', 90_000);
   console.log(`  ✓ ICARUS se volvió a abrir solo (pid ${relaunched.pid}${relaunched.command.includes('--updated') ? ', con --updated' : ''})`);
   await sleep(8000);
-  await closeGracefully(relaunched.pid);
+  console.log(`  · ICARUS reabierto cerrado con: ${await closeGracefully(relaunched.pid)}`);
   const resolvedByRelaunch = !readJson('updates.json')?.pending;
 
   /* 4. Versión nueva: datos conservados y sin bucles. */
@@ -362,10 +376,10 @@ try {
   for (const run of runs) {
     for (const session of run.sessions) session.close();
     if (run.exitCode === undefined && run.child.exitCode === null) {
-      await closeGracefully(run.child.pid).catch(() => {});
+      console.log(`  · «${run.label}» cerrada con: ${await closeGracefully(run.child.pid)}`);
     }
   }
-  for (const item of icarusProcesses()) await closeGracefully(item.pid).catch(() => {});
+  for (const item of icarusProcesses()) await closeGracefully(item.pid);
   server.close();
   await sleep(1000);
   rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });

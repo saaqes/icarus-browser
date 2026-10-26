@@ -125,19 +125,25 @@ export async function verifyWindowsInstaller(installer: string, execPath: string
 }
 
 /**
- * Espera a que termine el proceso del instalador (como mucho unos 10 minutos) y abre
- * ICARUS. Las rutas llegan por variables de entorno (sin problemas de comillas) y
- * cada paso queda en reinicio.log, junto al script.
+ * Espera a que no quede ningún proceso del instalador (el de electron-builder se
+ * vuelve a lanzar a sí mismo, así que no basta con esperar al primero; se exigen dos
+ * comprobaciones seguidas sin él, como mucho unos 10 minutos) y abre ICARUS. Las rutas
+ * llegan por variables de entorno (sin problemas de comillas) y cada paso queda en
+ * reinicio.log, junto al script.
  */
 const WINDOWS_RELAUNCH = `@echo off
 rem Generado por ICARUS Browser para volver a abrirlo tras instalar una actualización.
 set "log=%~dp0reinicio.log"
-echo inicio %date% %time% instalador %ICARUS_UPDATE_INSTALLER_PID% >> "%log%"
+echo inicio %date% %time% instalador %ICARUS_UPDATE_INSTALLER_NAME% >> "%log%"
 set /a n=0
+set /a libre=0
 :esperar
 set /a n+=1
 if %n% gtr 600 goto abrir
-tasklist /FI "PID eq %ICARUS_UPDATE_INSTALLER_PID%" /NH 2>nul | find "%ICARUS_UPDATE_INSTALLER_PID%" >nul && (ping -n 2 127.0.0.1 >nul & goto esperar)
+ping -n 2 127.0.0.1 >nul
+tasklist /FI "IMAGENAME eq %ICARUS_UPDATE_INSTALLER_NAME%" /NH 2>nul | find /I "%ICARUS_UPDATE_INSTALLER_NAME%" >nul && (set /a libre=0 & goto esperar)
+set /a libre+=1
+if %libre% lss 2 goto esperar
 :abrir
 echo instalador terminado %date% %time% >> "%log%"
 start "" "%ICARUS_UPDATE_APP%" --updated
@@ -155,7 +161,7 @@ export function launchWindowsInstaller(installer: string, relaunch: boolean, scr
     detached: true,
     stdio: 'ignore',
     windowsHide: true,
-    env: { ...process.env, ICARUS_UPDATE_INSTALLER_PID: String(child.pid), ICARUS_UPDATE_APP: appPath },
+    env: { ...process.env, ICARUS_UPDATE_INSTALLER_NAME: basename(installer), ICARUS_UPDATE_APP: appPath },
   });
   watcher.unref();
 }
