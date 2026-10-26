@@ -71,6 +71,10 @@ error.
 - **Paquetes**: tamaño exacto (nunca se escribe más de lo anunciado), SHA-256 antes de
   usar el archivo (y otra vez justo antes de instalar), espacio libre comprobado,
   descarga reanudable (`Range`). Un archivo que no coincide se borra.
+- **Límites de tiempo**: una comprobación que no termina en 30 s cuenta como fallo de
+  red (no se muestra si era automática) y una descarga que pasa 60 s sin recibir datos
+  se da por interrumpida, conservando el archivo parcial para reanudarla. Así una
+  conexión colgada no deja ICARUS en «Buscando actualizaciones…».
 - **Sin retrocesos**: nunca se ofrece una versión igual o anterior a la instalada, ni
   una preliminar en el canal estable (el canal va dentro del manifiesto firmado y debe
   coincidir con la versión). No hay forma de forzar un retroceso desde el servidor.

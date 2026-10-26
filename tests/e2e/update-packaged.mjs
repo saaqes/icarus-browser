@@ -378,15 +378,17 @@ try {
   assert(history.includes(pageOne) && history.includes(pageTwo), 'Se perdió el historial');
   console.log('  ✓ Almacenamiento, preferencias e historial conservados');
 
-  // La comprobación automática al arrancar puede estar en curso: se espera a que termine.
+  // La comprobación automática al arrancar puede estar en curso: se espera a que termine
+  // (una conexión colgada se corta a los 30 s, CHECK_TIMEOUT_MS).
   const recheck = await eventually(async () => {
     const result = await next.evaluate('window.icarusNative.updates.check()');
     return result.status === 'checking' ? null : result;
-  }, 'La comprobación tras actualizar no terminó').catch(async (error) => {
+  }, 'La comprobación tras actualizar no terminó', 90_000).catch(async (error) => {
     await diagnoseNetwork(second);
     throw error;
   });
-  assert(recheck.status === 'up-to-date', `Tras actualizar se ofrece otra vez: ${recheck.status}`);
+  if (recheck.status !== 'up-to-date') await diagnoseNetwork(second);
+  assert(recheck.status === 'up-to-date', `Tras actualizar se ofrece otra vez o falla la comprobación: ${recheck.status} ${JSON.stringify(recheck.error)}`);
   await sleep(5000);
   assert(second.exitCode === undefined, 'ICARUS se cerró solo después de actualizar (posible bucle)');
   assert(!(await next.evaluate(`Boolean(document.querySelector('.update-btn'))`)), 'El aviso de actualización sigue en la barra');
