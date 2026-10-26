@@ -33,11 +33,15 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import android.window.OnBackInvokedDispatcher
+import io.github.saaqes.icarusbrowser.core.AddressRebase
+import io.github.saaqes.icarusbrowser.core.BookmarksStore
+import io.github.saaqes.icarusbrowser.core.CustomAddress
 import io.github.saaqes.icarusbrowser.core.CustomAddresses
 import io.github.saaqes.icarusbrowser.core.InputResolution
 import io.github.saaqes.icarusbrowser.core.InputResolver
@@ -76,8 +80,13 @@ class MainActivity : Activity(), TabHost {
     private lateinit var shieldBadge: TextView
     private lateinit var shieldIcon: ImageView
     private lateinit var tabsCount: TextView
-    private var backButton: View? = null
-    private var forwardButton: View? = null
+    private lateinit var toolbar: View
+    private lateinit var backButton: ImageButton
+    private lateinit var reloadButton: ImageButton
+    /** Solo en pantallas anchas; en teléfonos «Adelante» está en el menú, como en Chrome. */
+    private var forwardButton: ImageButton? = null
+    /** Shield en la barra solo si hay espacio; si no, en el menú. */
+    private var shieldInToolbar = false
 
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
@@ -162,6 +171,8 @@ class MainActivity : Activity(), TabHost {
             onSecurityInfo = ::showSiteInfo,
             onFocusChanged = { focused -> if (focused) showSuggestions(omnibox.text) else suggestions.hide() },
             onQueryChanged = ::showSuggestions,
+            onRebaseSubmit = ::submitRebase,
+            onStar = ::toggleBookmark,
         )
         suggestions = SuggestionsView(this, w).apply { hide() }
         newTab = NewTabView(this, w, onSearch = { omnibox.focus() }, onOpen = ::submitAddress, onEditShortcut = ::editShortcut, onShield = { openSettings("shield") })
@@ -177,20 +188,15 @@ class MainActivity : Activity(), TabHost {
         }
         buildFindBar()
 
-        val toolbar = buildToolbar()
+        // La barra está siempre arriba y fija, en todos los estilos (como Chrome para Android):
+        // la página se desplaza debajo y el teclado solo encoge el contenido.
+        toolbar = buildToolbar()
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            if (!look.omniboxAtBottom) {
-                addView(toolbar, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-                addView(progress, LinearLayout.LayoutParams(MATCH_PARENT, dp(2)))
-            }
+            addView(toolbar, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            addView(progress, LinearLayout.LayoutParams(MATCH_PARENT, dp(2)))
             addView(findBar, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(content, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
-            if (look.omniboxAtBottom) {
-                addView(progress, LinearLayout.LayoutParams(MATCH_PARENT, dp(2)))
-                addView(toolbar, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-            }
-            if (look.hasNavigationBar) addView(buildNavigationBar(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         }
         fullscreenHolder = FrameLayout(this).apply { visibility = View.GONE; setBackgroundColor(android.graphics.Color.BLACK) }
         root = FrameLayout(this).apply {
@@ -214,8 +220,25 @@ class MainActivity : Activity(), TabHost {
         render()
     }
 
+    /**
+     * Barra superior: atrás, recargar, dirección (con la estrella), pestañas y menú.
+     * En pantallas anchas (tabletas, horizontal) añade «Adelante» y Shield; en
+     * teléfonos están en el menú para que la dirección tenga el máximo ancho.
+     */
     private fun buildToolbar(): View {
         val p = look.palette
+        val wide = resources.configuration.screenWidthDp >= 600
+        shieldInToolbar = wide
+        fun compact(button: ImageButton) = button.apply {
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(44))
+            minimumWidth = dp(40)
+        }
+        backButton = compact(w.iconButton(R.drawable.icarus_back, "Atrás") { currentTab?.goBack() })
+        reloadButton = compact(w.iconButton(R.drawable.icarus_reload, "Recargar") {
+            val tab = currentTab ?: return@iconButton
+            if (tab.loading) tab.stop() else tab.reload()
+        })
+        forwardButton = if (wide) compact(w.iconButton(R.drawable.icarus_forward, "Adelante") { currentTab?.goForward() }) else null
         val shield = FrameLayout(this).apply {
             background = pressable(look, null, 22)
             contentDescription = "ICARUS Shield"
@@ -229,65 +252,31 @@ class MainActivity : Activity(), TabHost {
             }
             addView(shieldBadge, FrameLayout.LayoutParams(WRAP_CONTENT, dp(16), Gravity.TOP or Gravity.END).apply { setMargins(0, dp(4), dp(2), 0) })
             setOnClickListener { showShieldSheet() }
-            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(44))
         }
         tabsCount = w.text("1", 13f, p.fg1, bold = true).apply {
             gravity = Gravity.CENTER
             background = rounded(android.graphics.Color.TRANSPARENT, 6, p.fg2, 1.6f)
-            contentDescription = "Pestañas abiertas"
         }
         val tabsButton = FrameLayout(this).apply {
             background = pressable(look, null, 22)
             addView(tabsCount, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
             setOnClickListener { showTabsSheet() }
             contentDescription = "Ver pestañas"
-            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(44))
         }
-        val menu = w.iconButton(R.drawable.icarus_more, "Menú") { showMenu() }
-        return w.horizontal(spacingDp = 4) {
+        val menu = compact(w.iconButton(R.drawable.icarus_more, "Menú") { showMenu() })
+        return w.horizontal(spacingDp = 2) {
             setBackgroundColor(p.toolbarBg)
-            setPadding(dp(8), dp(6), dp(6), dp(6))
-            if (look.omniboxAtBottom) {
-                addView(shield)
-                addView(omnibox.view, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(tabsButton)
-                addView(menu)
-            } else if (look.hasNavigationBar) {
-                // En Panorama las pestañas y el menú están en la barra inferior.
-                addView(omnibox.view, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(shield)
-            } else {
-                addView(omnibox.view, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(shield)
-                addView(tabsButton)
-                addView(menu)
-            }
-        }
-    }
-
-    /** Barra inferior de Panorama: atrás, adelante, nueva pestaña, pestañas y menú. */
-    private fun buildNavigationBar(): View {
-        val p = look.palette
-        val back = w.iconButton(R.drawable.icarus_back, "Atrás") { currentTab?.goBack() }
-        val forward = w.iconButton(R.drawable.icarus_forward, "Adelante") { currentTab?.goForward() }
-        backButton = back
-        forwardButton = forward
-        val tabsButton = FrameLayout(this).apply {
-            background = pressable(look, null, 22)
-            val count = w.text("1", 13f, p.fg1, bold = true).apply {
-                gravity = Gravity.CENTER
-                background = rounded(android.graphics.Color.TRANSPARENT, 6, p.fg2, 1.6f)
-            }
-            tabsCount = count
-            addView(count, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
-            contentDescription = "Ver pestañas"
-            setOnClickListener { showTabsSheet() }
-        }
-        return w.horizontal {
-            setBackgroundColor(p.toolbarBg)
-            setPadding(dp(8), dp(4), dp(8), dp(4))
-            listOf(back, forward, w.iconButton(R.drawable.icarus_plus, "Nueva pestaña") { openNewTab() }, tabsButton, w.iconButton(R.drawable.icarus_more, "Menú") { showMenu() })
-                .forEach { addView(it, LinearLayout.LayoutParams(0, dp(48), 1f)) }
+            setPadding(dp(4), dp(6), dp(4), dp(6))
+            contentDescription = "Barra de navegación"
+            addView(backButton)
+            forwardButton?.let { addView(it) }
+            addView(reloadButton)
+            addView(omnibox.view, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = dp(2); marginEnd = dp(2) })
+            if (wide) addView(shield)
+            addView(tabsButton)
+            addView(menu)
         }
     }
 
@@ -502,22 +491,133 @@ class MainActivity : Activity(), TabHost {
         } else {
             "ICARUS Shield: inactivo en esta página"
         }
-        backButton?.isEnabled = tab.canGoBack
-        backButton?.alpha = if (tab.canGoBack) 1f else 0.4f
+        backButton.isEnabled = tab.canGoBack
+        backButton.alpha = if (tab.canGoBack) 1f else 0.4f
         forwardButton?.isEnabled = tab.canGoForward
         forwardButton?.alpha = if (tab.canGoForward) 1f else 0.4f
+        val canReload = !tab.showingNewTab && tab.webView != null
+        reloadButton.isEnabled = canReload
+        reloadButton.alpha = if (canReload) 1f else 0.4f
+        reloadButton.setIcon(if (tab.loading && canReload) R.drawable.icarus_close else R.drawable.icarus_reload, p.fg2)
+        reloadButton.contentDescription = if (tab.loading && canReload) "Detener" else "Recargar"
+        omnibox.setBookmarked(!tab.showingNewTab && app.bookmarks.find(tab.url) != null)
     }
 
     /* --------------------------- Barra de direcciones --------------------------- */
 
     private fun showSuggestions(query: String) {
-        suggestions.show(Omnibox.suggestions(query) { submitAddress(it) })
+        val rebase = omnibox.rebase
+        if (rebase != null) {
+            // Editando la base: no hay sugerencias, solo qué se conserva.
+            suggestions.show(listOf(Omnibox.Suggestion(R.drawable.icarus_edit, "Escribe la nueva dirección base",
+                if (rebase.suffix.isEmpty()) "Pulsa Ir para continuar" else "Se conserva ${rebase.suffix}", null)))
+            return
+        }
+        val items = Omnibox.suggestions(query) { submitAddress(it) }
+        val split = omnibox.currentSplit()
+        // Como en escritorio: con la dirección sin tocar, «Editar base» conserva la ruta.
+        val rebaseRow = if (split != null && omnibox.unchanged) {
+            listOf(Omnibox.Suggestion(R.drawable.icarus_edit, "Editar base",
+                if (split.suffix.isEmpty()) "Cambiar solo ${CustomAddresses.shortAddress(split.base)}" else "Cambiar solo la dirección base y conservar ${split.suffix}") {
+                omnibox.startRebase(split)
+            })
+        } else {
+            emptyList()
+        }
+        suggestions.show(rebaseRow + items)
+    }
+
+    /** Base escrita en el modo «Editar base»: se une al sufijo; si es personalizada, se elige guardar o ir. */
+    fun submitRebase(base: String, split: AddressRebase.Split) {
+        when (val joined = AddressRebase.join(base, split.suffix)) {
+            is AddressRebase.Join.Failure -> showMessage(rebaseError(joined.error))
+            is AddressRebase.Join.Ok -> {
+                omnibox.clearFocus()
+                suggestions.hide()
+                val entry = split.entry
+                if (entry != null) showRebaseChoices(base.trim(), joined.url, entry) else navigate(joined.url)
+            }
+        }
+    }
+
+    /** Guardar la base nueva en la dirección personalizada (persistente) o ir a la nueva dirección. */
+    private fun showRebaseChoices(base: String, url: String, entry: CustomAddress) {
+        val label = (AddressRebase.join(base, "") as? AddressRebase.Join.Ok)?.url?.let { CustomAddresses.shortAddress(it) } ?: base
+        lastRebaseChoice = base to url
+        lateinit var dialog: Dialog
+        val content = w.vertical(spacingDp = 4) {
+            addView(w.row(R.drawable.icarus_check, "Guardar $label como dirección personalizada", "Sustituye a ${CustomAddresses.shortAddress(entry.address)} para todas sus páginas") {
+                saveRebaseBase(base, entry)
+            })
+            addView(w.row(R.drawable.icarus_globe, "Ir a ${CustomAddresses.shortAddress(url)}", "Abre esa dirección con la misma ruta") {
+                dialog.dismiss()
+                submitAddress(url, offerRebase = false)
+            })
+        }
+        dialog = w.dialog("Nueva dirección base", content = content)
+        rebaseDialog = dialog
+        dialog.show()
+    }
+
+    /**
+     * Guarda la base nueva en la dirección personalizada (mismo destino y estado) con la
+     * validación del editor. La página no cambia: la barra la muestra con la base nueva.
+     */
+    fun saveRebaseBase(base: String, entry: CustomAddress): Boolean {
+        rebaseDialog?.dismiss()
+        rebaseDialog = null
+        return when (val result = app.profile.saveCustomAddress(entry.target, base, entry.enabled, entry.id)) {
+            is CustomAddresses.Validation.Ok -> {
+                showMessage("Dirección personalizada guardada: ${CustomAddresses.shortAddress(result.address)}")
+                render()
+                true
+            }
+            is CustomAddresses.Validation.Errors -> {
+                showMessage(rebaseError(result.errors["address"] ?: result.errors["target"]))
+                false
+            }
+        }
+    }
+
+    private fun rebaseError(code: String?): String = when (code) {
+        "required" -> "Escribe la dirección base."
+        "has-query" -> "La base no puede incluir «?» ni «#»: se conservan los de la página."
+        "unsupported-protocol" -> "La base debe empezar por http:// o https://."
+        "protocol-mismatch" -> "La dirección personalizada debe usar el mismo protocolo que el sitio (http o https)."
+        "same-as-target" -> "Esa es la dirección real del sitio: no hace falta personalizarla."
+        "address-in-use" -> "Otra dirección personalizada ya usa esa base."
+        "address-is-target" -> "Esa base es la dirección real de otra entrada."
+        "invalid-url" -> "La base no es una dirección válida."
+        else -> "No se pudo guardar la dirección personalizada."
+    }
+
+    /** Estrella: añade la página a Favoritos o, si ya lo es, abre su editor. Pública para las pruebas. */
+    fun toggleBookmark() {
+        val tab = currentTab?.takeIf { !it.showingNewTab } ?: return
+        val existing = app.bookmarks.find(tab.url)
+        if (existing != null) {
+            BookmarkEditor.show(this, w, existing, isNew = false) { updateChrome() }
+            return
+        }
+        when (val result = app.bookmarks.add(AddressFormat.title(tab.url, tab.title), tab.url)) {
+            is BookmarksStore.AddResult.Ok -> showMessage("Añadido a Favoritos. Toca la estrella para editarlo.")
+            is BookmarksStore.AddResult.Failure -> showMessage(if (result.error == "limit") "Has llegado al máximo de favoritos." else "Solo se pueden guardar páginas web.")
+        }
+        updateChrome()
     }
 
     /** Abre lo escrito en la barra de direcciones. Público para las pruebas instrumentadas. */
-    fun submitAddress(text: String) {
+    fun submitAddress(text: String, offerRebase: Boolean = true) {
+        // Cambiar a mano solo la base de una página personalizada también ofrece guardarla.
+        val split = if (offerRebase) omnibox.currentSplit() else null
+        val entry = split?.entry
+        val edit = if (split != null && entry != null) AddressRebase.classify(split, text) else null
         omnibox.clearFocus()
         suggestions.hide()
+        if (edit is AddressRebase.Edit.Rebase && entry != null) {
+            showRebaseChoices(edit.base, edit.url, entry)
+            return
+        }
         val settings = app.profile.settings
         // Las direcciones personalizadas se resuelven aquí: WebView siempre recibe la URL real.
         when (val result = InputResolver.resolve(text, settings.searchProvider, app.profile.customAddresses)) {
@@ -546,6 +646,7 @@ class MainActivity : Activity(), TabHost {
             InternalPage.NEW_TAB -> currentTab?.showNewTab()
             InternalPage.BLANK -> navigate("about:blank")
             InternalPage.HISTORY -> startActivity(Intent(this, HistoryActivity::class.java))
+            InternalPage.BOOKMARKS -> startActivity(Intent(this, BookmarksActivity::class.java))
             InternalPage.DOWNLOADS -> startActivity(Intent(this, DownloadsActivity::class.java))
             InternalPage.SETTINGS -> openSettings(null)
         }
@@ -607,51 +708,59 @@ class MainActivity : Activity(), TabHost {
 
     /* --------------------------------- Hojas --------------------------------- */
 
+    /**
+     * Menú principal, como en Chrome para Android: arriba, Adelante, Favorito,
+     * Compartir e Información del sitio; debajo, las páginas y herramientas.
+     */
     private fun showMenu() {
         val tab = currentTab
         lateinit var dialog: Dialog
         val p = look.palette
+        val page = tab?.takeIf { !it.showingNewTab }
+        val bookmarked = page != null && app.bookmarks.find(page.url) != null
         val content = w.vertical {
-            if (!look.hasNavigationBar) {
-                addView(w.horizontal {
-                    gravity = Gravity.CENTER
-                    setPadding(dp(8), dp(4), dp(8), dp(4))
-                    val actions = listOf(
-                        Triple(R.drawable.icarus_back, "Atrás", tab?.canGoBack == true) to { tab?.goBack() },
-                        Triple(R.drawable.icarus_forward, "Adelante", tab?.canGoForward == true) to { tab?.goForward() },
-                        Triple(if (tab?.loading == true) R.drawable.icarus_close else R.drawable.icarus_reload, if (tab?.loading == true) "Detener" else "Recargar", tab?.webView != null && tab.showingNewTab.not()) to {
-                            if (tab?.loading == true) tab.stop() else tab?.reload()
-                        },
-                        Triple(R.drawable.icarus_external, "Compartir", tab != null && !tab.showingNewTab) to { tab?.let { share(it) } },
-                    )
-                    actions.forEach { (spec, action) ->
-                        val (icon, label, enabled) = spec
-                        addView(w.iconButton(icon, label, if (enabled) p.fg1 else p.fg3) { dialog.dismiss(); action() }.apply { isEnabled = enabled },
-                            LinearLayout.LayoutParams(0, dp(52), 1f))
-                    }
-                })
-            }
+            addView(w.horizontal {
+                gravity = Gravity.CENTER
+                setPadding(dp(8), dp(4), dp(8), dp(4))
+                val actions = listOf(
+                    Triple(R.drawable.icarus_forward, "Adelante", tab?.canGoForward == true) to { tab?.goForward() },
+                    Triple(if (bookmarked) R.drawable.icarus_star_filled else R.drawable.icarus_star, if (bookmarked) "Editar favorito" else "Añadir a Favoritos", page != null) to { toggleBookmark() },
+                    Triple(R.drawable.icarus_external, "Compartir", page != null) to { page?.let { share(it) } },
+                    Triple(R.drawable.icarus_info, "Información del sitio", page != null) to { showSiteInfo() },
+                )
+                actions.forEach { (spec, action) ->
+                    val (icon, label, enabled) = spec
+                    val color = if (!enabled) p.fg3 else if (icon == R.drawable.icarus_star_filled) look.accent else p.fg1
+                    addView(w.iconButton(icon, label, color) { dialog.dismiss(); action() }.apply { isEnabled = enabled },
+                        LinearLayout.LayoutParams(0, dp(52), 1f))
+                }
+            })
             val update = app.updates.state
             if (update.shouldNotify) {
                 addView(w.row(R.drawable.icarus_upgrade, "Actualizar ICARUS", "Versión ${update.available?.version} disponible") { dialog.dismiss(); openSettings("updates") })
             }
             addView(w.row(R.drawable.icarus_plus, "Nueva pestaña") { dialog.dismiss(); openNewTab() })
-            if (tab != null && !tab.showingNewTab) {
-                addView(w.row(R.drawable.icarus_search, "Buscar en la página") { dialog.dismiss(); openFind() })
-                addView(w.row(R.drawable.icarus_copy, "Copiar dirección real") { dialog.dismiss(); copy(tab.url) })
-                if (UrlUtils.parseWebUrl(tab.url) != null) {
-                    addView(w.row(R.drawable.icarus_sparkle, "Añadir a accesos directos") { dialog.dismiss(); addShortcutFor(tab) })
-                }
-                if (look.hasNavigationBar) {
-                    addView(w.row(R.drawable.icarus_reload, if (tab.loading) "Detener" else "Recargar") { dialog.dismiss(); if (tab.loading) tab.stop() else tab.reload() })
-                    addView(w.row(R.drawable.icarus_external, "Compartir") { dialog.dismiss(); share(tab) })
-                }
-            }
+            addView(w.row(R.drawable.icarus_bookmarks, "Favoritos") { dialog.dismiss(); openInternal(InternalPage.BOOKMARKS) })
             addView(w.row(R.drawable.icarus_history, "Historial") { dialog.dismiss(); openInternal(InternalPage.HISTORY) })
             addView(w.row(R.drawable.icarus_download, "Descargas") { dialog.dismiss(); openInternal(InternalPage.DOWNLOADS) })
+            if (!shieldInToolbar) {
+                val blocked = page?.blocked?.get() ?: 0
+                addView(w.row(R.drawable.icarus_shield, "ICARUS Shield", if (page == null) null else "$blocked ${if (blocked == 1) "solicitud bloqueada" else "solicitudes bloqueadas"} en esta página") {
+                    dialog.dismiss()
+                    showShieldSheet()
+                })
+            }
+            if (page != null) {
+                addView(w.row(R.drawable.icarus_search, "Buscar en la página") { dialog.dismiss(); openFind() })
+                addView(w.row(R.drawable.icarus_copy, "Copiar dirección real") { dialog.dismiss(); copy(page.url) })
+                if (UrlUtils.parseWebUrl(page.url) != null) {
+                    addView(w.row(R.drawable.icarus_sparkle, "Añadir a accesos directos") { dialog.dismiss(); addShortcutFor(page) })
+                }
+            }
             addView(w.row(R.drawable.icarus_settings, "Configuración") { dialog.dismiss(); openSettings(null) })
         }
         dialog = w.sheet(content)
+        menuDialog = dialog
         dialog.show()
     }
 
@@ -1061,6 +1170,24 @@ class MainActivity : Activity(), TabHost {
     /** Texto visible en la barra de direcciones (dirección personalizada o real, en forma corta). */
     val addressText: String get() = omnibox.text
     val tabCount: Int get() = tabs.size
+    val toolbarView: View get() = toolbar
+    val contentView: View get() = webHolder
+    /** Última base nueva ofrecida para guardar (base, URL con el sufijo conservado). */
+    var lastRebaseChoice: Pair<String, String>? = null
+        private set
+    private var rebaseDialog: Dialog? = null
+    fun currentAddressSplit(): AddressRebase.Split? = omnibox.currentSplit()
+    fun focusAddressBar() = omnibox.focus()
+    fun leaveAddressBar() {
+        omnibox.clearFocus()
+        suggestions.hide()
+    }
+    private var menuDialog: Dialog? = null
+    fun openMenuForTest() = showMenu()
+    fun closeMenuForTest() {
+        menuDialog?.dismiss()
+        menuDialog = null
+    }
 
     companion object {
         private const val REQUEST_FILE = 1

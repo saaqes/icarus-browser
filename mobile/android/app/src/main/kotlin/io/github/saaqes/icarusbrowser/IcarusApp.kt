@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
+import io.github.saaqes.icarusbrowser.core.BookmarksStore
 import io.github.saaqes.icarusbrowser.core.HistoryStore
 import io.github.saaqes.icarusbrowser.core.Profile
 import io.github.saaqes.icarusbrowser.core.PublicSuffixList
@@ -35,6 +36,8 @@ class IcarusApp : Application() {
         private set
     lateinit var history: HistoryStore
         private set
+    lateinit var bookmarks: BookmarksStore
+        private set
     lateinit var shield: ShieldStore
         private set
     lateinit var downloads: DownloadsStore
@@ -57,6 +60,7 @@ class IcarusApp : Application() {
         suffixes = PublicSuffixList(asset("public-suffix-rules.txt"))
         profile = Profile(data, asset("defaults.json")) { main.post { profileListeners.forEach { it() } } }
         history = HistoryStore(File(data, "history.json"))
+        bookmarks = BookmarksStore(File(data, "bookmarks.json"))
         shield = ShieldStore(File(data, "shield"), asset("shield-basic.txt"), suffixes, onChange = ::onShieldChanged)
         downloads = DownloadsStore(this)
         favicons = FaviconCache(File(cacheDir, "favicons"))
@@ -136,6 +140,7 @@ class IcarusApp : Application() {
         background.execute {
             profile.flush()
             history.flush()
+            bookmarks.flush()
             shield.flush()
             updates.flush()
         }

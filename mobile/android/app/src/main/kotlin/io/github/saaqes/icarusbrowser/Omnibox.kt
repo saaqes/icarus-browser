@@ -18,6 +18,8 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
+import io.github.saaqes.icarusbrowser.core.AddressRebase
 import io.github.saaqes.icarusbrowser.core.CustomAddress
 import io.github.saaqes.icarusbrowser.core.CustomAddresses
 import io.github.saaqes.icarusbrowser.core.InputResolution
@@ -59,6 +61,10 @@ object AddressFormat {
  * existe); al tocarla, la dirección completa seleccionada; mientras se escribe,
  * nada la sustituye. El icono indica la conexión real y, con un certificado no
  * válido, se muestra la dirección real que falló.
+ *
+ * «Editar base» (desde las sugerencias) deja en el campo solo la base y muestra el
+ * sufijo que se conserva (`/#inicio`) a la derecha, como en escritorio. La estrella
+ * de favoritos está dentro de la barra.
  */
 class Omnibox(
     private val context: Context,
@@ -67,11 +73,17 @@ class Omnibox(
     private val onSecurityInfo: () -> Unit,
     private val onFocusChanged: (Boolean) -> Unit,
     private val onQueryChanged: (String) -> Unit,
+    private val onRebaseSubmit: (base: String, split: AddressRebase.Split) -> Unit = { _, _ -> },
+    private val onStar: () -> Unit = {},
 ) {
     private val p = w.look.palette
     private var realUrl: String = InternalPage.NEW_TAB.url
     private var certificateError = false
     private var updating = false
+    private var bookmarked = false
+    /** Edición de la base en curso: el sufijo queda fijo. */
+    var rebase: AddressRebase.Split? = null
+        private set
 
     private val securityIcon = ImageView(context).apply {
         scaleType = ImageView.ScaleType.CENTER
@@ -116,6 +128,7 @@ class Omnibox(
         }
         setOnFocusChangeListener { _, focused ->
             updating = true
+            if (!focused) endRebase()
             if (focused) {
                 setText(currentDisplay().full)
                 selectAll()
@@ -124,6 +137,7 @@ class Omnibox(
             }
             updating = false
             refreshIcon()
+            refreshStar()
             onFocusChanged(focused)
             if (focused) onQueryChanged(text.toString())
         }
@@ -136,12 +150,82 @@ class Omnibox(
         })
     }
 
-    val view: LinearLayout = w.horizontal(spacingDp = 4) {
+    /** Sufijo conservado al editar la base, con «×» para no conservarlo. */
+    private val suffixText = w.text("", 14f, p.fg1, maxLines = 1).apply {
+        ellipsize = android.text.TextUtils.TruncateAt.START
+    }
+    private val suffixChip: LinearLayout = w.horizontal(spacingDp = 2) {
+        visibility = View.GONE
+        background = context.rounded(w.look.accentSoft, 14)
+        setPadding(w.dp(10), 0, 0, 0)
+        contentDescription = "Se conserva la ruta"
+        addView(suffixText, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { gravity = Gravity.CENTER_VERTICAL })
+        addView(w.iconButton(R.drawable.icarus_close, "No conservar la ruta") { endRebase() }.apply {
+            layoutParams = LinearLayout.LayoutParams(w.dp(32), w.dp(32))
+            minimumWidth = w.dp(32)
+            minimumHeight = w.dp(32)
+        })
+    }
+
+    private val starButton = ImageView(context).apply {
+        scaleType = ImageView.ScaleType.CENTER
+        background = context.pressable(w.look, null, 18)
+        setOnClickListener { onStar() }
+    }
+
+    val view: LinearLayout = w.horizontal(spacingDp = 2) {
         background = context.rounded(p.omniboxBg, if (w.look.theme == io.github.saaqes.icarusbrowser.core.ThemeId.PANORAMA) 12 else 22, p.border1)
-        setPadding(w.dp(4), 0, w.dp(12), 0)
+        setPadding(w.dp(4), 0, w.dp(4), 0)
         minimumHeight = w.dp(44)
         addView(securityIcon, LinearLayout.LayoutParams(w.dp(36), w.dp(36)))
         addView(edit, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { gravity = Gravity.CENTER_VERTICAL })
+        addView(suffixChip, LinearLayout.LayoutParams(WRAP_CONTENT, w.dp(30)).apply { gravity = Gravity.CENTER_VERTICAL })
+        addView(starButton, LinearLayout.LayoutParams(w.dp(36), w.dp(36)))
+    }
+
+    /** Base y sufijo de la página actual (null en páginas internas o con un error de certificado). */
+    fun currentSplit(): AddressRebase.Split? {
+        if (certificateError || realUrl == InternalPage.NEW_TAB.url) return null
+        val display = currentDisplay()
+        return AddressRebase.split(display.full, display.custom)?.takeIf { it.suffix.isNotEmpty() || it.entry != null }
+    }
+
+    /** ¿El texto es todavía la dirección de la página (no se ha escrito nada)? */
+    val unchanged: Boolean get() = rebase == null && edit.text.toString() == currentDisplay().full
+
+    /** «Editar base»: el campo pasa a contener solo la base, seleccionada. */
+    fun startRebase(split: AddressRebase.Split) {
+        rebase = split
+        suffixText.text = split.suffix
+        suffixChip.visibility = if (split.suffix.isEmpty()) View.GONE else View.VISIBLE
+        edit.contentDescription = "Dirección base"
+        updating = true
+        edit.setText(split.base)
+        edit.selectAll()
+        updating = false
+        refreshStar()
+        onQueryChanged(split.base)
+    }
+
+    private fun endRebase() {
+        if (rebase == null) return
+        rebase = null
+        suffixChip.visibility = View.GONE
+        edit.contentDescription = "Barra de direcciones"
+        refreshStar()
+        if (edit.hasFocus()) onQueryChanged(edit.text.toString())
+    }
+
+    fun setBookmarked(value: Boolean) {
+        bookmarked = value
+        refreshStar()
+    }
+
+    private fun refreshStar() {
+        val show = !edit.hasFocus() && !certificateError && realUrl != InternalPage.NEW_TAB.url && UrlUtils.parseWebUrl(realUrl) != null
+        starButton.visibility = if (show) View.VISIBLE else View.GONE
+        starButton.setIcon(if (bookmarked) R.drawable.icarus_star_filled else R.drawable.icarus_star, if (bookmarked) w.look.accent else p.fg2)
+        starButton.contentDescription = if (bookmarked) "Editar favorito" else "Añadir a Favoritos"
     }
 
     /** `certificateError`: la página no se cargó porque su certificado no es válido. */
@@ -150,6 +234,7 @@ class Omnibox(
         this.certificateError = certificateError
         if (!edit.hasFocus()) showDisplay()
         refreshIcon()
+        refreshStar()
     }
 
     /** Con un error de certificado, la dirección real (sin dirección personalizada) y completa. */
@@ -172,6 +257,12 @@ class Omnibox(
 
     private fun submit() {
         val value = edit.text.toString()
+        val split = rebase
+        if (split != null) {
+            // La base se valida antes de salir de la barra: si no es válida se sigue editando.
+            onRebaseSubmit(value, split)
+            return
+        }
         clearFocus()
         onSubmit(value)
     }
@@ -257,6 +348,7 @@ class Omnibox(
             InternalPage.NEW_TAB -> "Nueva pestaña"
             InternalPage.BLANK -> "Página en blanco"
             InternalPage.HISTORY -> "Historial"
+            InternalPage.BOOKMARKS -> "Favoritos"
             InternalPage.DOWNLOADS -> "Descargas"
             InternalPage.SETTINGS -> "Configuración"
         }

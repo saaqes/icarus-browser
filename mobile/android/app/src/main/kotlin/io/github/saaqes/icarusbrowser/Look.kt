@@ -30,9 +30,6 @@ data class Look(val theme: ThemeId, val dark: Boolean, val palette: Palette) {
     val ripple get() = withAlpha(palette.accent, if (dark) 0x40 else 0x2A)
     val accentSoft get() = withAlpha(palette.accent, if (dark) 0x33 else 0x1F)
 
-    /** Cada estilo coloca la barra de direcciones en un sitio distinto (como en escritorio, la distribución cambia). */
-    val omniboxAtBottom get() = theme == ThemeId.ICARUS
-    val hasNavigationBar get() = theme == ThemeId.PANORAMA
 
     companion object {
         fun withAlpha(color: Int, alpha: Int) = (color and 0x00FFFFFF) or (alpha shl 24)

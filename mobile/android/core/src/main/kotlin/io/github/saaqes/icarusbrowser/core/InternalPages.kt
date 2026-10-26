@@ -5,6 +5,7 @@ enum class InternalPage(val kind: String, val url: String) {
     NEW_TAB("newtab", "icarus://nueva-pestana"),
     BLANK("blank", "icarus://en-blanco"),
     HISTORY("history", "icarus://historial"),
+    BOOKMARKS("bookmarks", "icarus://favoritos"),
     DOWNLOADS("downloads", "icarus://descargas"),
     SETTINGS("settings", "icarus://configuracion");
 
@@ -24,6 +25,7 @@ enum class InternalPage(val kind: String, val url: String) {
                 parts.isEmpty() || root == "inicio" || root == "nueva-pestana" -> if (parts.size <= 1) NEW_TAB else null
                 root == "en-blanco" -> if (parts.size == 1) BLANK else null
                 root == "historial" -> if (parts.size == 1) HISTORY else null
+                root == "favoritos" -> if (parts.size == 1) BOOKMARKS else null
                 root == "descargas" -> if (parts.size == 1) DOWNLOADS else null
                 root == "configuracion" -> when {
                     parts.size == 1 -> SETTINGS

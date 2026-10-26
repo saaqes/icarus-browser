@@ -95,6 +95,14 @@ const server = http.createServer((request, response) => {
       );
     case '/b.html':
       return send(200, 'text/html; charset=utf-8', page('Página B', '<p>Segunda página</p>'));
+    case '/app':
+    case '/panel/usuarios':
+      // Aplicación de una página: muestra su ruta (fragmento y consulta incluidos).
+      return send(
+        200,
+        'text/html; charset=utf-8',
+        page('Aplicación', '<p id="ruta"></p><script>const f=()=>ruta.textContent=location.pathname+location.search+location.hash;f();addEventListener("hashchange",f)</script>'),
+      );
     case '/app.js':
       return send(200, 'text/javascript', 'window.appLoaded = true;');
     case '/ads/banner.js':
@@ -839,6 +847,233 @@ await step('29. G · La barra se comporta igual en los estilos Esencial (Chrome)
     seen.push(name);
   }
   return `${seen.join(' y ')}: misma barra, misma dirección y misma seguridad`;
+});
+
+/* ----------------- Barra inteligente, zoom, favoritos y diseño ----------------- */
+
+/** Texto escrito en el campo «Dirección base» (modo Editar base). */
+const baseField = () => win.getByRole('combobox', { name: 'Dirección base' });
+async function editBase(newBase) {
+  await addressBar().click();
+  await win.getByRole('button', { name: 'Editar base' }).click();
+  await baseField().fill(newBase);
+  await win.keyboard.press('Enter');
+}
+async function setStyle(name, id) {
+  await win.keyboard.press('Control+T');
+  await win.getByRole('button', { name: 'Personalizar', exact: true }).first().click();
+  await win.locator('.theme-card', { hasText: name }).click();
+  await eventually(async () => (await win.locator('.icarus-root').getAttribute('data-theme')) === id, `No se aplicó ${name}`);
+  await win.keyboard.press('Escape');
+}
+/** Direcciones personalizadas guardadas en disco (ui-storage.json), tras escribirse. */
+async function savedAddresses() {
+  return eventually(() => {
+    try {
+      const storage = JSON.parse(readFileSync(join(dataDir, 'ui-storage.json'), 'utf8'));
+      const saved = JSON.parse(String(storage.data['icarus.aliasRules']));
+      return (saved.data ?? saved).map((entry) => entry.address);
+    } catch {
+      return null;
+    }
+  }, 'No se pudieron leer las direcciones guardadas');
+}
+/**
+ * Zoom real (el de Chromium) de las páginas del servidor de pruebas. Es por sitio, así
+ * que vale cualquier pestaña del servidor (con un menú abierto la vista está oculta).
+ */
+const pageZoom = () =>
+  app.evaluate(({ BrowserWindow, webContents }, origin) => {
+    const ui = BrowserWindow.getAllWindows()[0].webContents;
+    const contents = webContents.getAllWebContents().find((wc) => wc !== ui && !wc.isDestroyed() && wc.getURL().startsWith(origin));
+    return contents ? contents.getZoomFactor() : null;
+  }, `${base}/`);
+
+for (const [name, id] of [['Esencial', 'google-inspired'], ['Panorama', 'edge-inspired']]) {
+  await step(`30. Barra inteligente en ${name}: editar la base conserva /#inicio, /#dashboard y ruta con consulta`, async () => {
+    await setStyle(name, id);
+    // La dirección personalizada vigente es otraweb.com → servidor de pruebas.
+    await go('otraweb.com/app#inicio');
+    await waitForActiveTab('Aplicación');
+    await expectShown('otraweb.com/app#inicio');
+
+    // Editar base: solo la base en el campo y el sufijo fijo a la derecha.
+    await addressBar().click();
+    await win.getByRole('button', { name: 'Editar base' }).click();
+    assert((await baseField().inputValue()) === 'http://otraweb.com', `Base inesperada: ${await baseField().inputValue()}`);
+    assert((await win.getByTestId('rebase-suffix').innerText()).includes('/app#inicio'), 'No se muestra el sufijo que se conserva');
+    await baseField().fill('miweb2.com');
+    await win.keyboard.press('Enter');
+    const choices = win.getByRole('listbox', { name: 'Qué hacer con la base nueva' });
+    await choices.waitFor();
+    const options = await choices.getByRole('option').allInnerTexts();
+    assert(options[0]?.includes('Guardar miweb2.com') && options[1]?.includes('Ir a miweb2.com/app#inicio'), `Opciones inesperadas: ${options.join(' | ')}`);
+    await win.keyboard.press('Enter');
+    // Se guarda y la misma página real se muestra con la base nueva y la misma ruta.
+    await expectShown('miweb2.com/app#inicio', 'Tras guardar la base');
+    assert((await visibleUrl()) === `${base}/app#inicio`, `La página real cambió: ${await visibleUrl()}`);
+    await eventually(async () => (await savedAddresses()).includes('http://miweb2.com/'), 'La base nueva no se guardó en disco');
+
+    // Otra sección de la aplicación: misma configuración, sin entradas nuevas.
+    const before = (await savedAddresses()).length;
+    await visiblePageEval("location.hash = 'dashboard'; true");
+    await expectShown('miweb2.com/app#dashboard', 'Al cambiar de sección');
+    assert((await savedAddresses()).length === before, 'Se creó una configuración nueva por fragmento');
+
+    // Ruta de varios niveles con consulta: se conserva igual; se vuelve a la base anterior.
+    await go('miweb2.com/panel/usuarios?id=10');
+    await expectShown('miweb2.com/panel/usuarios?id=10');
+    await editBase('otraweb.com');
+    await choices.waitFor();
+    await win.keyboard.press('Enter');
+    await expectShown('otraweb.com/panel/usuarios?id=10', 'Tras volver a la base anterior');
+    assert((await visibleUrl()) === `${base}/panel/usuarios?id=10`, 'La ruta con consulta no se conservó');
+
+    // Una dirección completa nueva no hereda la ruta anterior.
+    await go('otraweb.com');
+    await eventually(async () => (await visibleUrl()) === `${base}/`, 'Escribir otraweb.com heredó la ruta anterior');
+    await expectShown('otraweb.com');
+
+    // Sin dirección personalizada (localhost), «Editar base» cambia el origen y navega directamente.
+    const port = new URL(base).port;
+    await go(`http://localhost:${port}/app?x=1#chart`);
+    await waitForActiveTab('Aplicación');
+    await editBase(`127.0.0.1:${port}`);
+    await eventually(async () => (await visibleUrl()) === `${base}/app?x=1#chart`, 'La base nueva no conservó la ruta');
+    await expectShown('otraweb.com/app?x=1#chart');
+    return 'guardar (persistente), otra sección, ruta con consulta, dirección nueva y origen sin personalizar';
+  });
+}
+
+await step('31. Cerrar y restaurar una pestaña personalizada conserva la dirección', async () => {
+  await go('otraweb.com/app#chart');
+  await waitForActiveTab('Aplicación');
+  await win.keyboard.press('Control+W');
+  await win.keyboard.press('Control+Shift+T');
+  await waitForActiveTab('Aplicación');
+  await expectShown('otraweb.com/app#chart', 'Tras restaurar la pestaña');
+  await eventually(async () => (await visibleUrl()) === `${base}/app#chart`, 'La pestaña restaurada no cargó la página real');
+});
+
+await step('32. Zoom real por sitio: ampliar, reducir, restablecer y menú', async () => {
+  await go('otraweb.com/a.html');
+  await waitForActiveTab('Página A');
+  await eventually(async () => (await pageZoom()) === 1, 'El zoom inicial no es 100 %');
+  await addressBar().click();
+  await win.keyboard.press('Escape');
+  await win.keyboard.press('Escape');
+  // Con el foco en la interfaz, Ctrl + / − cambian el zoom de la página (no el de la interfaz).
+  await win.locator('.toolbar').click({ position: { x: 5, y: 5 } }).catch(() => {});
+  await win.keyboard.press('Control+=');
+  await win.keyboard.press('Control+=');
+  await eventually(async () => (await pageZoom()) === 1.25, 'Ctrl+= no amplió la página al 125 %');
+  const uiZoom = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getZoomFactor());
+  assert(uiZoom === 1, `Cambió el zoom de la interfaz (${uiZoom})`);
+  const indicator = win.getByTestId('zoom-indicator');
+  await indicator.waitFor();
+  assert((await indicator.getAttribute('aria-label')) === 'Zoom: 125 %', `Indicador: ${await indicator.getAttribute('aria-label')}`);
+  // Otra pestaña del mismo sitio usa el mismo zoom.
+  await win.keyboard.press('Control+T');
+  await go('otraweb.com/b.html');
+  await waitForActiveTab('Página B');
+  await eventually(async () => (await pageZoom()) === 1.25, 'El zoom no se aplicó a otra página del mismo sitio');
+  // Menú: Reducir; indicador: Restablecer.
+  await win.getByRole('button', { name: 'Menú de ICARUS' }).click();
+  await win.getByRole('menuitem', { name: 'Reducir' }).click();
+  await eventually(async () => (await win.getByTestId('zoom-value').innerText()) === '110 %', 'El menú no muestra 110 %');
+  await win.keyboard.press('Escape');
+  await eventually(async () => (await pageZoom()) === 1.1, 'Reducir desde el menú no cambió el zoom');
+  await win.getByTestId('zoom-indicator').click();
+  await win.getByRole('button', { name: 'Restablecer' }).click();
+  await eventually(async () => (await pageZoom()) === 1, 'Restablecer no volvió al 100 %');
+  // Se deja un 110 % para comprobar que se guarda al reiniciar.
+  await win.keyboard.press('Control+=');
+  await eventually(async () => (await pageZoom()) === 1.1, 'No se volvió a ampliar');
+  return 'Ctrl+=, menú, mismo sitio en otra pestaña e indicador; la interfaz no cambia de tamaño';
+});
+
+await step('33. Favoritos: guardar, nombre, carpeta, abrir y eliminar (dirección personalizada, nunca la real)', async () => {
+  await go('otraweb.com/app#dashboard');
+  await waitForActiveTab('Aplicación');
+  const star = win.getByTestId('bookmark-star');
+  assert((await star.getAttribute('aria-pressed')) === 'false', 'La página ya era un favorito');
+  await star.click();
+  const editor = win.getByRole('dialog', { name: 'Favorito añadido' });
+  await editor.waitFor();
+  assert(!(await editor.innerText()).includes('127.0.0.1'), 'El editor muestra la dirección real');
+  await editor.getByLabel('Nombre').fill('Panel ICARUS');
+  await editor.getByLabel('Carpeta').selectOption({ label: 'Nueva carpeta…' });
+  await editor.getByLabel('Nombre de la carpeta nueva').fill('Trabajo');
+  await editor.getByRole('button', { name: 'Hecho' }).click();
+  await eventually(async () => (await star.getAttribute('aria-pressed')) === 'true', 'La estrella no se rellenó');
+  // Se abre con un clic desde el botón Favoritos.
+  await go('otraweb.com/b.html');
+  await waitForActiveTab('Página B');
+  await win.getByTestId('bookmarks-button').click();
+  const hub = win.getByRole('dialog', { name: 'Favoritos' });
+  await hub.waitFor();
+  const hubText = await hub.innerText();
+  // El nombre de la carpeta se muestra en mayúsculas (CSS).
+  assert(/trabajo/i.test(hubText) && hubText.includes('otraweb.com/app#dashboard') && !hubText.includes('127.0.0.1'), `Favoritos: ${hubText}`);
+  await hub.getByRole('button', { name: /Panel ICARUS/ }).click();
+  await expectShown('otraweb.com/app#dashboard', 'Al abrir el favorito');
+  // Ctrl+D sobre otra página y eliminar desde icarus://favoritos.
+  await go('otraweb.com/b.html');
+  await waitForActiveTab('Página B');
+  await win.keyboard.press('Control+D');
+  await win.getByRole('dialog', { name: 'Favorito añadido' }).getByRole('button', { name: 'Hecho' }).click();
+  await go('icarus://favoritos');
+  await win.getByRole('heading', { level: 1, name: 'Favoritos' }).waitFor();
+  const row = win.getByTestId('bookmark-row').filter({ hasText: 'Página B' });
+  await row.getByRole('button', { name: /Eliminar/ }).click();
+  await eventually(async () => (await win.getByTestId('bookmark-row').count()) === 0, 'Quedan favoritos en la carpeta «Favoritos»');
+  return 'Panel ICARUS en «Trabajo»; Página B eliminada';
+});
+
+await step('34. La barra ocupa todo el ancho entre los controles y las acciones (Esencial y Panorama, 1600 y 900 px)', async () => {
+  const notes = [];
+  for (const [name, id] of [['Esencial', 'google-inspired'], ['Panorama', 'edge-inspired']]) {
+    await setStyle(name, id);
+    await go('otraweb.com/a.html');
+    for (const width of [1600, 900]) {
+      await app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setSize(w, 800), width);
+      await sleep(400);
+      const layout = await win.evaluate(() => {
+        const rect = (selector) => document.querySelector(selector)?.getBoundingClientRect();
+        const nav = rect('.nav-controls');
+        const omnibox = rect('.omnibox');
+        const actions = rect('.toolbar__actions');
+        return { window: window.innerWidth, navRight: nav.right, left: omnibox.left, right: omnibox.right, actionsLeft: actions.left, top: omnibox.top, navTop: nav.top };
+      });
+      const gapLeft = layout.left - layout.navRight;
+      const gapRight = layout.actionsLeft - layout.right;
+      assert(gapLeft >= 0 && gapLeft <= 12, `${name} a ${width}px: hueco a la izquierda de ${gapLeft}px`);
+      assert(gapRight >= 0 && gapRight <= 20, `${name} a ${width}px: hueco a la derecha de ${gapRight}px`);
+      assert(layout.right <= layout.window, `${name} a ${width}px: la barra se desborda`);
+      notes.push(`${name} ${width}px: ${Math.round(layout.right - layout.left)}px (huecos ${Math.round(gapLeft)}/${Math.round(gapRight)})`);
+    }
+  }
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 800));
+  return notes.join(' · ');
+});
+
+await step('35. Reiniciar conserva la base editada, los favoritos y el zoom; sin alias ni .icarus', async () => {
+  await app.close();
+  ({ app, win } = await launch());
+  await win.keyboard.press('Control+T');
+  await go('otraweb.com/a.html');
+  await waitForActiveTab('Página A');
+  await expectShown('otraweb.com/a.html', 'Tras reiniciar');
+  await eventually(async () => (await pageZoom()) === 1.1, 'El zoom del sitio no se conservó al reiniciar');
+  const bookmarks = await win.evaluate(() => JSON.parse(window.icarusNative.storage.snapshot['icarus.bookmarks'] ?? 'null'));
+  const items = bookmarks?.data?.items ?? [];
+  assert(items.some((item) => item.title === 'Panel ICARUS' && item.url === `${base}/app#dashboard`), 'Los favoritos no se conservaron');
+  assert(items.length === 1, `Favoritos tras reiniciar: ${items.length}`);
+  const html = await win.evaluate(() => document.body.innerHTML);
+  assert(!/\.icarus\b/.test(html), 'La interfaz muestra un sufijo .icarus');
+  const storage = readFileSync(join(dataDir, 'ui-storage.json'), 'utf8');
+  assert(!storage.includes('.icarus'), 'Los datos guardados contienen .icarus');
+  return `${items.length} favorito · zoom 110 % · otraweb.com`;
 });
 
 if (process.env.ICARUS_E2E_INTERNET === '1') {

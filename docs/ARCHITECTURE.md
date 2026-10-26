@@ -78,6 +78,7 @@ Archivos en `src/services/custom-addresses/` (tipos en `src/types/customAddress.
 | `validation.ts` | Códigos de error por campo y la entrada con la que choca cada uno. |
 | `store.ts` | Crear, editar, activar, eliminar, saneamiento al cargar, conversión de las reglas de alias antiguas, importación y exportación. |
 | `display.ts` | Formato de la barra como Chrome: corto sin foco (sin protocolo ni `www.`), completo al editar. |
+| `rebase.ts` | Editar la base: divide la dirección mostrada en base (la dirección personalizada aplicada o el origen) y sufijo (ruta, consulta y fragmento), une una base nueva sin duplicar barras y distingue «editar la base» de «escribir otra dirección» (que nunca hereda la ruta). `renameCustomAddressBase` (en `store.ts`) guarda la base nueva con la validación del editor. |
 
 Garantías:
 
@@ -85,7 +86,13 @@ Garantías:
 - La dirección usa el protocolo del destino (`protocol-mismatch` si no): HTTP nunca se presenta como HTTPS.
 - Entre entradas activas no se solapan ni los destinos ni las direcciones, y una dirección no puede ser el destino de otra: la resolución es de un solo paso, sin cadenas ni ciclos. Si datos importados o antiguos chocan, la entrada se guarda desactivada en lugar de perderse.
 - Las entradas desactivadas no participan en la presentación ni en la navegación.
-- La lógica es la misma en Android (`CustomAddresses.kt`) e iPhone (`CustomAddresses.swift`), probada con los vectores `custom-address-display.json`, `custom-address-validation.json` y `resolve-input.json` generados desde estas funciones.
+- La lógica es la misma en Android (`CustomAddresses.kt`, `AddressRebase.kt`) e iPhone (`CustomAddresses.swift`, `AddressRebase.swift`), probada con los vectores `custom-address-display.json`, `custom-address-validation.json`, `resolve-input.json` y `address-rebase.json` generados desde estas funciones.
+
+## Favoritos y zoom
+
+- **Favoritos** (`src/services/bookmarks/bookmarks.ts`, tipos en `src/types/bookmarks.ts`): documento `icarus.bookmarks` con carpetas y elementos; operaciones puras (añadir sin duplicados por URL real normalizada, editar, mover, borrar, carpetas) y saneamiento al cargar. Se guarda la URL real; la interfaz la muestra con `visibleAddress()` (la dirección personalizada si hay una activa). Componentes: `BookmarkStar` (estrella y editor), `BookmarksButton` (lista de la barra) y `BookmarksPage` (`icarus://favoritos`). Android usa `BookmarksStore` del núcleo con las mismas reglas.
+- **Zoom** (`electron/main/zoom.ts`): zoom real de Chromium (`setZoomFactor`) con los niveles de Chrome. `TabManager.zoom()` lo cambia y lo guarda por sitio en `zoom.json`; al navegar (`did-navigate`) se aplica el del sitio. Chromium lo propaga a las pestañas del mismo origen y `WebTabState.zoom` informa del porcentaje. La interfaz lo pide con `icarusNative.tabs.zoom(tabId, 'in' | 'out' | 'reset')`; la ventana de la interfaz tiene el zoom bloqueado.
+- **Barra de herramientas**: `NavigationControls` + `AddressBar` (`flex: 1 1 auto`, sin ancho máximo) + `ToolbarActions` (herramientas, `BookmarksButton` y menú principal con la fila de zoom). Es el mismo árbol en todos los estilos; los estilos solo cambian variables y radios en `src/themes/*/theme.css`.
 
 ## Internacionalización
 
