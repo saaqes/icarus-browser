@@ -313,3 +313,7 @@ function createUpdateService(dataDir: string, emit: (event: NativeEvent) => void
 }
 
 app.on('window-all-closed', () => app.quit());
+
+// Cierre ordenado si el sistema lo pide con una señal (apagado en Linux, `kill`):
+// pasa por before-quit, así que los datos se guardan como al cerrar la ventana.
+for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => app.quit());
