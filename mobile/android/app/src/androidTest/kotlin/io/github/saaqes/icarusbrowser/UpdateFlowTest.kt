@@ -15,6 +15,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.IOException
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -49,7 +50,9 @@ class UpdateFlowTest {
         thread(isDaemon = true) {
             while (!server.isClosed) {
                 val socket = runCatching { server.accept() }.getOrNull() ?: break
-                thread(isDaemon = true) { serve(socket) }
+                // El WebView puede cerrar una conexión a medias (al cambiar de página): no es un fallo
+                // de la prueba, y una excepción sin capturar en este hilo cerraría la aplicación.
+                thread(isDaemon = true) { try { serve(socket) } catch (closed: IOException) {} }
             }
         }
     }

@@ -163,6 +163,7 @@ jobs:
         run: |
           if [ -f emulator-failed ]; then
             echo "La prueba en el emulador falló."
-            grep -E "IcarusScreenshot|AndroidRuntime|TestRunner|AssertionError|Tiempo agotado" logcat.txt | tail -80 || true
+            # Sin las líneas base64 de las capturas, que taparían el resultado de las pruebas.
+            grep -E "IcarusScreenshot: (BEGIN|END)|AndroidRuntime|TestRunner|AssertionError|Tiempo agotado" logcat.txt | tail -80 || true
             exit 1
           fi
