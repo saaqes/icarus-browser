@@ -48,7 +48,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx tsc -p tsconfig.electron.json
+      - run: npm run build:electron
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
@@ -94,7 +94,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx tsc -p tsconfig.electron.json
+      - run: npm run build:electron
       - uses: actions/download-artifact@v4
         with:
           pattern: icarus-browser-*

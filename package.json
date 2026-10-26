@@ -17,6 +17,7 @@
     "dev:web": "vite",
     "build": "tsc -b && vite build && node scripts/electron-postbuild.mjs",
     "build:web": "tsc -b && vite build",
+    "build:electron": "tsc -p tsconfig.electron.json && node scripts/electron-postbuild.mjs",
     "build:single": "vite build && node scripts/build-single-file.mjs",
     "start": "electron .",
     "preview": "vite preview",
@@ -29,7 +30,7 @@
     "dist:dir": "npm run build && electron-builder --dir --publish never",
     "dist:mac": "npm run build && electron-builder --mac --publish never",
     "update:psl": "node scripts/update-public-suffix-list.mjs",
-    "version": "tsc -p tsconfig.electron.json && node scripts/release/version.mjs sync && git add mobile/ios/App/project.yml"
+    "version": "npm run build:electron && node scripts/release/version.mjs sync && git add mobile/ios/App/project.yml"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.2",

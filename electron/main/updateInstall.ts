@@ -2,9 +2,12 @@
  * Instalación de actualizaciones en el escritorio.
  *
  * Windows (instalado con el instalador NSIS): se ejecuta el nuevo instalador con
- * `/S --updated --force-run`, igual que hace electron-updater. El instalador de
- * electron-builder espera a que ICARUS se cierre, instala en la misma carpeta,
- * conserva los datos (%APPDATA%\ICARUS Browser) y vuelve a abrir ICARUS.
+ * `/S --updated`, igual que hace electron-updater. El instalador de
+ * electron-builder espera a que ICARUS se cierre, instala en la misma carpeta y
+ * conserva los datos (%APPDATA%\ICARUS Browser). Para volver a abrir ICARUS no se
+ * usa su `--force-run` (abre la app a través del Explorador, que puede no estar
+ * disponible): un proceso de PowerShell espera a que termine el instalador y abre
+ * ICARUS, también si la instalación falla, para no dejar al usuario sin navegador.
  *
  * macOS: la app lleva firma ad hoc, así que Squirrel.Mac (el mecanismo de
  * electron-updater) no puede validar la versión nueva. ICARUS descarga el .zip
@@ -121,10 +124,20 @@ export async function verifyWindowsInstaller(installer: string, execPath: string
   }
 }
 
-export function launchWindowsInstaller(installer: string, relaunch: boolean): void {
-  const args = ['/S', '--updated'];
-  if (relaunch) args.push('--force-run');
-  const child = spawn(installer, args, { detached: true, stdio: 'ignore', windowsHide: false });
+/** Espera al instalador y vuelve a abrir ICARUS (rutas por variables de entorno: sin problemas de comillas). */
+const WINDOWS_RELAUNCH =
+  "$p = Start-Process -FilePath $env:ICARUS_UPDATE_INSTALLER -ArgumentList '/S','--updated' -Wait -PassThru; " +
+  "Start-Process -FilePath $env:ICARUS_UPDATE_APP -ArgumentList '--updated'; exit $p.ExitCode";
+
+export function launchWindowsInstaller(installer: string, relaunch: boolean, appPath: string = process.execPath): void {
+  const child = relaunch
+    ? spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-Command', WINDOWS_RELAUNCH], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+        env: { ...process.env, ICARUS_UPDATE_INSTALLER: installer, ICARUS_UPDATE_APP: appPath },
+      })
+    : spawn(installer, ['/S', '--updated'], { detached: true, stdio: 'ignore' });
   child.unref();
 }
 

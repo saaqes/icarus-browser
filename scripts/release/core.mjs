@@ -3,7 +3,7 @@
  *
  * Las comprobaciones de versión, manifiesto y firma son las mismas que usa la
  * aplicación: se cargan de electron/update compilado en dist-electron (ejecuta
- * antes `npx tsc -p tsconfig.electron.json`, o `npm run build`).
+ * antes `npm run build:electron`, o `npm run build`).
  */
 
 import { createHash } from 'node:crypto';
@@ -16,8 +16,8 @@ export const projectDir = resolve(fileURLToPath(new URL('../..', import.meta.url
 export const PUBLIC_KEY_FILE = join(projectDir, 'build', 'update-public-key.pem');
 
 const compiled = (name) => join(projectDir, 'dist-electron', 'electron', 'update', `${name}.js`);
-if (!existsSync(compiled('manifest'))) {
-  console.error('Falta dist-electron/electron/update: ejecuta antes «npx tsc -p tsconfig.electron.json».');
+if (!existsSync(compiled('manifest')) || !existsSync(join(projectDir, 'dist-electron', 'package.json'))) {
+  console.error('Falta dist-electron: ejecuta antes «npm run build:electron».');
   process.exit(1);
 }
 const require = createRequire(import.meta.url);

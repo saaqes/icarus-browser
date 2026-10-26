@@ -28,7 +28,8 @@ jobs:
       - name: Versión única (package.json y project.yml)
         run: |
           npm ci
-          npx tsc -p tsconfig.electron.json
+          npm run build:electron
+          set -o pipefail
           node scripts/release/version.mjs check | tee version.json
       - name: Herramientas
         run: |

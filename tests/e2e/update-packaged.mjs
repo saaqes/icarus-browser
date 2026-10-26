@@ -140,12 +140,13 @@ function icarusProcesses() {
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' });
     return parseProcesses(result.stdout);
   }
+  // Solo procesos cuyo ejecutable es ICARUS (la línea de esta prueba también contiene la ruta).
   const result = spawnSync('/bin/ps', ['-axo', 'pid=,command='], { encoding: 'utf8' });
   return parseProcesses(
     result.stdout
       .split('\n')
-      .filter((line) => line.includes('ICARUS Browser.app/Contents/MacOS/ICARUS Browser'))
       .map((line) => line.trim().replace(/^(\d+)\s+/, '$1\t'))
+      .filter((line) => /^\d+\t\/.*\/ICARUS Browser\.app\/Contents\/MacOS\/ICARUS Browser(\s|$)/.test(line))
       .join('\n'),
   );
 }
@@ -154,7 +155,7 @@ function parseProcesses(text) {
   return (text ?? '')
     .split(/\r?\n/)
     .map((line) => line.split('\t'))
-    .filter(([pid, command]) => /^\d+$/.test(pid ?? '') && command && !command.includes('--type='))
+    .filter(([pid, command]) => /^\d+$/.test(pid ?? '') && Number(pid) !== process.pid && command && !command.includes('--type='))
     .map(([pid, command]) => ({ pid: Number(pid), command }));
 }
 

@@ -33,7 +33,8 @@ jobs:
         run: |
           npm ci
           npx vitest run electron/shared
-          npx tsc -p tsconfig.electron.json
+          npm run build:electron
+          set -o pipefail
           node scripts/release/version.mjs check | tee version.json
       - uses: actions/setup-java@v4
         with:
