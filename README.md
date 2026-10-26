@@ -43,6 +43,7 @@ El prototipo web (`dist/icarus-browser.html`) sigue existiendo, pero **no es un 
 - [Compilar desde el código](#compilar-desde-el-código)
 - [Funciones del navegador](#funciones-del-navegador)
 - [Interfaz y personalización](#interfaz-y-personalización)
+- [Actualizaciones](#actualizaciones)
 - [Android, iPhone y iPad](#android-iphone-y-ipad)
 - [Versión web (prototipo)](#versión-web-prototipo)
 - [Limitaciones conocidas](#limitaciones-conocidas)
@@ -77,7 +78,8 @@ El prototipo web (`dist/icarus-browser.html`) sigue existiendo, pero **no es un 
 | App de iPhone y iPad (`.ipa`) | **Real**: WebKit; probada en el simulador de iOS en CI. El `.ipa` **no está firmado** |
 | Sesiones aisladas por pestaña | **No**: en todas las plataformas las pestañas comparten un perfil |
 | Sincronización, cuentas, IA, marcadores, gestor de contraseñas | **No existen** (la interfaz no los muestra) |
-| Actualizaciones automáticas, firma de código de un desarrollador verificado | **No** |
+| Actualizaciones desde el navegador con manifiesto firmado | **Implementadas**: Windows y macOS se actualizan solos; Android, con el instalador del sistema; iPhone avisa. Se activan cuando el repositorio tiene la clave de firma (ver [Actualizaciones](#actualizaciones)) |
+| Firma de código de un desarrollador verificado (Authenticode, Developer ID) | **No** |
 
 ## Instalar en Windows
 
@@ -90,7 +92,7 @@ Requisitos: Windows 10 u 11 de 64 bits.
 3. Ejecuta el instalador. **No está firmado**, así que Windows SmartScreen mostrará «Windows protegió su PC»: pulsa *Más información* → *Ejecutar de todas formas* solo si descargaste el archivo de este repositorio.
 4. El asistente permite elegir la carpeta (por defecto `%LOCALAPPDATA%\Programs\ICARUS Browser`, sin permisos de administrador) y crea accesos directos en el escritorio y el menú Inicio.
 
-- **Actualizar**: ejecuta el instalador de la versión nueva; se instala encima y conserva tus datos.
+- **Actualizar**: ICARUS avisa de las versiones nuevas y se actualiza desde **Configuración → Actualizaciones** (o la píldora «Actualizar» de la barra), conservando tus datos. También puedes ejecutar el instalador de la versión nueva encima de la actual.
 - **Desinstalar**: Configuración de Windows → Aplicaciones, o `Uninstall ICARUS Browser.exe`. Tus datos (`%APPDATA%\ICARUS Browser`) **no se borran**; elimina esa carpeta a mano si quieres quitarlos.
 - **Portátil**: descomprime `ICARUS-Browser-0.2.0-win-x64.zip` y ejecuta `ICARUS Browser.exe`. Usa la misma carpeta de datos que la versión instalada.
 
@@ -116,7 +118,7 @@ Requisitos: Android 10 o posterior.
 
 Desde un ordenador: `adb install ICARUS-Browser-0.2.0-android.apk`.
 
-**Firma**: sin secretos de firma en el repositorio, CI firma el APK con una clave de depuración que cambia en cada ejecución. Sirve para instalarlo a mano, pero para instalar una versión posterior hay que **desinstalar la anterior** (se borran los datos de ICARUS). Si el repositorio define los secretos `ICARUS_KEYSTORE_BASE64`, `ICARUS_KEYSTORE_PASSWORD`, `ICARUS_KEY_ALIAS` e `ICARUS_KEY_PASSWORD`, CI firma con esa clave y las actualizaciones se instalan encima. La clave nunca se guarda en el repositorio. Google Play exigiría además un paquete AAB y su propio proceso de firma.
+**Firma**: sin secretos de firma en el repositorio, CI firma el APK con una clave de depuración que cambia en cada ejecución. Sirve para instalarlo a mano, pero para instalar una versión posterior hay que **desinstalar la anterior** (se borran los datos de ICARUS). Si el repositorio define los secretos `ICARUS_KEYSTORE_BASE64`, `ICARUS_KEYSTORE_PASSWORD`, `ICARUS_KEY_ALIAS` e `ICARUS_KEY_PASSWORD`, CI firma con esa clave y las actualizaciones se instalan encima (también desde la propia app: Configuración → Actualizaciones, con la confirmación de Android). La clave nunca se guarda en el repositorio. Google Play exigiría además un paquete AAB y su propio proceso de firma.
 
 ## Instalar en iPhone y iPad
 
@@ -277,6 +279,21 @@ Accesos directos: añadir, editar, eliminar, reordenar, abrir en la pestaña act
 - **Avanzado**: **«Personalizar direcciones URL»**, exportar e importar la configuración en JSON, estado real del motor y carpeta de datos.
 - **Acerca de ICARUS**: versión, motor, plataformas y atajos.
 
+## Actualizaciones
+
+Cada versión publicada incluye un manifiesto (`icarus-update.json`) firmado con ECDSA P-256 que lista cada paquete con su tamaño y SHA-256. ICARUS lo comprueba al abrirse y cada 6 horas, muestra un aviso discreto si hay una versión nueva (sin interrumpir la navegación) y en **Configuración → Actualizaciones** permite ver las novedades, elegir el canal (estable o vista previa), actualizar ahora, instalar al cerrar o recordarlo más tarde.
+
+| Plataforma | Cómo se actualiza |
+| --- | --- |
+| Windows (instalador) | Descarga y verifica el instalador, lo ejecuta en silencio sobre la versión actual y vuelve a abrir ICARUS con tus pestañas. |
+| Windows (portátil) | Descarga y verifica el `.zip`; lo descomprimes tú. |
+| macOS (en *Aplicaciones* u otra carpeta escribible) | Descarga y verifica la app (SHA-256, identificador y firma de código), la sustituye al cerrarse y la vuelve a abrir. Si no puede escribir en su carpeta, descarga el `.dmg` verificado. |
+| Android (APK) | Descarga y verifica el APK (SHA-256, versión y mismo certificado) y lo entrega al instalador de Android, que siempre pide confirmación. Instalado desde Google Play: lo actualiza Google Play. |
+| iPhone y iPad | Avisa. iOS no permite que una app se instale a sí misma: App Store, TestFlight o volver a firmar el `.ipa`. |
+| Linux | Avisa y abre la página de la versión. |
+
+Nunca se ofrece una versión igual o anterior, ni una preliminar en el canal estable; las direcciones de descarga se construyen en la app (una respuesta manipulada no puede forzar otra) y un paquete que no coincide se borra sin instalarse. Las actualizaciones no tocan la carpeta de datos. Requisitos (la clave de firma del manifiesto y el almacén de claves de Android), formato del manifiesto, cómo publicar una versión y cómo probar una actualización en local: [docs/UPDATES.md](docs/UPDATES.md).
+
 ## Android, iPhone y iPad
 
 Las apps móviles tienen interfaz nativa (vistas de Android en Kotlin; SwiftUI en iPhone y iPad) y conservan la identidad de escritorio: los mismos tres estilos con distribución propia (Esencial con la barra arriba, Panorama con barra de navegación inferior, ICARUS con la barra de direcciones abajo), los colores del CSS de escritorio, los iconos de escritorio en Android, y los mismos textos de error.
@@ -321,14 +338,14 @@ Si el alojamiento bloquea ventanas emergentes: `VITE_ICARUS_EXTERNAL_OPENING=con
 ## Limitaciones conocidas
 
 - **Un solo perfil**: todas las pestañas comparten cookies, almacenamiento y caché. Iniciar sesión en una pestaña inicia sesión en todas. Cada pestaña tiene su propio proceso con sandbox, pero eso no aísla los datos.
-- **Sin firma de código**: SmartScreen avisa al instalar. Sin actualizaciones automáticas.
+- **Sin firma de código**: SmartScreen avisa al instalar por primera vez (las actualizaciones posteriores las descarga y verifica ICARUS).
 - **Shield** solo bloquea solicitudes de red: no oculta elementos, y no bloquea anuncios servidos desde el mismo dominio que el contenido (p. ej. YouTube).
 - **Sin Widevine** (DRM): Netflix, Disney+ y similares no reproducen vídeo.
 - **Inicio de sesión de Google** y otros proveedores pueden rechazar navegadores integrados que no reconocen.
 - **Compartir pantalla** no disponible (se deniega) y no hay selector de dispositivos USB, HID, serie ni Bluetooth.
 - **Idioma**: la interfaz está en español; los textos están centralizados en `src/i18n/es.ts` y los menús del proceso principal en `electron/main/strings.ts`.
 - **Plataformas**: hay paquetes para Windows x64, macOS (arm64 y x64), Android e iPhone/iPad. El código de escritorio también funciona en Linux (las pruebas E2E se ejecutan allí), pero no se publica un paquete para Linux.
-- **macOS**: firma ad hoc sin Developer ID ni notarización (Gatekeeper avisa la primera vez); sin actualizaciones automáticas.
+- **macOS**: firma ad hoc sin Developer ID ni notarización (Gatekeeper avisa la primera vez). Las actualizaciones automáticas necesitan que la app esté en una carpeta con permiso de escritura (p. ej. *Aplicaciones*); si no, ICARUS descarga el `.dmg` verificado para colocarlo a mano.
 - **Android**: todas las pestañas comparten cookies y almacenamiento de WebView; las cookies de terceros están bloqueadas (comportamiento de WebView). WebView no indica el tipo de cada recurso, así que Shield lo deduce y una regla limitada a un tipo (p. ej. `$image`) puede no aplicarse a un recurso que no se reconozca. Algunos servicios (como el inicio de sesión de Google) rechazan los navegadores basados en WebView. El APK de CI se firma con una clave de depuración (ver [Instalar en Android](#instalar-en-android)). Las descargas `blob:` y `data:` no son compatibles.
 - **Direcciones personalizadas**: existen solo dentro de ICARUS en el dispositivo donde se crean (no son dominios de Internet ni se sincronizan entre dispositivos). Mientras una entrada está activa, la dirección elegida tapa al sitio real que pudiera existir con ese nombre. Los enlaces de las páginas hacia la dirección personalizada van al sitio real con ese nombre, no al destino. Ver [Direcciones personalizadas](#direcciones-personalizadas).
 - **Chrome y Edge**: ICARUS no tiene una versión basada en Edge o WebView2; en Windows y macOS usa siempre el mismo Chromium de Electron. «Esencial» (inspirado en Chrome) y «Panorama» (inspirado en Edge) son estilos de la misma interfaz y comparten la misma barra de direcciones y la misma capa de direcciones personalizadas, que Android (WebView) e iPhone (WebKit) reproducen con la misma lógica y los mismos vectores de prueba.
@@ -427,11 +444,11 @@ La prueba de humo habla directamente el protocolo DevTools, porque el ejecutable
 ## Integración continua y publicación
 
 - **CI** (`.github/workflows/ci.yml`, Ubuntu): tipos, pruebas, compilación, HTML autocontenido, pruebas E2E con Xvfb, empaquetado de Linux y prueba de humo.
-- **Windows** (`.github/workflows/windows.yml`, `windows-latest`): tipos, pruebas, compilación, instalador NSIS y `.zip`, sumas SHA-256, prueba de humo del ejecutable, instalación y desinstalación silenciosas, pruebas E2E y artefacto `icarus-browser-windows-x64` (30 días).
-- **macOS** (`.github/workflows/macos.yml`, `macos-15`): tipos, pruebas, `.dmg` y `.zip` (arm64 y x64), verificación de la firma ad hoc, prueba de humo de la app empaquetada y de la instalada desde el `.dmg`, y pruebas E2E en macOS.
+- **Windows** (`.github/workflows/windows.yml`, `windows-latest`): tipos, pruebas, compilación, instalador NSIS y `.zip`, sumas SHA-256, prueba de humo del ejecutable, instalación y desinstalación silenciosas, pruebas E2E, **actualización real** del navegador instalado a la versión siguiente (ver [docs/UPDATES.md](docs/UPDATES.md)) y artefacto `icarus-browser-windows-x64` (30 días).
+- **macOS** (`.github/workflows/macos.yml`, `macos-15`): tipos, pruebas, `.dmg` y `.zip` (arm64 y x64), verificación de la firma ad hoc, prueba de humo de la app empaquetada y de la instalada desde el `.dmg`, **actualización real** de la app instalada a la versión siguiente y pruebas E2E en macOS.
 - **Android** (`.github/workflows/android.yml`): comprueba que `mobile/shared` está al día, pruebas del núcleo, APK release, lint y prueba en un emulador de Android 14 con capturas.
 - **iPhone y iPad** (`.github/workflows/ios.yml`, `macos-15`): `swift test`, pruebas en el simulador con WebKit real, capturas, compilación sin firmar para iPhone y paquete `.ipa`.
-- **Versiones** (`.github/workflows/release.yml`): al subir una etiqueta `v*` o lanzarlo a mano, compila y prueba las cuatro plataformas y crea un **borrador** de versión preliminar con todos los paquetes y sus sumas SHA-256. Nunca se publica una versión automáticamente: alguien debe revisarla y publicarla.
+- **Publicación** (`.github/workflows/release.yml`): solo una etiqueta publica. `vX.Y.Z` publica una versión estable y `vX.Y.Z-preview.N`, una preliminar; lanzarlo a mano crea un borrador privado. Antes de compilar comprueba que la etiqueta coincide con `package.json`, que la versión no está publicada ni es anterior a otra y que existen la clave y los secretos de firma; después ejecuta todos los flujos anteriores, genera y firma el manifiesto, crea la versión como borrador, la publica cuando están todos los archivos y la descarga sin credenciales para comprobarla (si algo no coincide, la vuelve a ocultar). Subir commits a una rama nunca publica nada. Ver [docs/UPDATES.md](docs/UPDATES.md).
 
 ## Licencias de terceros
 
@@ -442,7 +459,7 @@ La prueba de humo habla directamente el protocolo DevTools, porque el ejecutable
 
 ## Próximos pasos
 
-1. Firma de código del instalador y actualizaciones automáticas (electron-updater; el `.blockmap` ya se genera).
+1. Firma de código del instalador (Authenticode) y Developer ID con notarización en macOS (el flujo está preparado: ver [docs/UPDATES.md](docs/UPDATES.md)).
 2. Perfiles aislados (una partición `persist:<perfil>` por perfil) y ventanas por perfil.
 3. Shield: filtros cosméticos (ocultar elementos) y actualización de la Public Suffix List en cada versión.
 4. Selector de pantalla para compartir y selector de dispositivos.
