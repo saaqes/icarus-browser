@@ -4,7 +4,7 @@
  * las demás, esta prueba falla.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { androidVersionCode, parseVersion, VERSION_PATTERN } from './version';
@@ -23,6 +23,11 @@ describe('versión única', () => {
     const project = read('mobile/ios/App/project.yml');
     expect(/MARKETING_VERSION:\s*"([^"]*)"/.exec(project)?.[1]).toBe(`${parsed.major}.${parsed.minor}.${parsed.patch}`);
     expect(/CURRENT_PROJECT_VERSION:\s*"([^"]*)"/.exec(project)?.[1]).toBe(String(androidVersionCode(parsed)));
+  });
+
+  it('iPhone lleva la misma clave pública de actualizaciones (o ninguna)', () => {
+    const key = (path: string) => (existsSync(join(root, path)) ? read(path) : null);
+    expect(key('mobile/ios/App/Resources/update-public-key.pem')).toBe(key('build/update-public-key.pem'));
   });
 
   it('Android calcula la versión desde package.json con la misma fórmula', () => {

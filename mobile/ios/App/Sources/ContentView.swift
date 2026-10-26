@@ -24,6 +24,9 @@ struct CustomAddressRequest: Equatable {
 struct ContentView: View {
     @StateObject private var browser = BrowserModel()
     @ObservedObject private var services = AppServices.shared
+    @ObservedObject private var updates = UpdateModel.shared
+    /// Avisos de actualización ya mostrados en esta sesión (no se repiten).
+    @State private var notifiedUpdates = Set<String>()
     @Environment(\.colorScheme) private var systemScheme
     @Environment(\.scenePhase) private var phase
 
@@ -51,6 +54,23 @@ struct ContentView: View {
         .tint(look.accent)
         .onChange(of: phase) { value in
             if value != .active { browser.saveSession() }
+            if value == .active { Task { await updates.checkIfDue() } }
+        }
+        .onChange(of: updates.status) { _ in notifyUpdate() }
+        .task {
+            notifyUpdate()
+            await updates.checkIfDue()
+        }
+    }
+
+    /// Aviso discreto (abajo, sin interrumpir): una vez por versión nueva no pospuesta,
+    /// y la confirmación de la versión tras actualizar.
+    private func notifyUpdate() {
+        if let updated = updates.justUpdated, notifiedUpdates.insert("updated:\(updated.to)").inserted {
+            browser.notice = "ICARUS se ha actualizado a la versión \(updated.to)."
+        }
+        if updates.shouldNotify, let version = updates.available?.version, notifiedUpdates.insert(version).inserted {
+            browser.notice = "ICARUS \(version) está disponible: Configuración → Actualizaciones."
         }
     }
 }

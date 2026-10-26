@@ -64,6 +64,11 @@ targets:
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         ITSAppUsesNonExemptEncryption: false
+        # Canal oficial por el que se instalan las actualizaciones: app-store, testflight o
+        # none (copia instalada a mano). Con app-store o testflight, ICARUSStoreURL es la
+        # dirección de la ficha (https://apps.apple.com/… o itms-beta://…). Ver docs/UPDATES.md.
+        ICARUSDistribution: none
+        ICARUSStoreURL: ""
         # Un navegador debe poder abrir sitios http://. Solo afecta al contenido web:
         # WebKit sigue comprobando los certificados de los sitios https.
         NSAppTransportSecurity:

@@ -5,7 +5,8 @@
  * - Android la lee de package.json en Gradle (versionName y versionCode).
  * - iPhone/iPad: XcodeGen no puede leer package.json, así que este script copia la
  *   versión en mobile/ios/App/project.yml (MARKETING_VERSION = X.Y.Z, porque Apple
- *   solo admite números, y CURRENT_PROJECT_VERSION = el mismo código que Android).
+ *   solo admite números, y CURRENT_PROJECT_VERSION = el mismo código que Android) y
+ *   la clave pública de actualizaciones en mobile/ios/App/Resources.
  *
  * Uso:
  *   node scripts/release/version.mjs sync                # actualiza project.yml
@@ -17,7 +18,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { describeVersion, fail, packageVersion, projectDir } from './core.mjs';
+import { describeVersion, fail, iosPublicKeyInSync, packageVersion, projectDir, syncIosPublicKey } from './core.mjs';
 
 const IOS_PROJECT = join(projectDir, 'mobile', 'ios', 'App', 'project.yml');
 const MARKETING = /^(\s*MARKETING_VERSION:\s*)"([^"]*)"/m;
@@ -35,6 +36,7 @@ if (!MARKETING.test(project) || !BUILD.test(project)) fail(`${IOS_PROJECT} no ti
 if (command === 'sync') {
   const next = project.replace(MARKETING, `$1"${info.marketingVersion}"`).replace(BUILD, `$1"${info.versionCode}"`);
   if (next !== project) writeFileSync(IOS_PROJECT, next);
+  syncIosPublicKey();
   console.log(`iPhone/iPad: MARKETING_VERSION ${info.marketingVersion}, CURRENT_PROJECT_VERSION ${info.versionCode}`);
 } else if (command === 'check') {
   const marketing = MARKETING.exec(project)[2];
@@ -44,6 +46,7 @@ if (command === 'sync') {
       `mobile/ios/App/project.yml tiene ${marketing} (${build}) pero package.json tiene ${version} (${info.versionCode}): ejecuta «node scripts/release/version.mjs sync».`,
     );
   }
+  if (!iosPublicKeyInSync()) fail('mobile/ios/App/Resources/update-public-key.pem no coincide con build/update-public-key.pem: ejecuta «node scripts/release/version.mjs sync».');
   if (values.tag !== undefined && values.tag !== info.tag) fail(`La etiqueta ${values.tag} no coincide con la versión de package.json (${info.tag}).`);
   console.log(JSON.stringify(info));
 } else {

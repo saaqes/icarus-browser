@@ -78,6 +78,7 @@ struct SettingsView: View {
                     Text("Avanzado")
                 }
                 Section("ICARUS") {
+                    NavigationLink("Actualizaciones") { UpdatesView() }
                     NavigationLink("Acerca de ICARUS") { AboutView() }
                 }
             }

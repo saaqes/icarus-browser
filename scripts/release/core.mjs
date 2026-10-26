@@ -7,13 +7,15 @@
  */
 
 import { createHash } from 'node:crypto';
-import { createReadStream, existsSync, readFileSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const projectDir = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 export const PUBLIC_KEY_FILE = join(projectDir, 'build', 'update-public-key.pem');
+/** Copia que lleva la app de iPhone (XcodeGen no puede incluir un archivo opcional de fuera). */
+export const IOS_PUBLIC_KEY_FILE = join(projectDir, 'mobile', 'ios', 'App', 'Resources', 'update-public-key.pem');
 
 const compiled = (name) => join(projectDir, 'dist-electron', 'electron', 'update', `${name}.js`);
 if (!existsSync(compiled('manifest')) || !existsSync(join(projectDir, 'dist-electron', 'package.json'))) {
@@ -80,6 +82,18 @@ export function expectedAssets(version) {
     // Solo para que la app de iPhone sepa que hay versión nueva: nunca se instala desde aquí.
     { platform: 'ios', arch: 'universal', kind: 'ipa', file: `ICARUS-Browser-${version}-ios-sin-firmar.ipa` },
   ];
+}
+
+/** La copia de iPhone coincide con la clave del repositorio (o ninguna existe). */
+export function iosPublicKeyInSync() {
+  const main = existsSync(PUBLIC_KEY_FILE) ? readFileSync(PUBLIC_KEY_FILE, 'utf8') : null;
+  const copy = existsSync(IOS_PUBLIC_KEY_FILE) ? readFileSync(IOS_PUBLIC_KEY_FILE, 'utf8') : null;
+  return main === copy;
+}
+
+export function syncIosPublicKey() {
+  if (existsSync(PUBLIC_KEY_FILE)) writeFileSync(IOS_PUBLIC_KEY_FILE, readFileSync(PUBLIC_KEY_FILE, 'utf8'));
+  else rmSync(IOS_PUBLIC_KEY_FILE, { force: true });
 }
 
 /** Lee la clave pública del repositorio (null si aún no se generó). */

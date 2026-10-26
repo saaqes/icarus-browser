@@ -16,7 +16,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { fail, projectDir, PUBLIC_KEY_FILE, UPDATE_REPOSITORY } from './core.mjs';
+import { fail, projectDir, PUBLIC_KEY_FILE, syncIosPublicKey, UPDATE_REPOSITORY } from './core.mjs';
 
 const { values } = parseArgs({
   options: {
@@ -42,8 +42,9 @@ const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime
 mkdirSync(dirname(privatePath), { recursive: true });
 writeFileSync(privatePath, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600, flag: 'wx' });
 writeFileSync(PUBLIC_KEY_FILE, publicKey.export({ type: 'spki', format: 'pem' }));
+syncIosPublicKey();
 
-console.log(`Clave pública: ${relative(projectDir, PUBLIC_KEY_FILE)} (súbela al repositorio)
+console.log(`Clave pública: ${relative(projectDir, PUBLIC_KEY_FILE)} y su copia para iPhone en mobile/ios/App/Resources (súbelas al repositorio)
 Clave privada: ${privatePath} (NO la subas; permisos 600)
 
 Siguientes pasos:
@@ -52,5 +53,5 @@ Siguientes pasos:
      (o en GitHub: Settings → Secrets and variables → Actions → New repository secret).
   2. Haz una copia de seguridad de la clave privada fuera de línea y bórrala de este equipo
      cuando ya no la necesites.
-  3. Sube build/update-public-key.pem: las compilaciones siguientes ya podrán verificar
-     las actualizaciones.`);
+  3. Sube build/update-public-key.pem y mobile/ios/App/Resources/update-public-key.pem:
+     las compilaciones siguientes ya podrán verificar las actualizaciones.`);
