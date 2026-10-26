@@ -282,7 +282,7 @@ function createUpdateService(dataDir: string, emit: (event: NativeEvent) => void
             await verifyWindowsInstaller(file, process.execPath);
             return file;
           },
-          launch: (prepared, relaunch) => launchWindowsInstaller(prepared, relaunch),
+          launch: (prepared, relaunch) => launchWindowsInstaller(prepared, relaunch, join(dataDir, 'updates')),
           reveal: (file) => shell.showItemInFolder(file),
         }
       : process.platform === 'darwin'

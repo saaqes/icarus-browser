@@ -6,8 +6,8 @@
  * electron-builder espera a que ICARUS se cierre, instala en la misma carpeta y
  * conserva los datos (%APPDATA%\ICARUS Browser). Para volver a abrir ICARUS no se
  * usa su `--force-run` (abre la app a través del Explorador, que puede no estar
- * disponible): un proceso de PowerShell espera a que termine el instalador y abre
- * ICARUS, también si la instalación falla, para no dejar al usuario sin navegador.
+ * disponible): un pequeño script espera a que termine el instalador y abre ICARUS,
+ * también si la instalación falla, para no dejar al usuario sin navegador.
  *
  * macOS: la app lleva firma ad hoc, así que Squirrel.Mac (el mecanismo de
  * electron-updater) no puede validar la versión nueva. ICARUS descarga el .zip
@@ -124,21 +124,40 @@ export async function verifyWindowsInstaller(installer: string, execPath: string
   }
 }
 
-/** Espera al instalador y vuelve a abrir ICARUS (rutas por variables de entorno: sin problemas de comillas). */
-const WINDOWS_RELAUNCH =
-  "$p = Start-Process -FilePath $env:ICARUS_UPDATE_INSTALLER -ArgumentList '/S','--updated' -Wait -PassThru; " +
-  "Start-Process -FilePath $env:ICARUS_UPDATE_APP -ArgumentList '--updated'; exit $p.ExitCode";
+/**
+ * Espera a que termine el proceso del instalador (como mucho unos 10 minutos) y abre
+ * ICARUS. Las rutas llegan por variables de entorno (sin problemas de comillas) y
+ * cada paso queda en reinicio.log, junto al script.
+ */
+const WINDOWS_RELAUNCH = `@echo off
+rem Generado por ICARUS Browser para volver a abrirlo tras instalar una actualización.
+set "log=%~dp0reinicio.log"
+echo inicio %date% %time% instalador %ICARUS_UPDATE_INSTALLER_PID% >> "%log%"
+set /a n=0
+:esperar
+set /a n+=1
+if %n% gtr 600 goto abrir
+tasklist /FI "PID eq %ICARUS_UPDATE_INSTALLER_PID%" /NH 2>nul | find "%ICARUS_UPDATE_INSTALLER_PID%" >nul && (ping -n 2 127.0.0.1 >nul & goto esperar)
+:abrir
+echo instalador terminado %date% %time% >> "%log%"
+start "" "%ICARUS_UPDATE_APP%" --updated
+echo abierto %date% %time% >> "%log%"
+`;
 
-export function launchWindowsInstaller(installer: string, relaunch: boolean, appPath: string = process.execPath): void {
-  const child = relaunch
-    ? spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-Command', WINDOWS_RELAUNCH], {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
-        env: { ...process.env, ICARUS_UPDATE_INSTALLER: installer, ICARUS_UPDATE_APP: appPath },
-      })
-    : spawn(installer, ['/S', '--updated'], { detached: true, stdio: 'ignore' });
+export function launchWindowsInstaller(installer: string, relaunch: boolean, scriptDir: string, appPath: string = process.execPath): void {
+  const child = spawn(installer, ['/S', '--updated'], { detached: true, stdio: 'ignore' });
   child.unref();
+  if (!relaunch || child.pid === undefined) return;
+  mkdirSync(scriptDir, { recursive: true });
+  const script = join(scriptDir, 'reiniciar.cmd');
+  writeFileSync(script, WINDOWS_RELAUNCH.replace(/\n/g, '\r\n'));
+  const watcher = spawn('cmd.exe', ['/d', '/c', script], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+    env: { ...process.env, ICARUS_UPDATE_INSTALLER_PID: String(child.pid), ICARUS_UPDATE_APP: appPath },
+  });
+  watcher.unref();
 }
 
 /* ---------------------------------- macOS ---------------------------------- */

@@ -354,6 +354,10 @@ try {
   for (const run of runs) console.error(`\n--- Salida de «${run.label}» (últimos 5000 caracteres) ---\n${run.output.slice(-5000)}`);
   console.error(`\n--- Peticiones al servidor de prueba ---\n${requests.join('\n')}`);
   console.error(`\n--- updates.json ---\n${JSON.stringify(readJson('updates.json'))}`);
+  for (const name of ['reinicio.log', 'reiniciar.cmd']) {
+    const path = join(dataDir, 'updates', name);
+    if (existsSync(path)) console.error(`\n--- updates/${name} ---\n${readFileSync(path, 'utf8')}`);
+  }
 } finally {
   for (const run of runs) {
     for (const session of run.sessions) session.close();
