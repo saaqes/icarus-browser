@@ -28,6 +28,10 @@ val icarusVersionCode: Int = run {
     ((major.toInt() * 100 + minor.toInt()) * 100 + patch.toInt()) * 100 + (preview.toIntOrNull() ?: 99)
 }
 
+// Clave pública con la que se verifican los manifiestos de actualización (la misma
+// que escritorio). Sin ella, la app no busca actualizaciones.
+val updatePublicKey: String = rootDir.resolve("../../build/update-public-key.pem").takeIf { it.isFile }?.readText()?.trim().orEmpty()
+
 android {
     namespace = "io.github.saaqes.icarusbrowser"
     compileSdk = 35
@@ -39,6 +43,11 @@ android {
         versionCode = icarusVersionCode
         versionName = icarusVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "UPDATE_PUBLIC_KEY", "\"" + updatePublicKey.replace("\n", "\\n") + "\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     signingConfigs {

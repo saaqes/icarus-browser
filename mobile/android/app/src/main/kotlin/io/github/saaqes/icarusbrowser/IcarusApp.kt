@@ -16,7 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 
 /**
- * Estado compartido de la app: perfil, historial, ICARUS Shield y descargas.
+ * Estado compartido de la app: perfil, historial, ICARUS Shield, descargas y actualizaciones.
  * Los datos viven en el almacenamiento interno de la app (filesDir), que Android
  * borra al desinstalarla. No se guarda nada fuera del dispositivo.
  */
@@ -41,6 +41,8 @@ class IcarusApp : Application() {
         private set
     lateinit var favicons: FaviconCache
         private set
+    lateinit var updates: UpdateManager
+        private set
 
     private val profileListeners = CopyOnWriteArrayList<() -> Unit>()
     private val shieldListeners = CopyOnWriteArrayList<(ShieldState) -> Unit>()
@@ -58,6 +60,7 @@ class IcarusApp : Application() {
         shield = ShieldStore(File(data, "shield"), asset("shield-basic.txt"), suffixes, onChange = ::onShieldChanged)
         downloads = DownloadsStore(this)
         favicons = FaviconCache(File(cacheDir, "favicons"))
+        updates = UpdateManager(this)
         // Las listas se actualizan en segundo plano solo si han caducado (4 días).
         background.execute { shield.updateLists(onlyStale = true) }
     }
@@ -134,6 +137,7 @@ class IcarusApp : Application() {
             profile.flush()
             history.flush()
             shield.flush()
+            updates.flush()
         }
     }
 

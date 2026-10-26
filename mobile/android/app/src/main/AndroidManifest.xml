@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Actualizaciones: Android pide al usuario que permita instalar desde ICARUS y
+         confirme cada instalación. No se usa si la app se instaló desde Google Play. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -71,6 +74,11 @@
         <activity
             android:name=".DownloadsActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:exported="false" />
+
+        <!-- Resultado del instalador del sistema (solo lo envía PackageInstaller a ICARUS). -->
+        <receiver
+            android:name=".UpdateInstallReceiver"
             android:exported="false" />
     </application>
 </manifest>

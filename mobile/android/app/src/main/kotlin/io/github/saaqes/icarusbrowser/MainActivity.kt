@@ -88,6 +88,9 @@ class MainActivity : Activity(), TabHost {
     private val spanish = Locale.forLanguageTag("es-ES")
     private val profileListener: () -> Unit = { onProfileChanged() }
     private val shieldListener: (ShieldState) -> Unit = { updateChrome(); if (currentTab?.showingNewTab == true) newTab.render() }
+    /** Versiones de las que ya se avisó en esta sesión (el aviso no se repite). */
+    private val notifiedUpdates = HashSet<String>()
+    private val updatesListener: (UpdateManager.State) -> Unit = { notifyUpdate(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,6 +102,7 @@ class MainActivity : Activity(), TabHost {
         handleIntent(intent)
         app.addProfileListener(profileListener)
         app.addShieldListener(shieldListener)
+        app.updates.addListener(updatesListener)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
         }
@@ -113,6 +117,8 @@ class MainActivity : Activity(), TabHost {
         super.onResume()
         currentTab?.webView?.onResume()
         updateChrome()
+        notifyUpdate(app.updates.state)
+        app.updates.checkIfDue()
     }
 
     override fun onPause() {
@@ -123,6 +129,7 @@ class MainActivity : Activity(), TabHost {
     }
 
     override fun onDestroy() {
+        app.updates.removeListener(updatesListener)
         app.removeProfileListener(profileListener)
         app.removeShieldListener(shieldListener)
         tabs.forEach { it.destroy() }
@@ -624,6 +631,10 @@ class MainActivity : Activity(), TabHost {
                     }
                 })
             }
+            val update = app.updates.state
+            if (update.shouldNotify) {
+                addView(w.row(R.drawable.icarus_upgrade, "Actualizar ICARUS", "Versión ${update.available?.version} disponible") { dialog.dismiss(); openSettings("updates") })
+            }
             addView(w.row(R.drawable.icarus_plus, "Nueva pestaña") { dialog.dismiss(); openNewTab() })
             if (tab != null && !tab.showingNewTab) {
                 addView(w.row(R.drawable.icarus_search, "Buscar en la página") { dialog.dismiss(); openFind() })
@@ -1008,6 +1019,20 @@ class MainActivity : Activity(), TabHost {
             }
             true
         }.show()
+    }
+
+    /**
+     * Aviso discreto (sin interrumpir la navegación): una vez por versión nueva no
+     * pospuesta, y la confirmación tras actualizar. El menú muestra «Actualizar ICARUS».
+     */
+    private fun notifyUpdate(state: UpdateManager.State) {
+        state.justUpdated?.let { (_, to) ->
+            if (notifiedUpdates.add("updated:$to")) showMessage("ICARUS se ha actualizado a la versión $to.")
+        }
+        val version = state.available?.version ?: return
+        if (state.shouldNotify && state.status == UpdateManager.Status.AVAILABLE && notifiedUpdates.add(version)) {
+            showMessage("ICARUS $version está disponible. Instálala desde el menú → Actualizar ICARUS.")
+        }
     }
 
     override fun showMessage(message: String) {

@@ -29,6 +29,7 @@ import io.github.saaqes.icarusbrowser.core.UrlUtils
 import io.github.saaqes.icarusbrowser.core.shield.ShieldListInfo
 import io.github.saaqes.icarusbrowser.core.shield.ShieldState
 import io.github.saaqes.icarusbrowser.core.shield.ShieldStore
+import io.github.saaqes.icarusbrowser.core.update.UpdateChannel
 import java.text.DateFormat
 import java.text.NumberFormat
 import java.util.Date
@@ -42,11 +43,26 @@ class SettingsActivity : ScreenActivity() {
         if (currentFocus !is android.widget.EditText && (currentTitle == "ICARUS Shield" || currentTitle == rootTitle())) refresh()
     }
 
+    /** Durante la descarga solo cambia el texto del progreso (redibujar movería la página). */
+    private var updateProgress: TextView? = null
+    private var shownUpdateStatus: UpdateManager.Status? = null
+    private val updatesListener: (UpdateManager.State) -> Unit = { state ->
+        val label = updateProgress
+        val progress = state.progress
+        if (currentTitle == UPDATES_TITLE && label != null && progress != null && state.status == shownUpdateStatus) {
+            label.text = progressText(progress)
+        } else if (currentTitle == UPDATES_TITLE || currentTitle == rootTitle()) {
+            refresh()
+        }
+    }
+
     override fun rootTitle() = "Configuración"
 
     override fun openInitialPage() {
         app.addShieldListener(shieldListener)
+        app.updates.addListener(updatesListener)
         when (intent.getStringExtra(EXTRA_SECTION)) {
+            "updates" -> push(UPDATES_TITLE, ::updatesPage)
             "shield" -> push("ICARUS Shield", ::shieldPage)
             "addresses" -> {
                 push(addressesTitle, ::addressesPage)
@@ -56,7 +72,14 @@ class SettingsActivity : ScreenActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Al volver de los ajustes de Android (permiso para instalar apps) se actualiza la página.
+        if (currentTitle == UPDATES_TITLE) refresh()
+    }
+
     override fun onDestroy() {
+        app.updates.removeListener(updatesListener)
         app.removeShieldListener(shieldListener)
         super.onDestroy()
     }
@@ -136,8 +159,145 @@ class SettingsActivity : ScreenActivity() {
 
         addView(w.sectionLabel("ICARUS"))
         addView(w.card {
+            addView(w.row(R.drawable.icarus_upgrade, UPDATES_TITLE, updatesSummary(app.updates.state)) { push(UPDATES_TITLE, ::updatesPage) })
             addView(w.row(R.drawable.icarus_info, "Acerca de ICARUS", "Versión, motor y licencias") { push("Acerca de ICARUS", ::aboutPage) })
         })
+    }
+
+    /* ------------------------------ Actualizaciones ------------------------------ */
+
+    private fun updatesSummary(state: UpdateManager.State): String = when {
+        state.mode == UpdateManager.Mode.PLAY_STORE -> "Las actualizaciones llegan por Google Play"
+        state.mode == UpdateManager.Mode.NO_KEY -> "Versión ${state.currentVersion} · esta compilación no busca actualizaciones"
+        state.status == UpdateManager.Status.READY -> "La versión ${state.available?.version} está lista para instalarse"
+        state.available != null -> "Hay una versión nueva: ${state.available.version}"
+        state.status == UpdateManager.Status.UP_TO_DATE -> "ICARUS ${state.currentVersion} está actualizado"
+        else -> "Versión ${state.currentVersion}"
+    }
+
+    private fun progressText(progress: Pair<Long, Long>): String {
+        val (received, total) = progress
+        val percent = if (total > 0) (received * 100 / total).toInt() else 0
+        val mb = { bytes: Long -> NumberFormat.getNumberInstance(spanish).apply { maximumFractionDigits = 1 }.format(bytes / 1048576.0) }
+        return "$percent % · ${mb(received)} MB de ${mb(total)} MB"
+    }
+
+    private fun updateStatusText(state: UpdateManager.State): String? {
+        val version = state.available?.version.orEmpty()
+        return when (state.status) {
+            UpdateManager.Status.CHECKING -> "Buscando actualizaciones…"
+            UpdateManager.Status.UP_TO_DATE -> "ICARUS está actualizado."
+            UpdateManager.Status.AVAILABLE -> "Hay una versión nueva: $version."
+            UpdateManager.Status.DOWNLOADING -> "Descargando la versión $version…"
+            UpdateManager.Status.VERIFYING -> "Comprobando el paquete: SHA-256, identificador, versión y certificado…"
+            UpdateManager.Status.READY -> "La versión $version está descargada y verificada. Android te pedirá confirmación para instalarla."
+            UpdateManager.Status.INSTALLING -> "Abriendo el instalador de Android…"
+            UpdateManager.Status.ERROR -> null
+            UpdateManager.Status.IDLE -> null
+        }
+    }
+
+    private fun updatesPage(): View = pageColumn {
+        val updates = app.updates
+        val state = updates.state
+        shownUpdateStatus = state.status
+        updateProgress = null
+        val dateFormat = DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT, spanish)
+
+        state.justUpdated?.let { (from, to) ->
+            addView(w.card {
+                addView(w.row(R.drawable.icarus_check, "ICARUS se ha actualizado", "De la versión $from a la $to.",
+                    w.iconButton(R.drawable.icarus_close, "Cerrar aviso") { updates.acknowledge() }, null))
+            })
+        }
+        addView(w.card {
+            val channel = if (state.channel == UpdateChannel.PREVIEW) "vista previa" else "estable"
+            addView(w.row(R.drawable.icarus_info, "Versión instalada", "ICARUS ${state.currentVersion} · Canal $channel", null, null))
+            if (state.mode == UpdateManager.Mode.APK) {
+                addView(w.row(R.drawable.icarus_clock, "Última comprobación",
+                    state.lastCheckedAt?.let { dateFormat.format(Date(it)) } ?: "Todavía no se ha buscado ninguna actualización.", null, null))
+            }
+        })
+
+        when (state.mode) {
+            UpdateManager.Mode.PLAY_STORE -> {
+                addView(w.hint("Instalaste ICARUS desde Google Play: las actualizaciones llegan por Google Play y ICARUS no descarga paquetes por su cuenta.").apply { setPadding(dp(4), dp(8), dp(4), dp(8)) })
+                addView(w.button("Abrir en Google Play", primary = true) {
+                    runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=$packageName"))) }
+                })
+                return@pageColumn
+            }
+            UpdateManager.Mode.NO_KEY -> {
+                addView(w.hint("Esta compilación no incluye la clave pública para verificar actualizaciones, así que ICARUS no las busca. Descarga las versiones nuevas desde la página del proyecto.").apply { setPadding(dp(4), dp(8), dp(4), dp(8)) })
+                return@pageColumn
+            }
+            UpdateManager.Mode.APK -> Unit
+        }
+
+        updateStatusText(state)?.let { addView(w.text(it, 15f, p.fg1, bold = true).apply { setPadding(dp(4), dp(12), dp(4), dp(4)) }) }
+        if (state.error != null) addView(w.text(UpdateManager.errorText(state.error), 14f, if (state.error == "install-cancelled") p.fg2 else p.danger).apply { setPadding(dp(4), dp(8), dp(4), dp(4)) })
+        if (state.status == UpdateManager.Status.DOWNLOADING && state.progress != null) {
+            val label = w.hint(progressText(state.progress)).apply { setPadding(dp(4), 0, dp(4), dp(4)) }
+            updateProgress = label
+            addView(label)
+        }
+
+        addView(w.horizontal(spacingDp = 10) {
+            setPadding(0, dp(10), 0, 0)
+            val available = state.available
+            when {
+                state.status == UpdateManager.Status.DOWNLOADING -> addView(w.button("Cancelar descarga") { updates.cancel() })
+                state.status == UpdateManager.Status.READY -> addView(w.button("Instalar", primary = true) { installUpdate() })
+                available != null && (state.status == UpdateManager.Status.AVAILABLE || state.status == UpdateManager.Status.ERROR) ->
+                    addView(w.button(if (state.status == UpdateManager.Status.ERROR) "Reintentar" else "Descargar actualización", primary = true) { updates.download() })
+                !state.busy -> addView(w.button(if (state.status == UpdateManager.Status.ERROR) "Reintentar" else "Buscar actualizaciones", primary = true) { updates.check() })
+            }
+            if (available != null && state.status == UpdateManager.Status.AVAILABLE && available.version != state.postponedVersion) {
+                addView(w.button("Recordármelo más tarde") { updates.postpone() })
+            }
+        })
+        if (state.available != null && state.available.version == state.postponedVersion) {
+            addView(w.hint("No se volverá a avisar de esta versión. Puedes instalarla aquí cuando quieras.").apply { setPadding(dp(4), dp(8), dp(4), 0) })
+        }
+
+        state.available?.let { manifest ->
+            addView(w.sectionLabel("Novedades de la versión ${manifest.version}"))
+            val size = state.asset?.size?.let { " · ${NumberFormat.getNumberInstance(spanish).apply { maximumFractionDigits = 1 }.format(it / 1048576.0)} MB" }.orEmpty()
+            addView(w.hint("Publicada el ${DateFormat.getDateInstance(DateFormat.LONG, spanish).format(Date.from(java.time.Instant.parse(manifest.releasedAt)))}$size").apply { setPadding(dp(4), 0, dp(4), dp(6)) })
+            // Las notas son texto: no se interpretan como HTML.
+            addView(w.card { addView(w.text(manifest.notes.ifBlank { "Esta versión no incluye notas." }, 14f, p.fg2).apply { setPadding(dp(14), dp(12), dp(14), dp(12)) }) })
+        }
+
+        addView(w.sectionLabel("Canal de actualizaciones"))
+        addView(segmented(listOf(UpdateChannel.STABLE to "Estable", UpdateChannel.PREVIEW to "Vista previa"), state.channel) { channel ->
+            if (state.busy || state.status == UpdateManager.Status.READY) toast("Espera a que termine la actualización en curso.") else updates.setChannel(channel)
+        })
+        addView(w.hint("Estable: solo versiones publicadas y probadas. Vista previa: también versiones preliminares, que pueden tener errores. Al volver a estable no se instala una versión anterior: ICARUS sigue en la actual hasta que salga una estable más reciente.").apply {
+            setPadding(dp(4), dp(8), dp(4), 0)
+        })
+
+        addView(w.sectionLabel("Cómo se instala"))
+        addView(w.hint("ICARUS descarga el APK, comprueba la firma del manifiesto de ICARUS, el SHA-256, que es ICARUS, que es una versión posterior y que está firmado con el mismo certificado que la app instalada. Después lo entrega al instalador de Android, que siempre te pide confirmación. Es una actualización de la misma app: tus pestañas, accesos directos, historial, direcciones personalizadas y ajustes se conservan.").apply {
+            setPadding(dp(4), 0, dp(4), 0)
+        })
+    }
+
+    /** Android pide permiso una vez para que ICARUS pueda abrir el instalador de apps. */
+    private fun installUpdate() {
+        if (app.updates.canRequestInstall()) {
+            app.updates.install()
+            return
+        }
+        w.dialog(
+            "Permitir instalar actualizaciones",
+            "Android necesita que permitas a ICARUS instalar aplicaciones. Solo se usa para instalar actualizaciones de ICARUS ya verificadas, y Android te pedirá confirmación cada vez.",
+            positive = "Abrir ajustes",
+        ) {
+            runCatching {
+                startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:$packageName")))
+            }.onFailure { toast("No se pudieron abrir los ajustes de Android.") }
+            true
+        }.show()
     }
 
     private fun <T> segmented(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit): View = w.horizontal(spacingDp = 6) {
@@ -614,6 +774,7 @@ class SettingsActivity : ScreenActivity() {
 
     companion object {
         const val EXTRA_SECTION = "section"
+        const val UPDATES_TITLE = "Actualizaciones"
         /** Con la sección "addresses": entrada que se abre para editar. */
         const val EXTRA_EDIT_ID = "editId"
         /** Con la sección "addresses": destino con el que se empieza una entrada nueva. */
