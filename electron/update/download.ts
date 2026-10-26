@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, renameSync, rmSync, statSync } from 'node:fs';
 import { mkdir, statfs } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { DOWNLOAD_STALL_TIMEOUT_MS } from './config';
 import { fetchAllowed, UpdateHttpError, type FetchLike, type UpdateSource } from './source';
 
 export type DownloadError = 'network' | 'interrupted' | 'hash-mismatch' | 'size-mismatch' | 'disk-space' | 'forbidden-host' | 'not-found' | 'write';
@@ -39,6 +40,8 @@ export interface DownloadOptions {
   onProgress?: (received: number, total: number) => void;
   /** Espacio libre disponible (inyectable en las pruebas). */
   freeSpace?: (directory: string) => Promise<number>;
+  /** Tiempo máximo sin recibir datos (por defecto DOWNLOAD_STALL_TIMEOUT_MS). */
+  stallTimeoutMs?: number;
 }
 
 /** Margen de espacio libre que se deja además del paquete (y de su copia al instalar). */
@@ -56,6 +59,32 @@ function hashFile(path: string, hash: ReturnType<typeof createHash>): Promise<vo
       .on('end', () => resolve())
       .on('error', reject);
   });
+}
+
+/**
+ * Vigila que lleguen datos: si pasan `ms` sin que se llame a `arm()`, `stalled` se
+ * rechaza con «interrumpida» y se cancela la conexión (el archivo parcial se
+ * conserva para reanudar).
+ */
+function stallGuard(ms: number, cancel: () => void) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let fail: (error: Error) => void = () => undefined;
+  const stalled = new Promise<never>((_resolve, reject) => {
+    fail = reject;
+  });
+  stalled.catch(() => undefined);
+  return {
+    stalled,
+    arm() {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        // Primero se rechaza, para que gane a la cancelación de la petición.
+        fail(new UpdateDownloadError('interrupted', `Sin datos durante ${Math.round(ms / 1000)} s`));
+        cancel();
+      }, ms);
+    },
+    stop: () => clearTimeout(timer),
+  };
 }
 
 /** SHA-256 de un archivo ya descargado (para volver a comprobarlo antes de instalar). */
@@ -99,10 +128,34 @@ export async function downloadVerified(options: DownloadOptions): Promise<string
   const headers: Record<string, string> = { ...options.headers };
   if (offset > 0) headers.Range = `bytes=${offset}-`;
 
-  let response: Response;
+  const controller = new AbortController();
+  if (options.signal?.aborted) controller.abort();
+  else options.signal?.addEventListener('abort', () => controller.abort(), { once: true });
+  const guard = stallGuard(options.stallTimeoutMs ?? DOWNLOAD_STALL_TIMEOUT_MS, () => controller.abort());
   try {
-    response = await fetchAllowed(options.fetch, options.source, options.url, { headers, signal: options.signal });
+    return await receive(options, offset, partial, headers, hash, controller.signal, guard);
+  } finally {
+    guard.stop();
+  }
+}
+
+async function receive(
+  options: DownloadOptions,
+  start: number,
+  partial: string,
+  headers: Record<string, string>,
+  hash: ReturnType<typeof createHash>,
+  signal: AbortSignal,
+  guard: ReturnType<typeof stallGuard>,
+): Promise<string> {
+  const { destination, size, sha256 } = options;
+  let offset = start;
+  let response: Response;
+  guard.arm();
+  try {
+    response = await Promise.race([fetchAllowed(options.fetch, options.source, options.url, { headers, signal }), guard.stalled]);
   } catch (error) {
+    if (error instanceof UpdateDownloadError) throw error;
     if (error instanceof UpdateHttpError) {
       throw new UpdateDownloadError(error.code === 'forbidden-host' ? 'forbidden-host' : error.code === 'not-found' ? 'not-found' : 'network', error.message);
     }
@@ -111,7 +164,9 @@ export async function downloadVerified(options: DownloadOptions): Promise<string
   }
 
   if (response.status === 206 && offset > 0) {
+    guard.stop();
     await hashFile(partial, hash);
+    guard.arm();
   } else if (response.status === 200) {
     offset = 0;
   } else {
@@ -132,8 +187,9 @@ export async function downloadVerified(options: DownloadOptions): Promise<string
     const reader = response.body?.getReader();
     if (!reader) throw new UpdateDownloadError('interrupted', 'Respuesta sin contenido');
     for (;;) {
-      const { done, value } = await Promise.race([reader.read(), writeError]);
+      const { done, value } = await Promise.race([reader.read(), writeError, guard.stalled]);
       if (done) break;
+      guard.arm();
       received += value.byteLength;
       if (received > size) {
         await reader.cancel().catch(() => undefined);

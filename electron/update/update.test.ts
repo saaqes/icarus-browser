@@ -199,6 +199,10 @@ interface Served {
   headers?: Record<string, string>;
   /** Corta la conexión tras enviar estos bytes. */
   cutAfter?: number;
+  /** Envía estos bytes y deja la conexión abierta sin enviar más. */
+  stallAfter?: number;
+  /** No responde nunca. */
+  hang?: boolean;
   ranges?: boolean;
 }
 let routes = new Map<string, Served>();
@@ -212,6 +216,7 @@ beforeAll(async () => {
       response.writeHead(404).end();
       return;
     }
+    if (route.hang) return;
     const body = Buffer.from(route.body);
     const range = /^bytes=(\d+)-$/.exec(request.headers.range ?? '');
     if (range && route.ranges !== false) {
@@ -225,12 +230,17 @@ beforeAll(async () => {
       response.write(body.subarray(0, route.cutAfter), () => response.destroy());
       return;
     }
+    if (route.stallAfter !== undefined) {
+      response.write(body.subarray(0, route.stallAfter));
+      return;
+    }
     response.end(body);
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 afterAll(() => {
+  server.closeAllConnections();
   server.close();
 });
 
@@ -287,6 +297,26 @@ describe('comprobación del manifiesto firmado', () => {
       error: 'rate-limited',
     });
   });
+
+  it('una conexión que no responde no deja la comprobación colgada', async () => {
+    routes = new Map([
+      ['/releases/latest/download/icarus-update.json', { body: '', hang: true }],
+      ['/releases/latest/download/icarus-update.json.sig', { body: '', hang: true }],
+    ]);
+    const source = loopbackSource(base)!;
+    const started = Date.now();
+    expect(await fetchSignedManifest({ fetch: nodeFetch, source, channel: 'stable', publicKey: PUBLIC_KEY, timeoutMs: 200 })).toEqual({
+      ok: false,
+      error: 'network',
+      detail: 'timeout',
+    });
+    expect(Date.now() - started).toBeLessThan(5000);
+    // Cancelada desde fuera se sigue informando como cancelación.
+    const controller = new AbortController();
+    const pending = fetchSignedManifest({ fetch: nodeFetch, source, channel: 'stable', publicKey: PUBLIC_KEY, signal: controller.signal });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
 });
 
 describe('descarga verificada', () => {
@@ -339,6 +369,19 @@ describe('descarga verificada', () => {
     await expect(downloadVerified(options(join(dir(), 'a.exe'), { freeSpace: async () => 1000 }))).rejects.toMatchObject({ code: 'disk-space' });
     routes = new Map([[path, { body: Buffer.concat([payload, Buffer.alloc(10)]) }]]);
     await expect(downloadVerified(options(join(dir(), 'b.exe')))).rejects.toMatchObject({ code: 'size-mismatch' });
+  });
+
+  it('una descarga que deja de recibir datos se da por interrumpida y se puede reanudar', async () => {
+    const path = '/releases/download/v0.2.2/ICARUS-Browser-Setup-0.2.2.exe';
+    const destination = join(dir(), 'setup.exe');
+    routes = new Map([[path, { body: payload, stallAfter: 120_000 }]]);
+    await expect(downloadVerified(options(destination, { stallTimeoutMs: 300 }))).rejects.toMatchObject({ code: 'interrupted' });
+    expect(existsSync(`${destination}.part`)).toBe(true);
+    routes = new Map([[path, { body: payload, hang: true }]]);
+    await expect(downloadVerified(options(destination, { stallTimeoutMs: 300 }))).rejects.toMatchObject({ code: 'interrupted' });
+    routes = new Map([[path, { body: payload }]]);
+    await downloadVerified(options(destination, { stallTimeoutMs: 300 }));
+    expect(sha(readFileSync(destination))).toBe(digest);
   });
 
   it('reutiliza una descarga ya verificada sin volver a pedirla', async () => {

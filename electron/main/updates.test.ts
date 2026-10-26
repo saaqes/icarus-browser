@@ -55,7 +55,9 @@ afterAll(() => {
 const WINDOWS_PLAN: InstallPlan = { mode: 'automatic', target: { platform: 'windows', arch: 'x64', kinds: ['nsis'] } };
 const nodeFetch: FetchLike = (url, init) => fetch(url, init as RequestInit);
 
-function setup(options: { dataDir?: string; version?: string; plan?: InstallPlan; publicKey?: string | null; isPackaged?: boolean; feed?: string } = {}) {
+function setup(
+  options: { dataDir?: string; version?: string; plan?: InstallPlan; publicKey?: string | null; isPackaged?: boolean; feed?: string; checkTimeoutMs?: number } = {},
+) {
   const dataDir = options.dataDir ?? mkdtempSync(join(tmpdir(), 'icarus-updates-'));
   const states: UpdateState[] = [];
   const installer: UpdateInstaller & { launches: Array<{ prepared: string; relaunch: boolean }> } = {
@@ -80,6 +82,7 @@ function setup(options: { dataDir?: string; version?: string; plan?: InstallPlan
     emit: (state) => states.push(state),
     requestRestart,
     restartTimeoutMs: 50,
+    checkTimeoutMs: options.checkTimeoutMs,
     quit,
   });
   return { service, states, installer, quit, requestRestart, dataDir };
@@ -176,6 +179,16 @@ describe('servicio de actualizaciones', () => {
     const { service } = setup({ feed: 'http://127.0.0.1:9' });
     expect(await service.check(false)).toMatchObject({ status: 'idle', error: null });
     expect(await service.check(true)).toMatchObject({ status: 'error', error: { code: 'network' } });
+  });
+
+  it('una comprobación sin respuesta del servidor termina como fallo de red', async () => {
+    const silent = http.createServer(() => undefined);
+    await new Promise<void>((resolve) => silent.listen(0, '127.0.0.1', resolve));
+    const { service } = setup({ feed: `http://127.0.0.1:${(silent.address() as AddressInfo).port}`, checkTimeoutMs: 200 });
+    expect(await service.check(false)).toMatchObject({ status: 'idle' });
+    expect(await service.check(true)).toMatchObject({ status: 'error', error: { code: 'network', detail: 'timeout' } });
+    silent.closeAllConnections();
+    silent.close();
   });
 
   it('sin clave pública o sin empaquetar no ofrece actualizaciones', async () => {

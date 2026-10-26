@@ -132,13 +132,14 @@ function readJson(name) {
   }
 }
 
-/** Procesos principales de ICARUS (sin los auxiliares de Chromium) con su línea de órdenes. */
-function icarusProcesses() {
+/** Procesos principales de ICARUS con su línea de órdenes; con `helpers`, también los auxiliares de Chromium. */
+function icarusProcesses({ helpers = false } = {}) {
   if (isWindows) {
+    // [char]9: tabulador entre el PID y la línea de órdenes.
     const script =
-      "Get-CimInstance Win32_Process -Filter \"Name = 'ICARUS Browser.exe'\" | ForEach-Object { '{0}`t{1}' -f $_.ProcessId, $_.CommandLine }";
+      "Get-CimInstance Win32_Process -Filter \"Name = 'ICARUS Browser.exe'\" | ForEach-Object { [string]$_.ProcessId + [char]9 + [string]$_.CommandLine }";
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' });
-    return parseProcesses(result.stdout);
+    return parseProcesses(result.stdout, helpers);
   }
   // Solo procesos cuyo ejecutable es ICARUS (la línea de esta prueba también contiene la ruta).
   const result = spawnSync('/bin/ps', ['-axo', 'pid=,command='], { encoding: 'utf8' });
@@ -146,16 +147,19 @@ function icarusProcesses() {
     result.stdout
       .split('\n')
       .map((line) => line.trim().replace(/^(\d+)\s+/, '$1\t'))
-      .filter((line) => /^\d+\t\/.*\/ICARUS Browser\.app\/Contents\/MacOS\/ICARUS Browser(\s|$)/.test(line))
+      .filter((line) =>
+        /^\d+\t\/.*\/ICARUS Browser\.app\/Contents\/(MacOS\/ICARUS Browser|Frameworks\/ICARUS Browser Helper[^/]*\.app\/Contents\/MacOS\/ICARUS Browser Helper[^/]*)(\s|$)/.test(line),
+      )
       .join('\n'),
+    helpers,
   );
 }
 
-function parseProcesses(text) {
+function parseProcesses(text, helpers) {
   return (text ?? '')
     .split(/\r?\n/)
     .map((line) => line.split('\t'))
-    .filter(([pid, command]) => /^\d+$/.test(pid ?? '') && Number(pid) !== process.pid && command && !command.includes('--type='))
+    .filter(([pid, command]) => /^\d+$/.test(pid ?? '') && Number(pid) !== process.pid && command && (helpers || !command.includes('--type=')))
     .map(([pid, command]) => ({ pid: Number(pid), command }));
 }
 
@@ -185,6 +189,26 @@ async function closeGracefully(pid) {
   spawnSync('/bin/kill', ['-KILL', String(pid)], { stdio: 'ignore' });
   await waitExit(10_000);
   return 'terminada a la fuerza (no respondió a quit ni a SIGTERM)';
+}
+
+/** Diagnóstico si la versión nueva no llega al servidor: procesos de Chromium y una petición directa. */
+async function diagnoseNetwork(run) {
+  const before = requests.length;
+  const fetched = await Promise.race([
+    run.ui
+      .evaluate(`fetch(${JSON.stringify(pageOne)}).then((response) => 'HTTP ' + response.status).catch((error) => String(error))`)
+      .catch((error) => `error: ${error.message}`),
+    sleep(15_000).then(() => 'sin respuesta en 15 s'),
+  ]);
+  console.error(`\n--- Diagnóstico de red de «${run.label}» ---`);
+  console.error(`fetch desde la interfaz a ${pageOne}: ${fetched}; peticiones nuevas en el servidor: ${requests.length - before}`);
+  console.error(`estado del actualizador: ${JSON.stringify(await run.ui.evaluate('window.icarusNative.updates.getState()').catch((error) => error.message))}`);
+  const types = icarusProcesses({ helpers: true }).map(({ pid, command }) => {
+    const type = /--type=(\S+)/.exec(command)?.[1] ?? 'browser';
+    const sub = /--utility-sub-type=(\S+)/.exec(command)?.[1];
+    return `${pid} ${type}${sub ? ` ${sub}` : ''}`;
+  });
+  console.error(`procesos de ICARUS:\n${types.join('\n') || '(ninguno)'}`);
 }
 
 /** Arranca el ejecutable instalado con el puerto de depuración y conecta con la interfaz. */
@@ -358,7 +382,10 @@ try {
   const recheck = await eventually(async () => {
     const result = await next.evaluate('window.icarusNative.updates.check()');
     return result.status === 'checking' ? null : result;
-  }, 'La comprobación tras actualizar no terminó');
+  }, 'La comprobación tras actualizar no terminó').catch(async (error) => {
+    await diagnoseNetwork(second);
+    throw error;
+  });
   assert(recheck.status === 'up-to-date', `Tras actualizar se ofrece otra vez: ${recheck.status}`);
   await sleep(5000);
   assert(second.exitCode === undefined, 'ICARUS se cerró solo después de actualizar (posible bucle)');
@@ -386,7 +413,11 @@ try {
   for (const item of icarusProcesses()) await closeGracefully(item.pid);
   server.close();
   await sleep(1000);
-  rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+  try {
+    rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+  } catch (error) {
+    console.warn(`  · No se pudo borrar la carpeta temporal ${dataDir}: ${error.message}`);
+  }
 }
 console.log(failed ? 'La prueba de actualización falló.' : 'Prueba de actualización superada.');
 process.exit(failed ? 1 : 0);

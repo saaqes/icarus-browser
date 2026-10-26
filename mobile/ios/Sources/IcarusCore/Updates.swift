@@ -202,7 +202,13 @@ public final class UpdateChecker: NSObject, URLSessionTaskDelegate {
 
     private let repository: String
     private let allowedHosts: Set<String> = ["github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "api.github.com"]
-    private lazy var session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
+    private lazy var session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        // Una conexión colgada no deja la comprobación en «Buscando…» indefinidamente.
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 60
+        return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+    }()
 
     public init(repository: String = "saaqes/icarus-browser") {
         self.repository = repository

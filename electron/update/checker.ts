@@ -3,7 +3,7 @@
  * firma sobre los bytes exactos recibidos y lo valida campo a campo.
  */
 
-import { MANIFEST_FILE, MAX_MANIFEST_BYTES, MAX_SIGNATURE_BYTES, SIGNATURE_FILE } from './config';
+import { CHECK_TIMEOUT_MS, MANIFEST_FILE, MAX_MANIFEST_BYTES, MAX_SIGNATURE_BYTES, SIGNATURE_FILE } from './config';
 import { parseManifest, type ManifestError, type UpdateChannel, type UpdateManifest } from './manifest';
 import { verifyManifestSignature } from './signature';
 import { fetchAllowed, pickNewestTag, readLimited, UpdateHttpError, type FetchLike, type UpdateSource } from './source';
@@ -24,6 +24,8 @@ export interface CheckOptions {
   signal?: AbortSignal;
   /** Cabeceras extra (p. ej. agente de usuario). */
   headers?: Record<string, string>;
+  /** Tiempo máximo de la comprobación completa (por defecto CHECK_TIMEOUT_MS). */
+  timeoutMs?: number;
 }
 
 function failure(error: unknown): ManifestFetch {
@@ -44,6 +46,26 @@ async function download(options: CheckOptions, url: string, max: number): Promis
 
 export async function fetchSignedManifest(options: CheckOptions): Promise<ManifestFetch> {
   if (!options.publicKey) return { ok: false, error: 'no-key' };
+  // Si se agota el tiempo se cancelan las peticiones y se informa de un fallo de red.
+  const controller = new AbortController();
+  const outer = options.signal;
+  if (outer?.aborted) controller.abort();
+  else outer?.addEventListener('abort', () => controller.abort(), { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<ManifestFetch>((resolve) => {
+    timer = setTimeout(() => {
+      resolve({ ok: false, error: 'network', detail: 'timeout' });
+      controller.abort();
+    }, options.timeoutMs ?? CHECK_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([fetchUnbounded({ ...options, signal: controller.signal }, options.publicKey), timedOut]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchUnbounded(options: CheckOptions, publicKey: string): Promise<ManifestFetch> {
   let manifestUrl: string;
   let signatureUrl: string;
   let expectedTag: string | null = null;
@@ -67,7 +89,7 @@ export async function fetchSignedManifest(options: CheckOptions): Promise<Manife
       download(options, manifestUrl, MAX_MANIFEST_BYTES),
       download(options, signatureUrl, MAX_SIGNATURE_BYTES),
     ]);
-    if (!verifyManifestSignature(manifestBytes, new TextDecoder().decode(signatureBytes), options.publicKey)) {
+    if (!verifyManifestSignature(manifestBytes, new TextDecoder().decode(signatureBytes), publicKey)) {
       return { ok: false, error: 'signature' };
     }
     const parsed = parseManifest(new TextDecoder().decode(manifestBytes));

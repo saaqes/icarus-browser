@@ -86,6 +86,9 @@ export interface UpdateServiceOptions {
   quit: () => void;
   headers?: Record<string, string>;
   firstCheckDelayMs?: number;
+  /** Límites de tiempo de la comprobación y de la descarga (pruebas). */
+  checkTimeoutMs?: number;
+  stallTimeoutMs?: number;
   now?: () => Date;
 }
 
@@ -235,7 +238,8 @@ export class UpdateService {
       channel: this.state.channel,
       publicKey: this.options.publicKey,
       headers: this.options.headers,
-    });
+      timeoutMs: this.options.checkTimeoutMs,
+    }).catch((error: Error) => ({ ok: false as const, error: 'network' as const, detail: error.message }));
     const checkedAt = this.now().toISOString();
     this.save({ lastCheckedAt: checkedAt });
     if (!result.ok) {
@@ -329,6 +333,7 @@ export class UpdateService {
         sha256: asset.sha256,
         signal: this.abort.signal,
         headers: this.options.headers,
+        stallTimeoutMs: this.options.stallTimeoutMs,
         onProgress: (received, total) => {
           const time = Date.now();
           if (received !== total && time - lastEmit < 200) return;
