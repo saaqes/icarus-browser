@@ -354,7 +354,11 @@ try {
   assert(history.includes(pageOne) && history.includes(pageTwo), 'Se perdió el historial');
   console.log('  ✓ Almacenamiento, preferencias e historial conservados');
 
-  const recheck = await next.evaluate('window.icarusNative.updates.check()');
+  // La comprobación automática al arrancar puede estar en curso: se espera a que termine.
+  const recheck = await eventually(async () => {
+    const result = await next.evaluate('window.icarusNative.updates.check()');
+    return result.status === 'checking' ? null : result;
+  }, 'La comprobación tras actualizar no terminó');
   assert(recheck.status === 'up-to-date', `Tras actualizar se ofrece otra vez: ${recheck.status}`);
   await sleep(5000);
   assert(second.exitCode === undefined, 'ICARUS se cerró solo después de actualizar (posible bucle)');

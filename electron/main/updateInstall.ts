@@ -125,43 +125,56 @@ export async function verifyWindowsInstaller(installer: string, execPath: string
 }
 
 /**
- * Espera a que no quede ningún proceso del instalador (el de electron-builder se
- * vuelve a lanzar a sí mismo, así que no basta con esperar al primero; se exigen dos
- * comprobaciones seguidas sin él, como mucho unos 10 minutos) y abre ICARUS. Las rutas
- * llegan por variables de entorno (sin problemas de comillas) y cada paso queda en
+ * Espera a que la versión nueva esté instalada y abre ICARUS. El instalador de
+ * electron-builder se vuelve a lanzar a sí mismo, así que no basta con esperar a su
+ * proceso: se espera a que el app.asar instalado sea el de la versión nueva (su
+ * build-info.json) y exista el desinstalador que se escribe al final, sin procesos del
+ * instalador, más un margen. Como mucho unos 10 minutos: después se abre igualmente
+ * (si la instalación falló, ICARUS lo detecta y no la reintenta). Las rutas llegan
+ * por variables de entorno (sin problemas de comillas) y cada paso queda en
  * reinicio.log, junto al script.
  */
 const WINDOWS_RELAUNCH = `@echo off
 rem Generado por ICARUS Browser para volver a abrirlo tras instalar una actualización.
 set "log=%~dp0reinicio.log"
-echo inicio %date% %time% instalador %ICARUS_UPDATE_INSTALLER_NAME% >> "%log%"
+echo inicio %date% %time% version %ICARUS_UPDATE_VERSION% >> "%log%"
 set /a n=0
-set /a libre=0
 :esperar
 set /a n+=1
 if %n% gtr 600 goto abrir
 ping -n 2 127.0.0.1 >nul
-tasklist /FI "IMAGENAME eq %ICARUS_UPDATE_INSTALLER_NAME%" /NH 2>nul | find /I "%ICARUS_UPDATE_INSTALLER_NAME%" >nul && (set /a libre=0 & goto esperar)
-set /a libre+=1
-if %libre% lss 2 goto esperar
+findstr /M /L /C:"\\"version\\": \\"%ICARUS_UPDATE_VERSION%\\"" "%ICARUS_UPDATE_ASAR%" >nul 2>nul || goto esperar
+if not exist "%ICARUS_UPDATE_UNINSTALLER%" goto esperar
+tasklist /FI "IMAGENAME eq %ICARUS_UPDATE_INSTALLER_NAME%" /NH 2>nul | find /I "%ICARUS_UPDATE_INSTALLER_NAME%" >nul && goto esperar
+echo version instalada %date% %time% >> "%log%"
+rem Margen para que el instalador termine de cerrar sus archivos.
+ping -n 4 127.0.0.1 >nul
 :abrir
-echo instalador terminado %date% %time% >> "%log%"
+echo abriendo %date% %time% >> "%log%"
 start "" "%ICARUS_UPDATE_APP%" --updated
 echo abierto %date% %time% >> "%log%"
 `;
 
-export function launchWindowsInstaller(installer: string, relaunch: boolean, scriptDir: string, appPath: string = process.execPath): void {
+export function launchWindowsInstaller(installer: string, relaunch: boolean, version: string, scriptDir: string, appPath: string = process.execPath): void {
   const child = spawn(installer, ['/S', '--updated'], { detached: true, stdio: 'ignore' });
   child.unref();
-  if (!relaunch || child.pid === undefined) return;
+  if (!relaunch) return;
   mkdirSync(scriptDir, { recursive: true });
   const script = join(scriptDir, 'reiniciar.cmd');
   writeFileSync(script, WINDOWS_RELAUNCH.replace(/\n/g, '\r\n'));
+  const appDir = win32.dirname(appPath);
   const watcher = spawn('cmd.exe', ['/d', '/c', script], {
     detached: true,
     stdio: 'ignore',
     windowsHide: true,
-    env: { ...process.env, ICARUS_UPDATE_INSTALLER_NAME: basename(installer), ICARUS_UPDATE_APP: appPath },
+    env: {
+      ...process.env,
+      ICARUS_UPDATE_VERSION: version,
+      ICARUS_UPDATE_INSTALLER_NAME: basename(installer),
+      ICARUS_UPDATE_ASAR: win32.join(appDir, 'resources', 'app.asar'),
+      ICARUS_UPDATE_UNINSTALLER: win32.join(appDir, UNINSTALLER),
+      ICARUS_UPDATE_APP: appPath,
+    },
   });
   watcher.unref();
 }

@@ -62,8 +62,8 @@ export function sanitizeUpdates(raw: unknown): StoredUpdates {
 export interface UpdateInstaller {
   /** Comprobaciones propias del sistema (firma de código, contenido de la app…). Devuelve lo que se instalará. */
   prepare(file: string, asset: UpdateAsset, manifest: UpdateManifest): Promise<string>;
-  /** Lanza la instalación; `relaunch` vuelve a abrir ICARUS al terminar. */
-  launch(prepared: string, relaunch: boolean): void;
+  /** Lanza la instalación de `version`; `relaunch` vuelve a abrir ICARUS al terminar. */
+  launch(prepared: string, relaunch: boolean, version: string): void;
   /** Muestra el paquete al usuario (modos manuales). */
   reveal(file: string): void;
 }
@@ -435,7 +435,7 @@ export class UpdateService {
     // El marcador se escribe en disco antes de lanzar el instalador.
     this.save({ pending: { from: this.options.currentVersion, to: this.manifest.version, at: this.now().toISOString(), manual: false } }, true);
     try {
-      this.options.installer.launch(this.prepared, relaunch);
+      this.options.installer.launch(this.prepared, relaunch, this.manifest.version);
       return true;
     } catch (error) {
       this.save({ pending: null }, true);
