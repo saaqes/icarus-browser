@@ -86,7 +86,7 @@ El prototipo web (`dist/icarus-browser.html`) sigue existiendo, pero **no es un 
 Requisitos: Windows 10 u 11 de 64 bits.
 
 1. Descarga `ICARUS-Browser-Setup-0.2.0.exe`:
-   - de un **borrador de versión** en la pestaña *Releases* del repositorio, si alguien con permisos lo ha creado y publicado, o
+   - de la pestaña *Releases* del repositorio: cada commit subido cuyas compilaciones terminan bien tiene su **borrador automático** `v0.2.0-auto.<commit>` con Windows, macOS, Android e iPhone (lo ven quienes pueden editar el repositorio; se conservan los 5 más recientes), o una versión publicada, o
    - de **GitHub Actions** → flujo **Windows** → una ejecución en verde → artefacto **icarus-browser-windows-x64** (incluye el instalador, el `.zip` portátil y `SHA256SUMS.txt`).
 2. Comprueba la suma SHA-256 con `Get-FileHash .\ICARUS-Browser-Setup-0.2.0.exe` y compárala con `SHA256SUMS.txt`.
 3. Ejecuta el instalador. **No está firmado**, así que Windows SmartScreen mostrará «Windows protegió su PC»: pulsa *Más información* → *Ejecutar de todas formas* solo si descargaste el archivo de este repositorio.
@@ -487,6 +487,7 @@ La prueba de humo habla directamente el protocolo DevTools, porque el ejecutable
 - **macOS** (`.github/workflows/macos.yml`, `macos-15`): tipos, pruebas, `.dmg` y `.zip` (arm64 y x64), verificación de la firma ad hoc, prueba de humo de la app empaquetada y de la instalada desde el `.dmg`, **actualización real** de la app instalada a la versión siguiente y pruebas E2E en macOS.
 - **Android** (`.github/workflows/android.yml`): comprueba que `mobile/shared` está al día, pruebas del núcleo, APK release, lint y prueba en un emulador de Android 14 con capturas.
 - **iPhone y iPad** (`.github/workflows/ios.yml`, `macos-15`): `swift test`, pruebas en el simulador con WebKit real, capturas, compilación sin firmar para iPhone y paquete `.ipa`.
+- **Borrador automático** (`.github/workflows/draft.yml`): cuando las compilaciones de un commit subido (CI, Windows, macOS, Android e iPhone) terminan bien, reúne sus paquetes ya probados en un borrador de *Releases* `vX.Y.Z-auto.<commit>`, sin volver a compilar. Los borradores no llevan manifiesto (la app no los ofrece como actualización) y se conservan los 5 más recientes; los creados a mano no se tocan.
 - **Publicación** (`.github/workflows/release.yml`): solo una etiqueta publica. `vX.Y.Z` publica una versión estable y `vX.Y.Z-preview.N`, una preliminar; lanzarlo a mano crea un borrador privado. Antes de compilar comprueba que la etiqueta coincide con `package.json`, que la versión no está publicada ni es anterior a otra y que existen la clave y los secretos de firma; después ejecuta todos los flujos anteriores, genera y firma el manifiesto, crea la versión como borrador, la publica cuando están todos los archivos y la descarga sin credenciales para comprobarla (si algo no coincide, la vuelve a ocultar). Subir commits a una rama nunca publica nada. Ver [docs/UPDATES.md](docs/UPDATES.md).
 
 ## Licencias de terceros

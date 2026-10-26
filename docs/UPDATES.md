@@ -168,6 +168,10 @@ git push && git push origin v0.3.0
   `npm version 0.3.0-preview.1`.
 - Lanzar **Publicación** a mano en Actions → **borrador** privado sin manifiesto, para
   revisar los paquetes; nunca llega a nadie.
+- Cada commit subido cuyas compilaciones terminan bien → **borrador automático**
+  `vX.Y.Z-auto.<commit>` (`.github/workflows/draft.yml`) con los paquetes ya probados de
+  ese commit, sin volver a compilar. Tampoco lleva manifiesto ni llega a nadie; se
+  conservan los 5 más recientes.
 
 `.github/workflows/release.yml`:
 

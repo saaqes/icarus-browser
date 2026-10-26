@@ -1,0 +1,135 @@
+# Borrador automático de cada actualización.
+#
+# Cuando terminan bien todas las compilaciones de un commit subido (CI, Windows, macOS,
+# Android e iPhone), reúne sus paquetes ya probados en un borrador de Releases
+# (`vX.Y.Z-auto.<commit>`), sin volver a compilar nada.
+#
+# - Un borrador solo lo ven quienes pueden editar el repositorio: nunca llega a los
+#   usuarios. No lleva manifiesto de actualización, así que la app no lo ofrecería
+#   aunque alguien lo publicara a mano. Publicar una versión sigue siendo solo con una
+#   etiqueta (release.yml, docs/UPDATES.md).
+# - Solo commits subidos al repositorio (nunca paquetes de pull requests de otros).
+# - Se conservan los 5 borradores automáticos más recientes; los borradores creados a
+#   mano y las versiones publicadas no se tocan.
+name: Borrador automático
+
+on:
+  workflow_run:
+    workflows: [CI, Windows, macOS, Android, iPhone y iPad]
+    types: [completed]
+    branches: [main, 'claude/**']
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: borrador-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    name: Reunir los paquetes en un borrador
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      KEEP: 5
+    steps:
+      - name: ¿Han terminado bien todas las plataformas?
+        id: runs
+        run: |
+          gh api "repos/$GH_REPO/actions/runs?head_sha=$SHA&event=push&per_page=100" > runs.json
+          ready=true
+          ids=()
+          for name in CI Windows macOS Android "iPhone y iPad"; do
+            # El último intento de cada flujo para este commit.
+            run=$(jq -c --arg name "$name" '[.workflow_runs[] | select(.name == $name)] | sort_by(.created_at, .run_attempt) | last // empty' runs.json)
+            status=$(jq -r '.status // "falta"' <<<"${run:-null}")
+            conclusion=$(jq -r '.conclusion // ""' <<<"${run:-null}")
+            echo "$name: $status $conclusion"
+            if [ "$status" != completed ]; then ready=false; continue; fi
+            if [ "$conclusion" != success ]; then
+              echo "::notice::$name terminó con «$conclusion»: no se crea el borrador de $SHA."
+              ready=false
+              continue
+            fi
+            ids+=("$(jq -r '.id' <<<"$run")")
+          done
+          # Ya hay un borrador de este commit (automático o creado a mano): no se repite.
+          existing=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq "[.[] | select(.draft and .target_commitish == \"$SHA\")] | .[0].tag_name // empty")
+          if [ -n "$existing" ]; then
+            echo "::notice::El commit $SHA ya tiene el borrador $existing."
+            ready=false
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "ids=${ids[*]}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.runs.outputs.ready == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Descargar y comprobar los paquetes
+        if: steps.runs.outputs.ready == 'true'
+        env:
+          IDS: ${{ steps.runs.outputs.ids }}
+        run: |
+          mkdir -p downloads release
+          for id in $IDS; do gh run download "$id" --pattern 'icarus-browser-*' --dir "downloads/$id"; done
+          find downloads -type f -exec mv -t release {} +
+          cd release
+          ls -l
+          for sums in SHA256SUMS*.txt; do sha256sum -c "$sums"; done
+          version=$(node -p "require('../package.json').version")
+          for file in "ICARUS-Browser-Setup-$version.exe" "ICARUS-Browser-$version-mac-arm64.dmg" "ICARUS-Browser-$version-android.apk" "ICARUS-Browser-$version-ios-sin-firmar.ipa"; do
+            [ -f "$file" ] || { echo "::error::Falta $file entre los paquetes."; exit 1; }
+          done
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Crear el borrador
+        if: steps.runs.outputs.ready == 'true'
+        run: |
+          short=${SHA:0:7}
+          tag="v$VERSION-auto.$short"
+          {
+            echo "Borrador automático del commit \`$short\`: $(git log -1 --format=%s "$SHA")"
+            echo
+            echo "Paquetes compilados y probados por GitHub Actions para ese commit (Windows, macOS, Android e iPhone). Solo lo ven quienes pueden editar el repositorio; no lleva manifiesto de actualización, así que la app no lo ofrece. Estas copias no se actualizan solas: para eso hay que publicar una versión con etiqueta (docs/UPDATES.md)."
+            echo
+            echo "| Plataforma | Archivo |"
+            echo "| --- | --- |"
+            echo "| Windows 10/11 x64 | \`ICARUS-Browser-Setup-$VERSION.exe\` (instalador) o \`ICARUS-Browser-$VERSION-win-x64.zip\` (portátil). Sin firma de código: SmartScreen avisa al instalar. |"
+            echo "| macOS | \`ICARUS-Browser-$VERSION-mac-arm64.dmg\` (Apple Silicon) o \`ICARUS-Browser-$VERSION-mac-x64.dmg\` (Intel). Firma ad hoc: la primera vez, clic derecho → Abrir. |"
+            echo "| Android 10 o posterior | \`ICARUS-Browser-$VERSION-android.apk\` |"
+            echo "| iPhone/iPad (iOS 16+) | \`ICARUS-Browser-$VERSION-ios-sin-firmar.ipa\` (hay que firmarlo con tu Apple ID) o \`ICARUS-Browser-$VERSION-ios-simulador.zip\` (simulador de Xcode). |"
+            echo
+            echo "Las sumas SHA-256 están en \`SHA256SUMS*.txt\`."
+          } > body.md
+          files=(release/ICARUS-Browser-* release/SHA256SUMS*.txt)
+          if ! gh release create "$tag" "${files[@]}" --draft --prerelease --target "$SHA" \
+              --title "ICARUS Browser $VERSION · $short (borrador automático, Windows, macOS, Android, iPhone)" --notes-file body.md; then
+            # El token del flujo no puede crear una versión en un commit cuyos archivos de
+            # .github/workflows difieren de los de la rama (si se subió otro que los cambia).
+            echo "::error::GitHub no dejó crear el borrador de $short; el commit siguiente tendrá el suyo."
+            exit 1
+          fi
+          gh release view "$tag" --json assets --jq '.assets[] | "\(.name) \(.size)"' | sort > uploaded.txt
+          for file in "${files[@]}"; do printf '%s %s\n' "$(basename "$file")" "$(stat -c %s "$file")"; done | sort > expected.txt
+          diff expected.txt uploaded.txt || { echo "::error::Los archivos subidos no coinciden con los paquetes."; exit 1; }
+          echo "### Borrador $tag" >> "$GITHUB_STEP_SUMMARY"
+          echo "$(gh release view "$tag" --json url --jq .url)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Conservar solo los borradores automáticos más recientes
+        if: steps.runs.outputs.ready == 'true'
+        run: |
+          gh api "repos/$GH_REPO/releases?per_page=100" \
+            --jq "[.[] | select(.draft and (.tag_name | test(\"-auto[.]\")))] | sort_by(.created_at) | reverse | .[$KEEP:] | .[].tag_name" |
+            while read -r old; do
+              [ -n "$old" ] || continue
+              echo "Se elimina el borrador antiguo $old"
+              gh release delete "$old" --yes
+            done
