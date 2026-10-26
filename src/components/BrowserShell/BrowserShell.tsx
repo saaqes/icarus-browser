@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useServices } from '../../app/ServicesContext';
 import { useMessages } from '../../i18n';
 import { AddressBar } from '../AddressBar/AddressBar';
+import { BookmarksButton } from '../Bookmarks/BookmarksButton';
+import { BookmarksPage } from '../Bookmarks/BookmarksPage';
 import { Icon } from '../common/Icon';
-import { MenuButton, type MenuItem } from '../common/Menu';
+import { MenuButton, type MenuEntry } from '../common/Menu';
 import { useOverlayActive } from '../common/overlayLayer';
 import { CustomizeDrawer } from '../Customize/CustomizeDrawer';
 import { BlankPage } from '../InternalPages/BlankPage';
@@ -22,6 +24,7 @@ import { Infobar } from './Infobar';
 import { ShieldButton } from './ShieldButton';
 import { UpdateButton } from './UpdateButton';
 import { WebArea } from './WebArea';
+import { useActiveZoom, ZoomMenuRow } from './ZoomControls';
 import './BrowserShell.css';
 
 function ProgressBar() {
@@ -34,20 +37,34 @@ function ProgressBar() {
   );
 }
 
+/**
+ * Derecha de la barra, en el orden de Chrome y Edge: herramientas (Shield,
+ * descargas, actualización), favoritos y el menú principal. El mismo componente
+ * en todos los estilos, así que Esencial (Chrome) y Panorama (Edge) coinciden.
+ */
 function ToolbarActions() {
   const m = useMessages();
-  const { newTab, openSettings, openPage, currentEntry, setCustomizeOpen, embedded, reopenClosedTab } = useBrowser();
-  const items: MenuItem[] = [
+  const { newTab, openSettings, openPage, currentEntry, setCustomizeOpen, embedded, reopenClosedTab, openFind, liveWebTabId } = useBrowser();
+  const zoom = useActiveZoom();
+  const items: MenuEntry[] = [
     { id: 'new-tab', label: m.menu.newTab, icon: 'plus', shortcut: 'Ctrl+T', onSelect: newTab },
   ];
+  if (embedded) items.push({ id: 'reopen', label: m.menu.reopenClosedTab, icon: 'restore', shortcut: 'Ctrl+Mayús+T', onSelect: reopenClosedTab });
+  items.push({ id: 'sep-pages', separator: true });
   if (embedded) {
     items.push(
-      { id: 'reopen', label: m.menu.reopenClosedTab, icon: 'restore', shortcut: 'Ctrl+Mayús+T', onSelect: reopenClosedTab },
       { id: 'history', label: m.menu.history, icon: 'history', shortcut: 'Ctrl+H', onSelect: () => openPage({ kind: 'history' }, { newTab: true }) },
       { id: 'downloads', label: m.menu.downloads, icon: 'download', shortcut: 'Ctrl+J', onSelect: () => openPage({ kind: 'downloads' }, { newTab: true }) },
     );
   }
+  items.push({ id: 'bookmarks', label: m.menu.bookmarks, icon: 'bookmarks', shortcut: 'Ctrl+Mayús+O', onSelect: () => openPage({ kind: 'bookmarks' }, { newTab: true }) });
+  if (embedded) {
+    items.push({ id: 'sep-zoom', separator: true }, { id: 'zoom', custom: <ZoomMenuRow zoom={zoom ?? 100} />, height: 40 });
+    if (zoom === null) items.pop();
+    items.push({ id: 'find', label: m.menu.find, icon: 'search', shortcut: 'Ctrl+F', disabled: !liveWebTabId, onSelect: openFind });
+  }
   items.push(
+    { id: 'sep-settings', separator: true },
     {
       id: 'customize',
       label: m.menu.customize,
@@ -65,9 +82,7 @@ function ToolbarActions() {
       {embedded && <ShieldButton />}
       {embedded && <DownloadsButton />}
       {embedded && <UpdateButton />}
-      <button type="button" className="icon-btn" onClick={() => openSettings()} aria-label={m.toolbar.settings} title={m.toolbar.settings}>
-        <Icon name="settings" />
-      </button>
+      <BookmarksButton />
       <MenuButton label={m.toolbar.menu} items={items}>
         <Icon name="more" />
       </MenuButton>
@@ -88,6 +103,8 @@ function TabContent() {
       return <SettingsPage key={`${activeTab.id}:${activeTab.reloadToken}`} section={page.section} />;
     case 'history':
       return <HistoryPage key={key} />;
+    case 'bookmarks':
+      return <BookmarksPage key={key} />;
     case 'downloads':
       return <DownloadsPage key={key} />;
     case 'web':

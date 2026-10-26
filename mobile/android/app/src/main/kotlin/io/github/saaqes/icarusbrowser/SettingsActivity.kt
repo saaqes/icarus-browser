@@ -151,7 +151,7 @@ class SettingsActivity : ScreenActivity() {
         val addresses = app.profile.customAddresses
         addView(w.card {
             val summary = if (addresses.isEmpty()) "Ninguna dirección personalizada" else "${addresses.count { it.enabled }} de ${addresses.size} direcciones activas"
-            addView(w.row(R.drawable.icarus_tag, "Personalizar direcciones URL",
+            addView(w.row(R.drawable.icarus_globe, "Personalizar direcciones URL",
                 "Elige qué dirección muestra la barra para un sitio (por ejemplo, miweb.com en lugar de bot.deriv.me).\n$summary") {
                 push(addressesTitle, ::addressesPage)
             })

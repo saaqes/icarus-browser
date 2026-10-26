@@ -3,7 +3,7 @@ import { useMessages } from '../../i18n';
 import { Icon } from '../common/Icon';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 
-/** Botones atrás, adelante, recargar/detener y página principal. */
+/** Botones atrás, adelante (cuando hay a dónde ir), recargar/detener y página principal. */
 export function NavigationControls() {
   const m = useMessages();
   const [settings] = useSettings();
@@ -13,16 +13,12 @@ export function NavigationControls() {
       <button type="button" className="icon-btn" onClick={goBack} disabled={!canGoBack} aria-label={m.toolbar.back} title={m.toolbar.back}>
         <Icon name="back" />
       </button>
-      <button
-        type="button"
-        className="icon-btn"
-        onClick={goForward}
-        disabled={!canGoForward}
-        aria-label={m.toolbar.forward}
-        title={m.toolbar.forward}
-      >
-        <Icon name="forward" />
-      </button>
+      {/* Como en Edge, «Adelante» solo aparece cuando hay a dónde ir (en los dos estilos). */}
+      {canGoForward && (
+        <button type="button" className="icon-btn" onClick={goForward} aria-label={m.toolbar.forward} title={m.toolbar.forward}>
+          <Icon name="forward" />
+        </button>
+      )}
       {activeTab.loading ? (
         <button type="button" className="icon-btn" onClick={stop} aria-label={m.toolbar.stop} title={m.toolbar.stop}>
           <Icon name="close" />

@@ -22,6 +22,8 @@ function readPage(raw: unknown): PageEntry | null {
         : null;
     case 'history':
       return { kind: 'history' };
+    case 'bookmarks':
+      return { kind: 'bookmarks' };
     case 'downloads':
       return { kind: 'downloads' };
     // «external» es el nombre que usaba la versión 0.1 para las páginas web.

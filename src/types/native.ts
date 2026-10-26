@@ -30,6 +30,8 @@ export interface NavigationErrorInfo {
 }
 
 /** Estado real de la pestaña informado por Chromium. */
+export type ZoomAction = 'in' | 'out' | 'reset';
+
 export interface WebTabState {
   tabId: string;
   url: string;
@@ -44,6 +46,8 @@ export interface WebTabState {
   blockedCount: number;
   /** El sitio actual está en la lista de excepciones de Shield. */
   shieldAllowed: boolean;
+  /** Zoom real de la página en porcentaje (100 = sin zoom). */
+  zoom: number;
 }
 
 export const SHORTCUT_ACTIONS = [
@@ -59,6 +63,8 @@ export const SHORTCUT_ACTIONS = [
   'history',
   'downloads',
   'find',
+  'bookmark',
+  'bookmarks',
 ] as const;
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
 
@@ -302,6 +308,8 @@ export interface IcarusNativeApi {
      */
     find(tabId: string, text: string, options: { forward: boolean; next: boolean }): void;
     stopFind(tabId: string): void;
+    /** Zoom real de la página, por sitio y guardado; devuelve el porcentaje resultante. */
+    zoom(tabId: string, action: ZoomAction): Promise<number>;
   };
   window: {
     setTitleBarColors(colors: { color: string; symbolColor: string }): void;

@@ -28,6 +28,9 @@ function describe(
   if (suggestion.kind === 'shortcut') {
     return { icon: null, main: suggestion.shortcut.title, detail: `${t.shortcut} · ${shown(suggestion.shortcut.url)}`, warn: false };
   }
+  if (suggestion.kind === 'bookmark') {
+    return { icon: 'star' as IconName, main: suggestion.bookmark.title, detail: `${t.bookmark} · ${shown(suggestion.bookmark.url)}`, warn: false };
+  }
   if (suggestion.kind === 'history') {
     return { icon: 'history' as IconName, main: suggestion.item.title || shown(suggestion.item.url), detail: `${t.history} · ${shown(suggestion.item.url)}`, warn: false };
   }

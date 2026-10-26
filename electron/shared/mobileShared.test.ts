@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { formatAddress, shortAddress } from '../../src/services/custom-addresses/display';
 import { displayUrlFor } from '../../src/services/custom-addresses/mapping';
+import { classifyAddressEdit, joinBase, splitAddress } from '../../src/services/custom-addresses/rebase';
 import { convertLegacyRule, sanitizeCustomAddresses } from '../../src/services/custom-addresses/store';
 import { validateCustomAddressInput } from '../../src/services/custom-addresses/validation';
 import { buildSearchUrl } from '../../src/services/search/providers';
@@ -66,6 +67,30 @@ const VECTOR_ENTRIES: CustomAddress[] = [
   entry('docs', 'https://ejemplo.com/docs', 'https://docs.miweb.org/'),
   entry('migrada', 'https://es.wikipedia.org/', 'https://wiki.icarus/'),
   entry('apagada', 'https://apagada.com/', 'https://desactivada.com/', false),
+];
+
+/* ------------------------- Edición de la base ------------------------- */
+
+const REBASE_CASES: Array<{ shown: string; entryId: string | null; bases: string[]; typed: string[] }> = [
+  {
+    shown: 'https://miweb.com/#inicio',
+    entryId: 'deriv',
+    bases: ['https://otrapagina.com', 'otrapagina.com/', 'OTRAPAGINA.com', 'otrapagina.com/#x', 'otra pagina', 'javascript:alert(1)', ''],
+    typed: ['https://otrapagina.com/#inicio', 'otrapagina.com/#inicio', 'otrapagina.com', 'https://otrapagina.com/#dashboard', 'miweb.com/#inicio', 'buscar algo #inicio'],
+  },
+  { shown: 'https://miweb.com/#dashboard', entryId: 'deriv', bases: ['otrapagina.com'], typed: ['otrapagina.com/#dashboard'] },
+  { shown: 'https://miweb.com/#bot_builder', entryId: 'deriv', bases: ['otrapagina.com'], typed: [] },
+  { shown: 'https://miweb.com/#chart', entryId: 'deriv', bases: ['otrapagina.com'], typed: [] },
+  { shown: 'https://miweb.com/panel/usuarios?id=10', entryId: 'deriv', bases: ['otrapagina.com', 'localhost:3000'], typed: ['otra.com/panel/usuarios?id=10', 'otra.com/x/panel/usuarios?id=10'] },
+  { shown: 'https://miweb.com/', entryId: 'deriv', bases: ['otrapagina.com'], typed: ['otrapagina.com/'] },
+  { shown: 'https://miweb.com/a/b/?x=1&y=%202#parte', entryId: 'deriv', bases: ['otra.com'], typed: [] },
+  { shown: 'http://miapp.com/v2/panel?id=10#top', entryId: 'local', bases: ['nueva.com/v3/', 'https://nueva.com'], typed: ['nueva.com/v3/panel?id=10#top'] },
+  { shown: 'http://miapp.com/v2#top', entryId: 'local', bases: ['nueva.com/v3'], typed: [] },
+  { shown: 'http://localhost:3000/a/b/c/', entryId: null, bases: ['localhost:4000', '127.0.0.1:8080'], typed: ['localhost:4000/a/b/c/'] },
+  { shown: 'https://ejemplo.com/p?utm_source=x&utm_medium=y#s', entryId: null, bases: ['otra.com'], typed: [] },
+  { shown: 'https://ejemplo.com/caf%C3%A9/se%C3%B1al?q=%C3%B1', entryId: null, bases: ['otra.com'], typed: [] },
+  { shown: 'https://ejemplo.com/', entryId: null, bases: ['otra.com'], typed: ['otra.com'] },
+  { shown: 'icarus://configuracion', entryId: null, bases: [], typed: [] },
 ];
 
 /* ---------------------------- Vectores de entrada ---------------------------- */
@@ -206,6 +231,9 @@ const LEGACY_RULES = [
   { id: 'choca', name: 'Choca', matchType: 'host', pattern: 'otro.com', displayName: 'Otro', alias: 'bot.icarus', targetUrl: 'https://otro.com/', enabled: true },
   { id: 'rota', name: 'Rota', matchType: 'host', pattern: '', displayName: '', alias: '', targetUrl: '', enabled: true },
   { id: 'nueva', target: 'https://nuevo.com/', address: 'https://nueva.com/', enabled: true, createdAt: '2026-03-01T00:00:00.000Z', updatedAt: '2026-03-01T00:00:00.000Z' },
+  // Una regla por fragmento del mismo sitio: se convierten en una sola entrada.
+  { id: 'panel-inicio', name: 'Inicio', matchType: 'prefix', pattern: 'https://panel.ejemplo.net/#inicio', displayName: 'Inicio', alias: 'panel.icarus', targetUrl: 'https://panel.ejemplo.net/#inicio', enabled: true },
+  { id: 'panel-chart', name: 'Gráfico', matchType: 'prefix', pattern: 'https://panel.ejemplo.net/#chart', displayName: 'Gráfico', alias: 'panel.icarus', targetUrl: 'https://panel.ejemplo.net/#chart', enabled: true },
 ];
 
 /** Plantilla de un texto con parámetros: los parámetros se sustituyen por {nombre}. */
@@ -445,6 +473,33 @@ describe('datos compartidos con las apps móviles', () => {
           const shown = match?.url ?? url;
           const full = formatAddress(shown, true);
           return { url, entryId: match?.entry.id ?? null, shown, short: shortAddress(shown), full: `${full.prefix}${full.host}${full.rest}` };
+        }),
+      }),
+    );
+  });
+
+  it('vectores de la edición de la base', () => {
+    const byId = (id: string | null) => VECTOR_ENTRIES.find((item) => item.id === id) ?? null;
+    expectShared(
+      'test-vectors/address-rebase.json',
+      json({
+        description:
+          'Editar la base de la dirección conservando ruta, consulta y fragmento: dirección mostrada (+ entrada aplicada) → base y sufijo; base nueva → URL; texto escrito → editar la base o navegar.',
+        customAddresses: VECTOR_ENTRIES,
+        cases: REBASE_CASES.map(({ shown, entryId, bases, typed }) => {
+          const split = splitAddress(shown, byId(entryId));
+          return {
+            shown,
+            entryId,
+            split: split && { base: split.base, suffix: split.suffix },
+            joins: split
+              ? bases.map((base) => {
+                  const result = joinBase(base, split.suffix);
+                  return { base, url: result.ok ? result.url : null, error: result.ok ? null : result.error };
+                })
+              : [],
+            edits: split ? typed.map((text) => ({ typed: text, ...classifyAddressEdit(split, text) })) : [],
+          };
         }),
       }),
     );

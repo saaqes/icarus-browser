@@ -375,6 +375,26 @@
         "enabled": true,
         "createdAt": "2026-03-01T00:00:00.000Z",
         "updatedAt": "2026-03-01T00:00:00.000Z"
+      },
+      {
+        "id": "panel-inicio",
+        "name": "Inicio",
+        "matchType": "prefix",
+        "pattern": "https://panel.ejemplo.net/#inicio",
+        "displayName": "Inicio",
+        "alias": "panel.icarus",
+        "targetUrl": "https://panel.ejemplo.net/#inicio",
+        "enabled": true
+      },
+      {
+        "id": "panel-chart",
+        "name": "Gráfico",
+        "matchType": "prefix",
+        "pattern": "https://panel.ejemplo.net/#chart",
+        "displayName": "Gráfico",
+        "alias": "panel.icarus",
+        "targetUrl": "https://panel.ejemplo.net/#chart",
+        "enabled": true
       }
     ],
     "conversions": [
@@ -450,6 +470,28 @@
         "result": {
           "kind": "invalid"
         }
+      },
+      {
+        "id": "panel-inicio",
+        "result": {
+          "kind": "entry",
+          "input": {
+            "target": "https://panel.ejemplo.net/",
+            "address": "https://panel.icarus",
+            "enabled": true
+          }
+        }
+      },
+      {
+        "id": "panel-chart",
+        "result": {
+          "kind": "entry",
+          "input": {
+            "target": "https://panel.ejemplo.net/",
+            "address": "https://panel.icarus",
+            "enabled": true
+          }
+        }
       }
     ],
     "loaded": [
@@ -500,6 +542,14 @@
         "id": "nueva",
         "createdAt": "2026-03-01T00:00:00.000Z",
         "updatedAt": "2026-03-01T00:00:00.000Z"
+      },
+      {
+        "target": "https://panel.ejemplo.net/",
+        "address": "https://panel.icarus/",
+        "enabled": true,
+        "id": "panel-inicio",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:00:00.000Z"
       }
     ]
   }

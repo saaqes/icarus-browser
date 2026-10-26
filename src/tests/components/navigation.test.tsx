@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { renderApp } from '../testUtils';
+import { renderApp, openSettingsFromMenu } from '../testUtils';
 
 const addressBar = () => screen.getByRole('combobox', { name: 'Barra de direcciones' });
 
@@ -68,15 +68,15 @@ describe('barra de direcciones y navegación', () => {
   it('navega atrás y adelante en el historial de la pestaña', async () => {
     const { user } = renderApp();
     const back = screen.getByRole('button', { name: 'Atrás' });
-    const forward = screen.getByRole('button', { name: 'Adelante' });
     expect(back).toBeDisabled();
+    // Como en Edge, «Adelante» solo aparece cuando hay a dónde ir.
+    expect(screen.queryByRole('button', { name: 'Adelante' })).toBeNull();
 
     await typeAddress(user, 'example.com{Enter}');
     expect(back).toBeEnabled();
     await user.click(back);
     expect(screen.getByRole('region', { name: 'Nueva pestaña' })).toBeInTheDocument();
-    expect(forward).toBeEnabled();
-    await user.click(forward);
+    await user.click(screen.getByRole('button', { name: 'Adelante' }));
     expect(screen.getByRole('heading', { name: 'Página abierta fuera de ICARUS' })).toBeInTheDocument();
   });
 
@@ -194,7 +194,7 @@ describe('barra de direcciones y navegación', () => {
 
   it('abre la configuración como página interna', async () => {
     const { user } = renderApp();
-    await user.click(screen.getByRole('button', { name: 'Configuración' }));
+    await openSettingsFromMenu(user);
     expect(screen.getByRole('heading', { level: 1, name: 'Configuración' })).toBeInTheDocument();
     expect(addressBar()).toHaveValue('icarus://configuracion/general');
     await user.click(screen.getByRole('button', { name: 'Avanzado' }));

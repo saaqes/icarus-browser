@@ -1,11 +1,12 @@
 /**
  * Sugerencias de la barra de direcciones: la acción principal, direcciones
- * personalizadas que empiezan por lo escrito, accesos directos e historial.
+ * personalizadas que empiezan por lo escrito, favoritos, accesos directos e historial.
  *
  * Los accesos directos y el historial se comparan y se muestran con la dirección
  * visible (la personalizada si existe), igual que la barra.
  */
 
+import type { Bookmark } from '../../types/bookmarks';
 import type { CustomAddress } from '../../types/customAddress';
 import type { HistoryItem } from '../../types/native';
 import type { Shortcut } from '../../types/shortcuts';
@@ -16,6 +17,7 @@ import { resolveInput, type InputResolution, type ResolveContext } from '../../s
 export type Suggestion =
   | { id: string; kind: 'primary'; resolution: InputResolution; text: string }
   | { id: string; kind: 'address'; entry: CustomAddress }
+  | { id: string; kind: 'bookmark'; bookmark: Bookmark }
   | { id: string; kind: 'shortcut'; shortcut: Shortcut }
   | { id: string; kind: 'history'; item: HistoryItem };
 
@@ -26,7 +28,7 @@ export function visibleAddress(url: string, customAddresses: CustomAddress[]): s
 
 export function buildSuggestions(
   text: string,
-  context: ResolveContext & { shortcuts: Shortcut[]; history?: HistoryItem[] },
+  context: ResolveContext & { shortcuts: Shortcut[]; history?: HistoryItem[]; bookmarks?: Bookmark[] },
   limit = 6,
 ): Suggestion[] {
   const value = text.trim();
@@ -42,12 +44,18 @@ export function buildSuggestions(
     .slice(0, 2)
     .forEach((entry) => items.push({ id: `address-${entry.id}`, kind: 'address', entry }));
 
+  (context.bookmarks ?? [])
+    .filter((bookmark) => matches(bookmark.title, bookmark.url))
+    .slice(0, 2)
+    .forEach((bookmark) => items.push({ id: `bookmark-${bookmark.id}`, kind: 'bookmark', bookmark }));
+
+  const urlOf = (item: Suggestion) => (item.kind === 'shortcut' ? [item.shortcut.url] : item.kind === 'bookmark' ? [item.bookmark.url] : []);
   context.shortcuts
-    .filter((shortcut) => matches(shortcut.title, shortcut.url))
+    .filter((shortcut) => matches(shortcut.title, shortcut.url) && !items.some((item) => urlOf(item).includes(shortcut.url)))
     .slice(0, 3)
     .forEach((shortcut) => items.push({ id: `shortcut-${shortcut.id}`, kind: 'shortcut', shortcut }));
 
-  const seen = new Set(items.flatMap((item) => (item.kind === 'shortcut' ? [item.shortcut.url] : [])));
+  const seen = new Set(items.flatMap(urlOf));
   for (const entry of context.history ?? []) {
     if (items.length >= limit) break;
     if (seen.has(entry.url) || !matches(entry.title, entry.url)) continue;

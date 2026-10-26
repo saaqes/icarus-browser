@@ -9,20 +9,32 @@
  *   real que falló: el aviso siempre se refiere al sitio que respondió.
  * - Al hacer clic se muestra la dirección completa seleccionada; Enter navega,
  *   Escape la restaura y, mientras se escribe, nada sustituye el texto.
- * - Sugerencias: acción principal, direcciones personalizadas, accesos directos e
- *   historial, sin cambiar la página hasta confirmar.
+ * - Sugerencias: acción principal, direcciones personalizadas, favoritos, accesos
+ *   directos e historial, sin cambiar la página hasta confirmar.
+ * - Editar la base: «Editar base» deja editar solo la dirección base (la
+ *   personalizada o el origen) y conserva la ruta, la consulta y el fragmento de la
+ *   página (`/#inicio`). Si la página tiene una dirección personalizada, al
+ *   confirmar se elige entre guardar la base nueva en esa dirección (persistente) o
+ *   ir a la nueva dirección. Escribir una dirección completa nunca hereda la ruta.
+ * - A la derecha: zoom (si no es 100 %) y la estrella de favoritos.
  */
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useServices } from '../../app/ServicesContext';
 import { useHistoryItems } from '../../hooks/useNative';
-import { useCustomAddresses, useSettings, useShortcuts } from '../../hooks/useStores';
+import { useBookmarks, useCustomAddresses, useSettings, useShortcuts } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
-import { formatAddress } from '../../services/custom-addresses/display';
+import { formatAddress, shortAddress } from '../../services/custom-addresses/display';
+import { classifyAddressEdit, joinBase, splitAddress, type AddressSplit } from '../../services/custom-addresses/rebase';
+import { renameCustomAddressBase } from '../../services/custom-addresses/store';
 import { getSearchProvider } from '../../services/search/providers';
+import type { CustomAddress } from '../../types/customAddress';
+import { BookmarkStar } from '../Bookmarks/BookmarkStar';
 import { Icon, type IconName } from '../common/Icon';
 import { useOverlayLayer } from '../common/overlayLayer';
+import { useToast } from '../common/Toast';
 import { useBrowser } from '../BrowserShell/BrowserContext';
+import { ZoomIndicator } from '../BrowserShell/ZoomControls';
 import { SiteInfoPopover, type SecurityState } from './SiteInfoPopover';
 import { SuggestionList } from './SuggestionList';
 import { buildSuggestions, type Suggestion } from './suggestions';
@@ -36,13 +48,23 @@ const SECURITY_ICONS: Record<SecurityState, IconName> = {
   internal: 'sparkle',
 };
 
+/** Base nueva confirmada en una página con dirección personalizada: guardar o ir. */
+interface RebaseChoice {
+  base: string;
+  url: string;
+  entry: CustomAddress;
+}
+
 export function AddressBar() {
   const m = useMessages();
   const { currentEntry, activeTab, describe, navigateInput, openUrl, registerAddressBar, webState, liveWebTabId } = useBrowser();
-  const desktop = Boolean(useServices().native);
+  const services = useServices();
+  const desktop = Boolean(services.native);
+  const notify = useToast();
   const [settings] = useSettings();
   const [customAddresses] = useCustomAddresses();
   const [shortcuts] = useShortcuts();
+  const [bookmarks] = useBookmarks();
   const { items: history } = useHistoryItems();
   const presentation = describe(currentEntry.page);
   const provider = getSearchProvider(settings.general.searchProvider);
@@ -63,6 +85,9 @@ export function AddressBar() {
             ? 'secure'
             : 'unverified';
 
+  // Base (dirección personalizada u origen) y sufijo (ruta, consulta y fragmento) de la página.
+  const split = presentation.kind === 'web' && !certificateError ? splitAddress(addressUrl, presentation.customAddress) : null;
+
   const inputRef = useRef<HTMLInputElement>(null);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState(false);
@@ -70,6 +95,11 @@ export function AddressBar() {
   const [value, setValue] = useState(editable);
   const [highlight, setHighlight] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
+  /** Edición de la base: el sufijo queda fijo a la derecha del texto. */
+  const [rebase, setRebase] = useState<AddressSplit | null>(null);
+  const [choice, setChoice] = useState<RebaseChoice | null>(null);
+  const [choiceIndex, setChoiceIndex] = useState(0);
+  const [rebaseError, setRebaseError] = useState<string | null>(null);
   // Evita que el mouseup posterior al foco con clic deshaga la selección del texto.
   const selectOnMouseUp = useRef(false);
   const listId = useId();
@@ -102,6 +132,9 @@ export function AddressBar() {
     shownEditable.current = editableRef.current;
     setValue(editableRef.current);
     setDirty(false);
+    setRebase(null);
+    setChoice(null);
+    setRebaseError(null);
   }, [activeTab.id]);
 
   const focusInput = useCallback(() => {
@@ -115,8 +148,11 @@ export function AddressBar() {
   }, [focusInput, registerAddressBar]);
 
   const suggestions: Suggestion[] =
-    editing && dirty ? buildSuggestions(value, { providerId: provider.id, customAddresses, shortcuts, history }) : [];
+    editing && dirty && !rebase && !choice
+      ? buildSuggestions(value, { providerId: provider.id, customAddresses, shortcuts, history, bookmarks: bookmarks.items })
+      : [];
   const listOpen = suggestions.length > 0;
+  const choiceOpen = editing && choice !== null;
   const activeIndex = Math.min(highlight, Math.max(0, suggestions.length - 1));
 
   const finish = () => {
@@ -129,17 +165,87 @@ export function AddressBar() {
     setValue(editable);
     setDirty(false);
     setHighlight(0);
+    setRebase(null);
+    setChoice(null);
+    setRebaseError(null);
     selectAfterRender.current = true;
+  };
+
+  /** «Editar base»: solo la base queda en el campo, seleccionada; el sufijo se conserva aparte. */
+  const startRebase = () => {
+    if (!split) return;
+    setRebase(split);
+    setChoice(null);
+    setRebaseError(null);
+    setValue(split.base);
+    setDirty(true);
+    inputRef.current?.focus();
+    selectAfterRender.current = true;
+  };
+
+  /** Quita el sufijo fijo: lo que hay en el campo se usará tal cual. */
+  const dropSuffix = () => {
+    setRebase(null);
+    setRebaseError(null);
+    inputRef.current?.focus();
+  };
+
+  const rebaseMessage = (code: string | undefined) => {
+    const errors = m.addressBar.rebase.errors;
+    return code && code in errors ? errors[code as keyof typeof errors] : errors.generic;
+  };
+
+  /** Confirma la base escrita con el sufijo conservado. */
+  const submitRebase = (current: AddressSplit) => {
+    const joined = joinBase(value, current.suffix);
+    if (!joined.ok) {
+      setRebaseError(rebaseMessage(joined.error));
+      return;
+    }
+    if (current.entry) {
+      setChoice({ base: value.trim(), url: joined.url, entry: current.entry });
+      setChoiceIndex(0);
+      return;
+    }
+    if (navigateInput(joined.url)) finish();
+  };
+
+  const applyChoice = (kind: 'save' | 'go', selected: RebaseChoice) => {
+    if (kind === 'go') {
+      if (navigateInput(selected.url)) finish();
+      return;
+    }
+    // Guardar: cambia la base de la dirección personalizada (destino y estado intactos).
+    const result = renameCustomAddressBase(services.customAddresses.getSnapshot(), selected.entry.id, selected.base, services.now());
+    if (!result.ok) {
+      setChoice(null);
+      setRebaseError(rebaseMessage(result.errors.address ?? result.errors.target));
+      return;
+    }
+    services.customAddresses.set(result.entries);
+    notify('success', m.addressBar.rebase.saved(shortAddress(result.entry.address)));
+    finish();
   };
 
   const run = (suggestion: Suggestion | undefined) => {
     let done = false;
-    if (!suggestion || suggestion.kind === 'primary') done = navigateInput(value);
-    else if (suggestion.kind === 'shortcut') {
+    if (!suggestion || suggestion.kind === 'primary') {
+      // Si solo se cambió la base de una página personalizada, se ofrece guardarla.
+      const edit = split?.entry ? classifyAddressEdit(split, value) : null;
+      if (split?.entry && edit?.kind === 'rebase') {
+        setChoice({ base: edit.base, url: edit.url, entry: split.entry });
+        setChoiceIndex(0);
+        return;
+      }
+      done = navigateInput(value);
+    } else if (suggestion.kind === 'shortcut') {
       openUrl(suggestion.shortcut.url);
       done = true;
     } else if (suggestion.kind === 'history') {
       openUrl(suggestion.item.url);
+      done = true;
+    } else if (suggestion.kind === 'bookmark') {
+      openUrl(suggestion.bookmark.url);
       done = true;
     } else {
       openUrl(suggestion.entry.target);
@@ -149,6 +255,24 @@ export function AddressBar() {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (choiceOpen && choice) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        setChoiceIndex((index) => (index + 1) % 2);
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        applyChoice(choiceIndex === 0 ? 'save' : 'go', choice);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        setChoice(null);
+      }
+      return;
+    }
+    if (rebase && event.key === 'Enter') {
+      event.preventDefault();
+      submitRebase(rebase);
+      return;
+    }
     if (event.key === 'ArrowDown' && listOpen) {
       event.preventDefault();
       setHighlight((index) => (index + 1) % suggestions.length);
@@ -171,10 +295,14 @@ export function AddressBar() {
   const showInfoButton = presentation.kind !== 'newtab' && !(editing && dirty);
   const notSecure = security === 'insecure' || security === 'dangerous' ? m.addressBar.notSecure : null;
   const securityLabel = editing ? null : notSecure;
-  useOverlayLayer(listOpen || infoOpen);
+  const errorOpen = editing && rebaseError !== null;
+  // «Editar base» aparece al editar una página web cuya dirección tiene algo que conservar.
+  const canRebase = editing && !dirty && !rebase && split !== null && (split.suffix !== '' || split.entry !== null);
+  const showPageActions = presentation.kind === 'web' && !(editing && dirty) && !rebase;
+  useOverlayLayer(listOpen || infoOpen || choiceOpen || errorOpen);
 
   return (
-    <div className={`omnibox${editing ? ' is-editing' : ''}${listOpen ? ' is-open' : ''}`}>
+    <div className={`omnibox${editing ? ' is-editing' : ''}${listOpen || choiceOpen || errorOpen ? ' is-open' : ''}${rebase ? ' is-rebasing' : ''}`}>
       <div className="omnibox__field">
         {showInfoButton ? (
           <button
@@ -209,7 +337,7 @@ export function AddressBar() {
             className="omnibox__input"
             type="text"
             role="combobox"
-            aria-label={m.addressBar.label}
+            aria-label={rebase ? m.addressBar.rebase.label : m.addressBar.label}
             aria-expanded={listOpen}
             aria-controls={listOpen ? listId : undefined}
             aria-autocomplete="list"
@@ -233,6 +361,9 @@ export function AddressBar() {
               setEditing(false);
               setDirty(false);
               setHighlight(0);
+              setRebase(null);
+              setChoice(null);
+              setRebaseError(null);
               shownEditable.current = editable;
               setValue(editable);
             }}
@@ -241,6 +372,8 @@ export function AddressBar() {
               setValue(event.target.value);
               setDirty(true);
               setHighlight(0);
+              setChoice(null);
+              setRebaseError(null);
             }}
             onKeyDown={onKeyDown}
           />
@@ -259,7 +392,39 @@ export function AddressBar() {
           )}
         </div>
 
-        {editing && value && (
+        {rebase && rebase.suffix && (
+          <span className="omnibox__suffix" title={m.addressBar.rebase.keep(rebase.suffix)} data-testid="rebase-suffix">
+            <span className="omnibox__suffix-text">{rebase.suffix}</span>
+            <button
+              type="button"
+              className="icon-btn icon-btn--sm"
+              aria-label={m.addressBar.rebase.drop}
+              title={m.addressBar.rebase.drop}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={dropSuffix}
+            >
+              <Icon name="close" size={12} />
+            </button>
+          </span>
+        )}
+
+        {canRebase && split && (
+          <button
+            type="button"
+            className="omnibox__rebase-btn"
+            title={m.addressBar.rebase.buttonTitle(split.suffix || '/')}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={startRebase}
+          >
+            <Icon name="edit" size={12} />
+            {m.addressBar.rebase.button}
+          </button>
+        )}
+
+        {showPageActions && desktop && <ZoomIndicator />}
+        {showPageActions && <BookmarkStar url={presentation.realUrl} title={presentation.title} />}
+
+        {editing && value && !rebase && (
           <button
             type="button"
             className="icon-btn icon-btn--sm omnibox__clear"
@@ -276,6 +441,43 @@ export function AddressBar() {
           </button>
         )}
       </div>
+
+      {choiceOpen && choice && (
+        <div className="omnibox__dropdown">
+          <ul role="listbox" aria-label={m.addressBar.rebase.choices} className="suggestions" data-testid="rebase-choices">
+            {(['save', 'go'] as const).map((kind, index) => (
+              <li
+                key={kind}
+                role="option"
+                aria-selected={index === choiceIndex}
+                className={`suggestion${index === choiceIndex ? ' is-active' : ''}`}
+                onMouseEnter={() => setChoiceIndex(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => applyChoice(kind, choice)}
+              >
+                <span className="suggestion__icon">
+                  <Icon name={kind === 'save' ? 'check' : 'globe'} size={16} />
+                </span>
+                <span className="suggestion__main">
+                  {kind === 'save' ? m.addressBar.rebase.save(shortAddress(joinBaseLabel(choice.base))) : m.addressBar.rebase.go(shortAddress(choice.url))}
+                </span>
+                <span className="suggestion__detail">
+                  {kind === 'save' ? m.addressBar.rebase.saveDetail(shortAddress(choice.entry.address)) : m.addressBar.rebase.goDetail}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {errorOpen && !choiceOpen && (
+        <div className="omnibox__dropdown">
+          <p className="omnibox__hint suggestion__error" role="alert">
+            <Icon name="warning" size={16} />
+            {rebaseError}
+          </p>
+        </div>
+      )}
 
       {listOpen && (
         <SuggestionList
@@ -300,4 +502,10 @@ export function AddressBar() {
       )}
     </div>
   );
+}
+
+/** Base escrita en forma canónica para mostrarla (`otrapagina.com/` → `https://otrapagina.com/`). */
+function joinBaseLabel(base: string): string {
+  const joined = joinBase(base, '');
+  return joined.ok ? joined.url : base;
 }

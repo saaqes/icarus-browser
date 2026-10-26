@@ -16,6 +16,8 @@ function TabIcon({ presentation, loading, favicon }: { presentation: PagePresent
       return <Icon name="history" size={16} />;
     case 'downloads':
       return <Icon name="download" size={16} />;
+    case 'bookmarks':
+      return <Icon name="bookmarks" size={16} />;
     case 'icarus':
       return <IcarusMark size={16} />;
     case 'settings':

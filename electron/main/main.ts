@@ -21,6 +21,7 @@ import { PermissionManager } from './permissions';
 import { createPreferencesFile } from './preferences';
 import { createListFetcher, ShieldService } from './shieldService';
 import { TabManager } from './tabs';
+import { ZoomStore } from './zoom';
 import { registerUiScheme, serveUi, UI_ENTRY, UI_ORIGIN } from './uiProtocol';
 import { UiStorage } from './uiStorage';
 import { electronFetch } from './updateFetch';
@@ -147,6 +148,8 @@ async function start(): Promise<void> {
     () => (window.isDestroyed() ? null : window),
   );
 
+  const zoom = new ZoomStore(join(dataDir, 'zoom.json'));
+
   tabs = new TabManager(window, webSession, {
     emitState: (state) => emit({ type: 'tab-state', state }),
     emitShortcut: (action) => emit({ type: 'shortcut', action }),
@@ -171,6 +174,8 @@ async function start(): Promise<void> {
       permissions.cancelForTab(tabId);
       auth.cancelForTab(tabId);
     },
+    zoomFor: (url) => zoom.get(url),
+    saveZoom: (url, factor) => zoom.set(url, factor),
   });
 
   shield.attach(webSession, (contents, id) => tabs.pageUrlFor(contents, id));
@@ -248,6 +253,7 @@ async function start(): Promise<void> {
       downloads.flush();
       shield.flush();
       preferencesFile.flush();
+      zoom.flush();
       // Con «Instalar al cerrar ICARUS», el instalador empieza cuando todo está guardado.
       updates.onQuit();
     };

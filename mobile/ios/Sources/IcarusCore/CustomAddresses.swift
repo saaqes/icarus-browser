@@ -337,9 +337,13 @@ public enum CustomAddresses {
     public static func sanitize(_ array: Any?) -> [CustomAddress] {
         guard let items = array as? [Any] else { return [] }
         var seen = Set<String>()
+        var pairs = Set<String>()
         var entries: [CustomAddress] = []
         for item in items.prefix(max) {
-            guard let raw = item as? [String: Any], case .entry(let entry) = readEntry(raw, fallbackDate: epoch), seen.insert(entry.id).inserted else { continue }
+            guard let raw = item as? [String: Any], case .entry(let entry) = readEntry(raw, fallbackDate: epoch), !seen.contains(entry.id) else { continue }
+            // Reglas antiguas idénticas (p. ej. una por fragmento) quedan en una sola entrada.
+            guard pairs.insert("\(entry.target) \(entry.address)").inserted else { continue }
+            seen.insert(entry.id)
             entries = appendResolvingConflicts(entries, entry).entries
         }
         return entries

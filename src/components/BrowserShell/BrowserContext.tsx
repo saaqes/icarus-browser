@@ -44,7 +44,7 @@ import {
   sessionReducer,
 } from '../../services/tabs/tabs';
 import { resolveInput } from '../../services/url-resolution/resolveInput';
-import type { AuthCredentials, AuthRequestInfo, NativeEvent, PermissionRequestInfo, ShortcutAction, WebTabState } from '../../types/native';
+import type { AuthCredentials, AuthRequestInfo, NativeEvent, PermissionRequestInfo, ShortcutAction, WebTabState, ZoomAction } from '../../types/native';
 import type { Settings } from '../../types/settings';
 import type { HistoryEntry, PageEntry, SessionState, SettingsSection, Tab } from '../../types/tabs';
 import { useToast } from '../common/Toast';
@@ -108,6 +108,11 @@ export interface BrowserController {
   find: { tabId: string; token: number } | null;
   openFind: () => void;
   closeFind: () => void;
+  /** Zoom real de la página activa (solo en la aplicación de escritorio). */
+  zoomPage: (action: ZoomAction) => void;
+  /** Cambia con Ctrl+D: la barra abre el editor del favorito de la página actual. */
+  bookmarkRequest: number;
+  requestBookmark: () => void;
 }
 
 const BrowserContext = createContext<BrowserController | null>(null);
@@ -201,6 +206,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           settings: m.pages.settings,
           history: m.pages.history,
           downloads: m.pages.downloads,
+          bookmarks: m.pages.bookmarks,
         },
       }),
     [customAddresses, m],
@@ -504,6 +510,19 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     setFind(null);
   }, [native]);
 
+  const zoomPage = useCallback(
+    (action: ZoomAction) => {
+      const tab = getActiveTab(sessionRef.current);
+      const entry = getCurrentEntry(tab);
+      if (!native || entry.page.kind !== 'web' || liveEntry.current.get(tab.id) !== entry.id) return;
+      void native.tabs.zoom(tab.id, action);
+    },
+    [native],
+  );
+
+  const [bookmarkRequest, setBookmarkRequest] = useState(0);
+  const requestBookmark = useCallback(() => setBookmarkRequest((value) => value + 1), []);
+
   // Al cambiar de pestaña o cerrar la buscada, se cierra la barra y se quita el resaltado.
   useEffect(() => {
     if (find && find.tabId !== activeTab.id) closeFind();
@@ -538,9 +557,13 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           return openInternal({ kind: 'downloads' }, (page) => page.kind === 'downloads');
         case 'find':
           return openFind();
+        case 'bookmark':
+          return requestBookmark();
+        case 'bookmarks':
+          return openInternal({ kind: 'bookmarks' }, (page) => page.kind === 'bookmarks');
       }
     },
-    [closeTab, goBack, goForward, newTab, openFind, openInternal, reload, reopenClosedTab],
+    [closeTab, goBack, goForward, newTab, openFind, openInternal, reload, reopenClosedTab, requestBookmark],
   );
 
   useEffect(() => {
@@ -612,13 +635,21 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       else if (embedded && mod && key === 'j') action = 'downloads';
       else if (embedded && mod && !event.shiftKey && key === 'f') action = 'find';
       else if (embedded && ((mod && key === 'r') || event.key === 'F5')) action = 'reload';
+      else if (mod && !event.shiftKey && key === 'd') action = 'bookmark';
+      else if (mod && event.shiftKey && key === 'o') action = 'bookmarks';
+      else if (embedded && mod && (key === '+' || key === '=' || key === '-' || key === '0')) {
+        // Con el foco en la interfaz, Ctrl + / − / 0 cambian el zoom de la página, como en Chrome.
+        event.preventDefault();
+        zoomPage(key === '0' ? 'reset' : key === '-' ? 'out' : 'in');
+        return;
+      }
       if (!action) return;
       event.preventDefault();
       runShortcut(action);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [embedded, runShortcut]);
+  }, [embedded, runShortcut, zoomPage]);
 
   const live = webState[activeTab.id];
   const isLiveWeb = embedded && currentEntry.page.kind === 'web' && liveEntry.current.get(activeTab.id) === currentEntry.id;
@@ -666,6 +697,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       find,
       openFind,
       closeFind,
+      zoomPage,
+      bookmarkRequest,
+      requestBookmark,
     }),
     [
       session,
@@ -705,6 +739,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       find,
       openFind,
       closeFind,
+      zoomPage,
+      bookmarkRequest,
+      requestBookmark,
     ],
   );
 

@@ -1,0 +1,380 @@
+{
+  "description": "Editar la base de la dirección conservando ruta, consulta y fragmento: dirección mostrada (+ entrada aplicada) → base y sufijo; base nueva → URL; texto escrito → editar la base o navegar.",
+  "customAddresses": [
+    {
+      "id": "deriv",
+      "target": "https://bot.deriv.me/",
+      "address": "https://miweb.com/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "local",
+      "target": "http://localhost:3000/",
+      "address": "http://miapp.com/v2",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "docs",
+      "target": "https://ejemplo.com/docs",
+      "address": "https://docs.miweb.org/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "migrada",
+      "target": "https://es.wikipedia.org/",
+      "address": "https://wiki.icarus/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "apagada",
+      "target": "https://apagada.com/",
+      "address": "https://desactivada.com/",
+      "enabled": false,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "cases": [
+    {
+      "shown": "https://miweb.com/#inicio",
+      "entryId": "deriv",
+      "split": {
+        "base": "https://miweb.com",
+        "suffix": "/#inicio"
+      },
+      "joins": [
+        {
+          "base": "https://otrapagina.com",
+          "url": "https://otrapagina.com/#inicio",
+          "error": null
+        },
+        {
+          "base": "otrapagina.com/",
+          "url": "https://otrapagina.com/#inicio",
+          "error": null
+        },
+        {
+          "base": "OTRAPAGINA.com",
+          "url": "https://otrapagina.com/#inicio",
+          "error": null
+        },
+        {
+          "base": "otrapagina.com/#x",
+          "url": null,
+          "error": "has-query"
+        },
+        {
+          "base": "otra pagina",
+          "url": null,
+          "error": "invalid-url"
+        },
+        {
+          "base": "javascript:alert(1)",
+          "url": null,
+          "error": "unsupported-protocol"
+        },
+        {
+          "base": "",
+          "url": null,
+          "error": "required"
+        }
+      ],
+      "edits": [
+        {
+          "typed": "https://otrapagina.com/#inicio",
+          "kind": "rebase",
+          "base": "https://otrapagina.com",
+          "url": "https://otrapagina.com/#inicio"
+        },
+        {
+          "typed": "otrapagina.com/#inicio",
+          "kind": "rebase",
+          "base": "otrapagina.com",
+          "url": "https://otrapagina.com/#inicio"
+        },
+        {
+          "typed": "otrapagina.com",
+          "kind": "navigate"
+        },
+        {
+          "typed": "https://otrapagina.com/#dashboard",
+          "kind": "navigate"
+        },
+        {
+          "typed": "miweb.com/#inicio",
+          "kind": "navigate"
+        },
+        {
+          "typed": "buscar algo #inicio",
+          "kind": "navigate"
+        }
+      ]
+    },
+    {
+      "shown": "https://miweb.com/#dashboard",
+      "entryId": "deriv",
+      "split": {
+        "base": "https://miweb.com",
+        "suffix": "/#dashboard"
+      },
+      "joins": [
+        {
+          "base": "otrapagina.com",
+          "url": "https://otrapagina.com/#dashboard",
+          "error": null
+        }
+      ],
+      "edits": [
+        {
+          "typed": "otrapagina.com/#dashboard",
+          "kind": "rebase",
+          "base": "otrapagina.com",
+          "url": "https://otrapagina.com/#dashboard"
+        }
+      ]
+    },
+    {
+      "shown": "https://miweb.com/#bot_builder",
+      "entryId": "deriv",
+      "split": {
+        "base": "https://miweb.com",
+        "suffix": "/#bot_builder"
+      },
+      "joins": [
+        {
+          "base": "otrapagina.com",
+          "url": "https://otrapagina.com/#bot_builder",
+          "error": null
+        }
+      ],
+      "edits": []
+    },
+    {
+      "shown": "https://miweb.com/#chart",
+      "entryId": "deriv",
+      "split": {
+        "base": "https://miweb.com",
+        "suffix": "/#chart"
+      },
+      "joins": [
+        {
+          "base": "otrapagina.com",
+          "url": "https://otrapagina.com/#chart",
+          "error": null
+        }
+      ],
+      "edits": []
+    },
+    {
+      "shown": "https://miweb.com/panel/usuarios?id=10",
+      "entryId": "deriv",
+      "split": {
+        "base": "https://miweb.com",
+        "suffix": "/panel/usuarios?id=10"
+      },
+      "joins": [
+        {
+          "base": "otrapagina.com",
+          "url": "https://otrapagina.com/panel/usuarios?id=10",
+          "error": null
+        },
+        {
+          "base": "localhost:3000",
+          "url": "http://localhost:3000/panel/usuarios?id=10",
+          "error": null
+        }
+      ],
+      "edits": [
+        {
+          "typed": "otra.com/panel/usuarios?id=10",
+          "kind": "rebase",
+          "base": "otra.com",
+          "url": "https://otra.com/panel/usuarios?id=10"
+        },
+        {
+          "typed": "otra.com/x/panel/usuarios?id=10",
+          "kind": "rebase",
+          "base": "otra.com/x",
+          "url": "https://otra.com/x/panel/usuarios?id=10"
+        }
+      ]
+    },
+    {
+      "shown": "https://miweb.com/",
+      "entryId": "deriv",
+      "split": {
+        "base": "https://miweb.com",
+        "suffix": ""
+      },
+      "joins": [
+        {
+          "base": "otrapagina.com",
+          "url": "https://otrapagina.com/",
+          "error": null
+        }
+      ],
+      "edits": [
+        {
+          "typed": "otrapagina.com/",
+          "kind": "navigate"
+        }
+      ]
+    },
+    {
+      "shown": "https://miweb.com/a/b/?x=1&y=%202#parte",
+      "entryId": "deriv",
+      "split": {
+        "base": "https://miweb.com",
+        "suffix": "/a/b/?x=1&y=%202#parte"
+      },
+      "joins": [
+        {
+          "base": "otra.com",
+          "url": "https://otra.com/a/b/?x=1&y=%202#parte",
+          "error": null
+        }
+      ],
+      "edits": []
+    },
+    {
+      "shown": "http://miapp.com/v2/panel?id=10#top",
+      "entryId": "local",
+      "split": {
+        "base": "http://miapp.com/v2",
+        "suffix": "/panel?id=10#top"
+      },
+      "joins": [
+        {
+          "base": "nueva.com/v3/",
+          "url": "https://nueva.com/v3/panel?id=10#top",
+          "error": null
+        },
+        {
+          "base": "https://nueva.com",
+          "url": "https://nueva.com/panel?id=10#top",
+          "error": null
+        }
+      ],
+      "edits": [
+        {
+          "typed": "nueva.com/v3/panel?id=10#top",
+          "kind": "rebase",
+          "base": "nueva.com/v3",
+          "url": "https://nueva.com/v3/panel?id=10#top"
+        }
+      ]
+    },
+    {
+      "shown": "http://miapp.com/v2#top",
+      "entryId": "local",
+      "split": {
+        "base": "http://miapp.com/v2",
+        "suffix": "#top"
+      },
+      "joins": [
+        {
+          "base": "nueva.com/v3",
+          "url": "https://nueva.com/v3#top",
+          "error": null
+        }
+      ],
+      "edits": []
+    },
+    {
+      "shown": "http://localhost:3000/a/b/c/",
+      "entryId": null,
+      "split": {
+        "base": "http://localhost:3000",
+        "suffix": "/a/b/c/"
+      },
+      "joins": [
+        {
+          "base": "localhost:4000",
+          "url": "http://localhost:4000/a/b/c/",
+          "error": null
+        },
+        {
+          "base": "127.0.0.1:8080",
+          "url": "http://127.0.0.1:8080/a/b/c/",
+          "error": null
+        }
+      ],
+      "edits": [
+        {
+          "typed": "localhost:4000/a/b/c/",
+          "kind": "rebase",
+          "base": "localhost:4000",
+          "url": "http://localhost:4000/a/b/c/"
+        }
+      ]
+    },
+    {
+      "shown": "https://ejemplo.com/p?utm_source=x&utm_medium=y#s",
+      "entryId": null,
+      "split": {
+        "base": "https://ejemplo.com",
+        "suffix": "/p?utm_source=x&utm_medium=y#s"
+      },
+      "joins": [
+        {
+          "base": "otra.com",
+          "url": "https://otra.com/p?utm_source=x&utm_medium=y#s",
+          "error": null
+        }
+      ],
+      "edits": []
+    },
+    {
+      "shown": "https://ejemplo.com/caf%C3%A9/se%C3%B1al?q=%C3%B1",
+      "entryId": null,
+      "split": {
+        "base": "https://ejemplo.com",
+        "suffix": "/caf%C3%A9/se%C3%B1al?q=%C3%B1"
+      },
+      "joins": [
+        {
+          "base": "otra.com",
+          "url": "https://otra.com/caf%C3%A9/se%C3%B1al?q=%C3%B1",
+          "error": null
+        }
+      ],
+      "edits": []
+    },
+    {
+      "shown": "https://ejemplo.com/",
+      "entryId": null,
+      "split": {
+        "base": "https://ejemplo.com",
+        "suffix": ""
+      },
+      "joins": [
+        {
+          "base": "otra.com",
+          "url": "https://otra.com/",
+          "error": null
+        }
+      ],
+      "edits": [
+        {
+          "typed": "otra.com",
+          "kind": "navigate"
+        }
+      ]
+    },
+    {
+      "shown": "icarus://configuracion",
+      "entryId": null,
+      "split": null,
+      "joins": [],
+      "edits": []
+    }
+  ]
+}

@@ -87,7 +87,7 @@ describe('sanitizeSession', () => {
 });
 
 describe('describePage', () => {
-  const titles = { newTab: 'Nueva pestaña', blank: 'En blanco', settings: 'Configuración', history: 'Historial', downloads: 'Descargas' };
+  const titles = { newTab: 'Nueva pestaña', blank: 'En blanco', settings: 'Configuración', history: 'Historial', downloads: 'Descargas', bookmarks: 'Favoritos' };
 
   const customAddresses = [
     {

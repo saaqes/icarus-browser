@@ -13,7 +13,7 @@ import { displayUrlFor } from '../custom-addresses/mapping';
 import { internalUrlForPage } from '../url-resolution/internalPages';
 import { parseWebUrl } from '../url-resolution/urlUtils';
 
-export type PageIcon = 'icarus' | 'settings' | 'blank' | 'site' | 'history' | 'downloads';
+export type PageIcon = 'icarus' | 'settings' | 'blank' | 'site' | 'history' | 'downloads' | 'bookmarks';
 
 export interface PagePresentation {
   kind: PageEntry['kind'];
@@ -38,6 +38,7 @@ export interface PageTitles {
   settings: string;
   history: string;
   downloads: string;
+  bookmarks: string;
 }
 
 export function describePage(page: PageEntry, options: { customAddresses: CustomAddress[]; titles: PageTitles }): PagePresentation {
@@ -47,6 +48,7 @@ export function describePage(page: PageEntry, options: { customAddresses: Custom
       blank: { title: options.titles.blank, icon: 'blank' },
       settings: { title: options.titles.settings, icon: 'settings' },
       history: { title: options.titles.history, icon: 'history' },
+      bookmarks: { title: options.titles.bookmarks, icon: 'bookmarks' },
       downloads: { title: options.titles.downloads, icon: 'downloads' },
     };
     const internalUrl = internalUrlForPage(page) ?? '';

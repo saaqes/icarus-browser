@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { renderApp } from '../testUtils';
+import { renderApp, openSettingsFromMenu } from '../testUtils';
 
 const grid = () => screen.getByRole('region', { name: 'Accesos directos' });
 const titles = () => within(grid()).getAllByRole('button', { name: /^Abrir / }).map((button) => button.getAttribute('aria-label'));
@@ -62,7 +62,7 @@ describe('accesos directos', () => {
     expect(titles().slice(0, 2)).toEqual(['Abrir YouTube', 'Abrir Google']);
 
     // Desde Configuración → Navegación.
-    await user.click(screen.getByRole('button', { name: 'Configuración' }));
+    await openSettingsFromMenu(user);
     await user.click(screen.getByRole('button', { name: 'Navegación' }));
     const list = screen.getByRole('list', { name: 'Accesos directos' });
     await user.click(within(list).getByRole('button', { name: 'Bajar: YouTube' }));

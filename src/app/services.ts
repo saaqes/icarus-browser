@@ -5,6 +5,7 @@
 
 import { customAddressesSchema } from '../services/custom-addresses/store';
 import { backgroundImageSchema, type StoredBackgroundImage } from '../services/background/backgroundImage';
+import { bookmarksSchema } from '../services/bookmarks/bookmarks';
 import type { BrowserEngine } from '../services/navigation/engine';
 import { createExternalBrowserEngine } from '../services/navigation/externalEngine';
 import { createNativeEngine } from '../services/navigation/nativeEngine';
@@ -15,6 +16,7 @@ import { settingsSchema } from '../services/settings/settings';
 import { shortcutsSchema } from '../services/shortcuts/shortcuts';
 import { sessionSchema, type StoredSession } from '../services/tabs/session';
 import { widgetDataSchema } from '../services/widgets/widgets';
+import type { BookmarksData } from '../types/bookmarks';
 import type { CustomAddress } from '../types/customAddress';
 import type { IcarusNativeApi } from '../types/native';
 import type { Settings } from '../types/settings';
@@ -28,6 +30,7 @@ export interface AppServices {
   customAddresses: PersistentStore<CustomAddress[]>;
   widgets: PersistentStore<WidgetData>;
   backgroundImage: PersistentStore<StoredBackgroundImage>;
+  bookmarks: PersistentStore<BookmarksData>;
   /** Solo se guarda si el usuario eligió restaurar la sesión al iniciar. */
   session: PersistentStore<StoredSession>;
   engine: BrowserEngine;
@@ -78,6 +81,7 @@ export function createAppServices(options: AppServicesOptions = {}): AppServices
     customAddresses: createPersistentStore(storage, customAddressesSchema, { onSaveError }),
     widgets: createPersistentStore(storage, widgetDataSchema, { onSaveError }),
     backgroundImage: createPersistentStore(storage, backgroundImageSchema, { onSaveError }),
+    bookmarks: createPersistentStore(storage, bookmarksSchema, { onSaveError }),
     engine: options.engine ?? (native ? createNativeEngine(native) : createExternalBrowserEngine()),
     native,
     onSaveError(listener) {

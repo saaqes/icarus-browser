@@ -32,6 +32,8 @@ export function internalUrlForPage(page: PageEntry): string | null {
       return `icarus://configuracion/${SECTION_SLUGS[page.section]}`;
     case 'history':
       return 'icarus://historial';
+    case 'bookmarks':
+      return 'icarus://favoritos';
     case 'downloads':
       return 'icarus://descargas';
     case 'web':
@@ -50,6 +52,7 @@ export function parseInternalUrl(text: string): PageEntry | null {
   }
   if (root === 'en-blanco') return parts.length === 1 ? { kind: 'blank' } : null;
   if (root === 'historial') return parts.length === 1 ? { kind: 'history' } : null;
+  if (root === 'favoritos') return parts.length === 1 ? { kind: 'bookmarks' } : null;
   if (root === 'descargas') return parts.length === 1 ? { kind: 'downloads' } : null;
   if (root === 'configuracion') {
     if (parts.length === 1) return { kind: 'settings', section: 'general' };

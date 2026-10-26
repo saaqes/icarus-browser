@@ -17,6 +17,7 @@ export type PageEntry =
   | { kind: 'blank' }
   | { kind: 'settings'; section: SettingsSection }
   | { kind: 'history' }
+  | { kind: 'bookmarks' }
   | { kind: 'downloads' }
   /**
    * Página web. `url` y `title` son los reales que informa el motor.

@@ -22,3 +22,4 @@ export const useShortcuts = () => useStore(useServices().shortcuts);
 export const useCustomAddresses = () => useStore(useServices().customAddresses);
 export const useWidgetData = () => useStore(useServices().widgets);
 export const useBackgroundImage = () => useStore(useServices().backgroundImage);
+export const useBookmarks = () => useStore(useServices().bookmarks);

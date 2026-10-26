@@ -13,9 +13,21 @@ export interface MenuItem {
   onSelect: () => void;
 }
 
+/** Separador o fila con contenido propio (p. ej. la fila de zoom, como en Chrome y Edge). */
+export type MenuEntry = MenuItem | { id: string; separator: true } | { id: string; custom: ReactNode; height?: number };
+
+function isItem(entry: MenuEntry): entry is MenuItem {
+  return 'onSelect' in entry;
+}
+
+function entryHeight(entry: MenuEntry): number {
+  if (isItem(entry)) return 36;
+  return 'separator' in entry ? 9 : (entry.height ?? 40);
+}
+
 interface MenuButtonProps {
   label: string;
-  items: MenuItem[];
+  items: MenuEntry[];
   children: ReactNode;
   className?: string;
   align?: 'start' | 'end';
@@ -47,8 +59,8 @@ export function MenuButton({ label, items, children, className, align = 'end' }:
   const toggle = () => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
-      const width = 240;
-      const height = items.length * 36 + 10;
+      const width = 260;
+      const height = items.reduce((sum, entry) => sum + entryHeight(entry), 10);
       const left = align === 'end' ? rect.right - width : rect.left;
       // Si no cabe por debajo, se abre hacia arriba.
       const top = rect.bottom + 6 + height > window.innerHeight ? Math.max(8, rect.top - 6 - height) : rect.bottom + 6;
@@ -115,7 +127,16 @@ export function MenuButton({ label, items, children, className, align = 'end' }:
       </button>
       {open && (
         <div id={menuId} role="menu" aria-label={label} className="menu" style={position} onKeyDown={onMenuKeyDown}>
-          {items.map((item) => (
+          {items.map((item) =>
+            !isItem(item) ? (
+              'separator' in item ? (
+                <div key={item.id} className="menu__separator" role="separator" />
+              ) : (
+                <div key={item.id} className="menu__custom">
+                  {item.custom}
+                </div>
+              )
+            ) : (
             <button
               key={item.id}
               type="button"
@@ -131,7 +152,8 @@ export function MenuButton({ label, items, children, className, align = 'end' }:
               <span className="menu__label">{item.label}</span>
               {item.shortcut && <kbd className="menu__shortcut">{item.shortcut}</kbd>}
             </button>
-          ))}
+            ),
+          )}
         </div>
       )}
     </div>

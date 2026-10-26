@@ -50,6 +50,17 @@ export function updateCustomAddress(entries: CustomAddress[], id: string, input:
   return { ok: true, entries: entries.map((item) => (item.id === id ? entry : item)), entry };
 }
 
+/**
+ * Cambia la base (la dirección que muestra la barra) de una entrada, conservando
+ * su destino y su estado. Es lo que guarda la barra cuando el usuario edita la base
+ * de una página personalizada y confirma «Guardar»; valida igual que el editor.
+ */
+export function renameCustomAddressBase(entries: CustomAddress[], id: string, base: string, now: Date): MutationResult {
+  const existing = entries.find((entry) => entry.id === id);
+  if (!existing) return { ok: false, errors: {}, conflicts: {} };
+  return updateCustomAddress(entries, id, { target: existing.target, address: base, enabled: existing.enabled }, now);
+}
+
 export function deleteCustomAddress(entries: CustomAddress[], id: string): CustomAddress[] {
   return entries.filter((entry) => entry.id !== id);
 }
@@ -163,6 +174,7 @@ export function sanitizeCustomAddresses(raw: unknown, issues: string[]): CustomA
     return [];
   }
   const seen = new Set<string>();
+  const pairs = new Set<string>();
   let entries: CustomAddress[] = [];
   raw.slice(0, MAX_CUSTOM_ADDRESSES).forEach((item, index) => {
     const read = readEntry(item, EPOCH);
@@ -171,7 +183,15 @@ export function sanitizeCustomAddresses(raw: unknown, issues: string[]): CustomA
       issues.push(`customAddresses[${index}]`);
       return;
     }
+    // Varias reglas antiguas (p. ej. una por fragmento) pueden convertirse en la misma
+    // entrada: se guarda una sola, sin perder nada (son idénticas).
+    const pair = `${read.entry.target} ${read.entry.address}`;
+    if (pairs.has(pair)) {
+      issues.push(`customAddresses[${index}]:duplicate`);
+      return;
+    }
     seen.add(read.entry.id);
+    pairs.add(pair);
     const next = appendResolvingConflicts(entries, read.entry);
     if (next.disabled) issues.push(`customAddresses[${index}]:conflict`);
     entries = next.entries;

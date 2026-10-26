@@ -325,10 +325,14 @@ object CustomAddresses {
     fun sanitize(array: JSONArray?): List<CustomAddress> {
         if (array == null) return emptyList()
         val seen = HashSet<String>()
+        val pairs = HashSet<String>()
         var entries = emptyList<CustomAddress>()
         for (index in 0 until minOf(array.length(), MAX)) {
             val read = readEntry(array.optJSONObject(index), EPOCH) as? CustomAddress ?: continue
-            if (!seen.add(read.id)) continue
+            if (read.id in seen) continue
+            // Reglas antiguas idénticas (p. ej. una por fragmento) quedan en una sola entrada.
+            if (!pairs.add("${read.target} ${read.address}")) continue
+            seen.add(read.id)
             entries = appendResolvingConflicts(entries, read).first
         }
         return entries

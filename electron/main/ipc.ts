@@ -16,6 +16,7 @@ import type { ShieldService } from './shieldService';
 import type { TabManager } from './tabs';
 import type { UiStorage } from './uiStorage';
 import type { UpdateService } from './updates';
+import { ZOOM_ACTIONS } from './zoom';
 import { assertBoolean, assertColor, assertId, assertOneOf, assertRect, assertString, IpcValidationError, isRecord } from './validate';
 
 export interface IpcContext {
@@ -114,6 +115,7 @@ export function registerIpc(context: IpcContext): void {
   on('icarus:tabs:show', (tabId) => context.tabs.show(tabId === null ? null : assertId(tabId, 'tabId')));
   on('icarus:tabs:bounds', (rect) => context.tabs.setBounds(assertRect(rect)));
   handle('icarus:tabs:snapshot', (tabId) => context.tabs.snapshot(assertId(tabId, 'tabId')));
+  handle('icarus:tabs:zoom', (tabId, action) => context.tabs.zoom(assertId(tabId, 'tabId'), assertOneOf(action, ZOOM_ACTIONS, 'action')));
 
   on('icarus:window:titlebar', (color, symbolColor) =>
     context.setTitleBarColors(assertColor(color, 'color'), assertColor(symbolColor, 'symbolColor')),

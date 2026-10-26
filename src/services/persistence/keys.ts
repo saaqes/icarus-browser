@@ -11,4 +11,5 @@ export const STORAGE_KEYS = {
   /** Sesión guardada justo antes de reiniciar para actualizar (se restaura una vez). */
   updateRestartSession: 'icarus.updateRestartSession',
   backgroundImage: 'icarus.backgroundImage',
+  bookmarks: 'icarus.bookmarks',
 } as const;

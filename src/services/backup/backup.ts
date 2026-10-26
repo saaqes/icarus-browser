@@ -1,13 +1,15 @@
 /**
- * Copia de seguridad completa (preferencias, accesos directos, direcciones personalizadas y
- * datos de widgets) en un archivo JSON. La imagen de fondo subida no se incluye
+ * Copia de seguridad completa (preferencias, accesos directos, direcciones personalizadas,
+ * favoritos y datos de widgets) en un archivo JSON. La imagen de fondo subida no se incluye
  * por tamaño. Nunca se guardan contraseñas ni secretos.
  */
 
+import type { BookmarksData } from '../../types/bookmarks';
 import type { CustomAddress } from '../../types/customAddress';
 import type { Settings } from '../../types/settings';
 import type { Shortcut } from '../../types/shortcuts';
 import type { WidgetData } from '../../types/widgets';
+import { bookmarksSchema } from '../bookmarks/bookmarks';
 import { customAddressesSchema } from '../custom-addresses/store';
 import { isRecord } from '../persistence/validation';
 import { settingsSchema } from '../settings/settings';
@@ -21,6 +23,8 @@ export interface BackupData {
   settings: Settings;
   shortcuts: Shortcut[];
   customAddresses: CustomAddress[];
+  /** Ausente en copias anteriores a los favoritos: al importarlas se conservan los actuales. */
+  bookmarks?: BookmarksData;
   widgets: WidgetData;
 }
 
@@ -58,6 +62,7 @@ export function parseBackup(text: string): BackupParseResult {
       // Las copias anteriores guardaban las reglas de alias en `aliasRules`: se convierten al leerlas.
       customAddresses: customAddressesSchema.sanitize(source.customAddresses ?? source.aliasRules, issues),
       widgets: widgetDataSchema.sanitize(source.widgets, issues),
+      ...(source.bookmarks !== undefined ? { bookmarks: bookmarksSchema.sanitize(source.bookmarks, issues) } : {}),
     },
   };
 }

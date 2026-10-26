@@ -12,6 +12,7 @@ import { WebContentsView, type BrowserWindow, type Input, type Session, type Web
 import type { FindResult, NavigateResult, NavigationErrorInfo, ShortcutAction, ViewportRect, WebTabState } from '../../src/types/native';
 import { showPageContextMenu } from './contextMenu';
 import { isAllowedPageNavigation, parseNavigableUrl, protocolOf } from './urlPolicy';
+import { nextZoom, zoomSite, type ZoomAction } from './zoom';
 
 const SNAPSHOT_TIMEOUT_MS = 400;
 
@@ -37,9 +38,10 @@ export interface TabManagerHooks {
   shieldAllowed: (url: string) => boolean;
   onClosed: (tabId: string, contents: WebContents) => void;
   emitFind: (result: FindResult) => void;
+  /** Zoom guardado para el sitio de la URL (1 = 100 %). */
+  zoomFor: (url: string) => number;
+  saveZoom: (url: string, factor: number) => void;
 }
-
-const ZOOM_STEP = 0.5;
 
 function emptyState(tabId: string): WebTabState {
   return {
@@ -53,6 +55,7 @@ function emptyState(tabId: string): WebTabState {
     error: null,
     blockedCount: 0,
     shieldAllowed: false,
+    zoom: 100,
   };
 }
 
@@ -75,6 +78,8 @@ export function shortcutForInput(input: Input): ShortcutAction | 'reload-hard' |
   if (mod && key === 'h') return 'history';
   if (mod && key === 'j') return 'downloads';
   if (mod && !input.shift && key === 'f') return 'find';
+  if (mod && !input.shift && key === 'd') return 'bookmark';
+  if (mod && input.shift && key === 'o') return 'bookmarks';
   if (mod && (key === '+' || key === '=')) return 'zoom-in';
   if (mod && key === '-') return 'zoom-out';
   if (mod && key === '0') return 'zoom-reset';
@@ -142,6 +147,26 @@ export class TabManager {
 
   stop(tabId: string): void {
     this.tabs.get(tabId)?.view.webContents.stop();
+  }
+
+  /**
+   * Cambia el zoom real de la página (el de Chromium, no el de la interfaz) y lo
+   * guarda para su sitio. Chromium lo aplica a todas las pestañas del mismo sitio,
+   * así que se actualiza el estado de todas. Devuelve el porcentaje resultante.
+   */
+  zoom(tabId: string, action: ZoomAction): number {
+    const tab = this.tabs.get(tabId);
+    if (!tab || tab.view.webContents.isDestroyed()) return 100;
+    const contents = tab.view.webContents;
+    const factor = nextZoom(contents.getZoomFactor(), action);
+    contents.setZoomFactor(factor);
+    const url = contents.getURL() || tab.state.url;
+    this.hooks.saveZoom(url, factor);
+    const site = zoomSite(url);
+    for (const other of this.tabs.values()) {
+      if (other === tab || (site && zoomSite(other.view.webContents.isDestroyed() ? '' : other.view.webContents.getURL()) === site)) this.emit(other);
+    }
+    return Math.round(factor * 100);
   }
 
   /** Cierra la pestaña y libera su proceso de renderizado. */
@@ -295,6 +320,9 @@ export class TabManager {
         tab.clearHistoryOnCommit = false;
         contents.navigationHistory.clear();
       }
+      // El zoom guardado del sitio (también tras reiniciar ICARUS).
+      const zoom = this.hooks.zoomFor(url);
+      if (Math.abs(contents.getZoomFactor() - zoom) > 0.001) contents.setZoomFactor(zoom);
       tab.state = { ...tab.state, url, title: contents.getTitle(), favicon: null, error: null };
       this.hooks.onCommit(tab.id, contents, url);
       this.emit(tab);
@@ -352,13 +380,13 @@ export class TabManager {
           this.reload(tab.id, true);
           return;
         case 'zoom-in':
-          contents.setZoomLevel(Math.min(contents.getZoomLevel() + ZOOM_STEP, 5));
+          this.zoom(tab.id, 'in');
           return;
         case 'zoom-out':
-          contents.setZoomLevel(Math.max(contents.getZoomLevel() - ZOOM_STEP, -5));
+          this.zoom(tab.id, 'out');
           return;
         case 'zoom-reset':
-          contents.setZoomLevel(0);
+          this.zoom(tab.id, 'reset');
           return;
         case 'devtools':
           contents.toggleDevTools();
@@ -372,6 +400,10 @@ export class TabManager {
         default:
           this.hooks.emitShortcut(action);
       }
+    });
+    // Ctrl + rueda del ratón o gesto de pellizco en el panel táctil.
+    contents.on('zoom-changed', (_event, direction) => {
+      this.zoom(tab.id, direction === 'in' ? 'in' : 'out');
     });
     contents.on('found-in-page', (_event, result) => {
       this.hooks.emitFind({ tabId: tab.id, activeMatch: result.activeMatchOrdinal, matches: result.matches, final: result.finalUpdate });
@@ -417,6 +449,7 @@ export class TabManager {
         canGoForward: contents.navigationHistory.canGoForward(),
         blockedCount: this.hooks.shieldCount(contents),
         shieldAllowed: tab.state.url ? this.hooks.shieldAllowed(tab.state.url) : false,
+        zoom: Math.round(contents.getZoomFactor() * 100),
       };
       this.hooks.emitState(tab.state);
     });

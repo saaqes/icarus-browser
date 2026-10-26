@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { renderApp } from '../testUtils';
+import { renderApp, openSettingsFromMenu } from '../testUtils';
 
 type User = ReturnType<typeof renderApp>['user'];
 
@@ -8,7 +8,7 @@ const BUTTON = 'Personalizar direcciones URL';
 const DIALOG = 'Direcciones personalizadas';
 
 async function openManager(user: User) {
-  await user.click(screen.getByRole('button', { name: 'Configuración' }));
+  await openSettingsFromMenu(user);
   await user.click(screen.getByRole('button', { name: 'Avanzado' }));
   await user.click(screen.getByRole('button', { name: BUTTON }));
   return screen.getByRole('dialog', { name: DIALOG });

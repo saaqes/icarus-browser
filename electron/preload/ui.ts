@@ -53,6 +53,7 @@ const api: IcarusNativeApi = {
     snapshot: (tabId) => invoke('icarus:tabs:snapshot', tabId),
     find: (tabId, text, options) => send('icarus:tabs:find', tabId, text, { forward: options.forward, next: options.next }),
     stopFind: (tabId) => send('icarus:tabs:stop-find', tabId),
+    zoom: (tabId, action) => invoke('icarus:tabs:zoom', tabId, action),
   },
   window: {
     setTitleBarColors: ({ color, symbolColor }) => send('icarus:window:titlebar', color, symbolColor),

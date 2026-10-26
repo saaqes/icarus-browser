@@ -250,7 +250,9 @@ function visiblePageEval(code) {
   }, code);
 }
 async function openSettings(section) {
-  await win.getByRole('button', { name: 'Configuración', exact: true }).first().click();
+  // Como en Chrome y Edge, Configuración está en el menú principal.
+  await win.getByRole('button', { name: 'Menú de ICARUS' }).click();
+  await win.getByRole('menuitem', { name: 'Configuración' }).click();
   await win.getByRole('button', { name: section, exact: true }).click();
 }
 

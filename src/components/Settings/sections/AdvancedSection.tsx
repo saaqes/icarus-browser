@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useServices } from '../../../app/ServicesContext';
-import { useCustomAddresses, useSettings, useShortcuts, useWidgetData } from '../../../hooks/useStores';
+import { useBookmarks, useCustomAddresses, useSettings, useShortcuts, useWidgetData } from '../../../hooks/useStores';
 import { useMessages } from '../../../i18n';
 import { createBackup, downloadTextFile, parseBackup, readFileAsText, type BackupData } from '../../../services/backup/backup';
 import { STORAGE_PREFIX } from '../../../services/persistence/keys';
@@ -27,6 +27,7 @@ export function AdvancedSection() {
   const [customAddresses] = useCustomAddresses();
   const [shortcuts] = useShortcuts();
   const [widgets] = useWidgetData();
+  const [bookmarks] = useBookmarks();
   const [manager, setManager] = useState<{ start: CustomAddressEditorStart | null } | null>(null);
   const { customAddressEditor, clearCustomAddressEditor } = useBrowser();
   const [pendingImport, setPendingImport] = useState<{ data: BackupData; repaired: boolean } | null>(null);
@@ -42,7 +43,7 @@ export function AdvancedSection() {
   }, [clearCustomAddressEditor, customAddressEditor]);
 
   const exportAll = () => {
-    const content = createBackup({ settings, shortcuts, customAddresses, widgets }, __APP_VERSION__, services.now());
+    const content = createBackup({ settings, shortcuts, customAddresses, bookmarks, widgets }, __APP_VERSION__, services.now());
     downloadTextFile(`icarus-configuracion-${services.now().toISOString().slice(0, 10)}.json`, content);
     notify('success', t.exportDone);
   };
@@ -67,6 +68,7 @@ export function AdvancedSection() {
     services.shortcuts.set(data.shortcuts);
     services.customAddresses.set(data.customAddresses);
     services.widgets.set(data.widgets);
+    if (data.bookmarks) services.bookmarks.set(data.bookmarks);
     setPendingImport(null);
     notify('success', t.importDone);
     if (repaired) notify('info', t.importRepaired);
