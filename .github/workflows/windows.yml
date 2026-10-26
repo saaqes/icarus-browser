@@ -2,7 +2,9 @@ name: Windows
 
 # Compila y prueba ICARUS Browser en Windows, genera el instalador NSIS y el
 # paquete portátil, comprueba que el instalador se instala y que el navegador
-# instalado arranca, y sube ambos como artefactos de la ejecución.
+# instalado arranca, y sube ambos como artefactos de la ejecución. El trabajo
+# «update» instala esa versión, compila la siguiente y comprueba la actualización
+# real desde el navegador (descarga, verificación, instalación, reinicio y datos).
 #
 # Los borradores de versión (nunca publicados automáticamente) los crea
 # release.yml, que llama a este flujo y a los de macOS, Android e iPhone.
@@ -49,6 +51,9 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      - name: Comprobar la versión, el commit y la clave del paquete
+        run: node scripts/release/check-build.mjs release/win-unpacked/resources/app.asar
+
       - name: Comprobar los archivos generados
         shell: pwsh
         run: |
@@ -91,6 +96,61 @@ jobs:
             release/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
+
+  update:
+    name: Actualización real del navegador instalado
+    needs: package
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: icarus-browser-windows-x64
+          path: old
+      - name: Compilar la versión siguiente
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          current=$(node -p "require('./package.json').version")
+          # La siguiente versión de parche (0.2.0 → 0.2.1; 0.3.0-preview.1 → 0.3.1).
+          next=$(node -p "const [a, b, c] = process.argv[1].split('-')[0].split('.').map(Number); [a, b, c + 1].join('.')" "$current")
+          echo "CURRENT=$current" >> "$GITHUB_ENV"
+          echo "NEXT=$next" >> "$GITHUB_ENV"
+          npm pkg set version="$next"
+          npm run build
+          npx electron-builder --win nsis --x64 --publish never
+      - name: Manifiesto de la versión siguiente, firmado con una clave de prueba
+        shell: bash
+        run: |
+          node -e "
+            const { generateKeyPairSync } = require('node:crypto');
+            const { writeFileSync } = require('node:fs');
+            const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+            writeFileSync(process.env.RUNNER_TEMP + '/prueba.key', privateKey.export({ type: 'pkcs8', format: 'pem' }));
+            writeFileSync(process.env.RUNNER_TEMP + '/prueba.pub', publicKey.export({ type: 'spki', format: 'pem' }));
+          "
+          printf 'Versión de prueba %s.\n- Generada por CI para probar la actualización.\n' "$NEXT" > "$RUNNER_TEMP/notas.md"
+          node scripts/release/make-manifest.mjs --dir release --version "$NEXT" --commit "$GITHUB_SHA" --select windows/x64/nsis --notes-file "$RUNNER_TEMP/notas.md"
+          node scripts/release/sign-manifest.mjs --dir release --key-file "$RUNNER_TEMP/prueba.key" --public-key "$RUNNER_TEMP/prueba.pub"
+      - name: Instalar la versión actual con su instalador
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem old -Filter "ICARUS-Browser-Setup-$env:CURRENT.exe").FullName
+          $process = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "El instalador terminó con el código $($process.ExitCode)" }
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Depth 2 -Filter 'ICARUS Browser.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'No se instaló ICARUS Browser.exe' }
+          "INSTALLED=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Actualizar desde el navegador y comprobar versión, datos y reinicio
+        shell: bash
+        run: node tests/e2e/update-packaged.mjs --app "$INSTALLED" --feed release --public-key "$RUNNER_TEMP/prueba.pub" --from "$CURRENT" --to "$NEXT"
 
   e2e:
     name: Pruebas de extremo a extremo (Electron)

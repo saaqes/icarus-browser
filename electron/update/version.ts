@@ -18,14 +18,14 @@ export interface Version {
   preview: number | null;
 }
 
-const PATTERN = /^(0|[1-9]\d{0,3})\.(0|[1-9]\d?)\.(0|[1-9]\d?)(?:-preview\.([1-9]\d?))?$/;
+export const VERSION_PATTERN = /^(0|[1-9]\d{0,3})\.(0|[1-9]\d?)\.(0|[1-9]\d?)(?:-preview\.([1-9]\d?))?$/;
 
 /** Límites para que el código de versión de Android quepa en un entero de 32 bits. */
 export const VERSION_LIMITS = { major: 2000, minor: 99, patch: 99, preview: 98 } as const;
 
 export function parseVersion(text: unknown): Version | null {
   if (typeof text !== 'string') return null;
-  const match = PATTERN.exec(text);
+  const match = VERSION_PATTERN.exec(text);
   if (!match) return null;
   const version: Version = {
     major: Number(match[1]),

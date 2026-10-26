@@ -21,6 +21,15 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Versión única (package.json y project.yml)
+        run: |
+          npm ci
+          npx tsc -p tsconfig.electron.json
+          node scripts/release/version.mjs check | tee version.json
       - name: Herramientas
         run: |
           xcodebuild -version
@@ -95,7 +104,12 @@ jobs:
       - name: Empaquetar
         working-directory: mobile/ios
         run: |
-          version=$(sed -n 's/.*MARKETING_VERSION: "\(.*\)"/\1/p' App/project.yml)
+          version=$(node -p "require('../../version.json').version")
+          # La app compilada lleva la versión de package.json (CFBundleVersion = versionCode de Android).
+          plist=build/device/Build/Products/Release-iphoneos/ICARUS.app/Info.plist
+          test "$(plutil -extract CFBundleShortVersionString raw "$plist")" = "$(node -p "require('../../version.json').marketingVersion")"
+          test "$(plutil -extract CFBundleVersion raw "$plist")" = "$(node -p "require('../../version.json').versionCode")"
+          test "$(plutil -extract CFBundleIdentifier raw "$plist")" = io.github.saaqes.icarusbrowser
           mkdir -p dist/Payload
           cp -R build/device/Build/Products/Release-iphoneos/ICARUS.app dist/Payload/
           (cd dist && zip -qry "ICARUS-Browser-${version}-ios-sin-firmar.ipa" Payload && rm -rf Payload)

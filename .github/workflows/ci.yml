@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
+    branches: ['**']
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -21,6 +23,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      - name: Versión única (package.json, Android e iPhone)
+        run: node scripts/release/version.mjs check
       - run: npm run build:single
 
   e2e-linux:

@@ -11,6 +11,23 @@ plugins {
 // para instalarlo a mano pero no para publicarlo en una tienda.
 val keystorePath: String? = System.getenv("ICARUS_KEYSTORE_PATH")?.takeIf { file(it).isFile }
 
+// Versión única: la de package.json, la misma que escritorio e iPhone. El
+// versionCode se calcula como en electron/update/version.ts para que cada versión
+// tenga uno mayor que la anterior (una preliminar, menor que su estable):
+// ((mayor × 100 + menor) × 100 + parche) × 100 + (número de preliminar o 99).
+val icarusVersion: String = run {
+    @Suppress("UNCHECKED_CAST")
+    val json = groovy.json.JsonSlurper().parse(rootDir.resolve("../../package.json")) as Map<String, Any?>
+    json["version"] as? String ?: error("package.json no tiene versión")
+}
+val icarusVersionCode: Int = run {
+    val match = Regex("^(0|[1-9]\\d{0,3})\\.(0|[1-9]\\d?)\\.(0|[1-9]\\d?)(?:-preview\\.([1-9]\\d?))?$").matchEntire(icarusVersion)
+        ?: error("Versión no válida en package.json: $icarusVersion (formato X.Y.Z o X.Y.Z-preview.N)")
+    val (major, minor, patch, preview) = match.destructured
+    require(major.toInt() <= 2000) { "La versión mayor no puede pasar de 2000 (límite de versionCode de Android)" }
+    ((major.toInt() * 100 + minor.toInt()) * 100 + patch.toInt()) * 100 + (preview.toIntOrNull() ?: 99)
+}
+
 android {
     namespace = "io.github.saaqes.icarusbrowser"
     compileSdk = 35
@@ -19,8 +36,8 @@ android {
         applicationId = "io.github.saaqes.icarusbrowser"
         minSdk = 29
         targetSdk = 35
-        versionCode = (System.getenv("ICARUS_VERSION_CODE") ?: "1").toInt()
-        versionName = "0.2.0"
+        versionCode = icarusVersionCode
+        versionName = icarusVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -66,7 +83,7 @@ kotlin {
 }
 
 dependencies {
-    implementation("io.github.saaqes.icarusbrowser:core:0.2.0")
+    implementation("io.github.saaqes.icarusbrowser:core:$icarusVersion")
 
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")

@@ -2,7 +2,9 @@ name: macOS
 
 # Compila la versión de escritorio para macOS (Apple Silicon e Intel), genera el
 # .dmg y el .zip con firma ad hoc, comprueba que la app empaquetada arranca, la
-# instala desde el .dmg y ejecuta las pruebas de extremo a extremo.
+# instala desde el .dmg y ejecuta las pruebas de extremo a extremo. El trabajo
+# «update» comprueba la actualización real desde la app instalada en una carpeta
+# con permiso de escritura (descarga, verificación, sustitución, reinicio y datos).
 
 on:
   push:
@@ -42,6 +44,12 @@ jobs:
       - name: Comprobar los archivos y la firma
         run: |
           ls -l release
+          version=$(node -p "require('./package.json').version")
+          for app in "release/mac-arm64/ICARUS Browser.app" "release/mac/ICARUS Browser.app"; do
+            node scripts/release/check-build.mjs "$app/Contents/Resources/app.asar"
+            test "$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist")" = "$version"
+            test "$(plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist")" = io.github.saaqes.icarusbrowser
+          done
           for app in "release/mac-arm64/ICARUS Browser.app" "release/mac/ICARUS Browser.app"; do
             codesign --verify --deep --strict --verbose=2 "$app"
             codesign -dv "$app" 2>&1 | grep -E "Signature|Identifier|Format"
@@ -70,6 +78,56 @@ jobs:
             release/SHA256SUMS-mac.txt
           if-no-files-found: error
           retention-days: 30
+
+  update:
+    name: Actualización real de la app instalada
+    needs: package
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - uses: actions/download-artifact@v4
+        with:
+          name: icarus-browser-macos
+          path: old
+      - name: Compilar la versión siguiente (Apple Silicon)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          current=$(node -p "require('./package.json').version")
+          # La siguiente versión de parche (0.2.0 → 0.2.1; 0.3.0-preview.1 → 0.3.1).
+          next=$(node -p "const [a, b, c] = process.argv[1].split('-')[0].split('.').map(Number); [a, b, c + 1].join('.')" "$current")
+          echo "CURRENT=$current" >> "$GITHUB_ENV"
+          echo "NEXT=$next" >> "$GITHUB_ENV"
+          npm pkg set version="$next"
+          npm run build
+          npx electron-builder --mac zip --arm64 --publish never
+      - name: Manifiesto de la versión siguiente, firmado con una clave de prueba
+        shell: bash
+        run: |
+          node -e "
+            const { generateKeyPairSync } = require('node:crypto');
+            const { writeFileSync } = require('node:fs');
+            const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+            writeFileSync(process.env.RUNNER_TEMP + '/prueba.key', privateKey.export({ type: 'pkcs8', format: 'pem' }));
+            writeFileSync(process.env.RUNNER_TEMP + '/prueba.pub', publicKey.export({ type: 'spki', format: 'pem' }));
+          "
+          printf 'Versión de prueba %s.\n- Generada por CI para probar la actualización.\n' "$NEXT" > "$RUNNER_TEMP/notas.md"
+          node scripts/release/make-manifest.mjs --dir release --version "$NEXT" --commit "$GITHUB_SHA" --select macos/arm64/zip --notes-file "$RUNNER_TEMP/notas.md"
+          node scripts/release/sign-manifest.mjs --dir release --key-file "$RUNNER_TEMP/prueba.key" --public-key "$RUNNER_TEMP/prueba.pub"
+      - name: Instalar la versión actual en una carpeta de aplicaciones
+        run: |
+          mkdir -p "$RUNNER_TEMP/Aplicaciones"
+          ditto -x -k "old/ICARUS-Browser-$CURRENT-mac-arm64.zip" "$RUNNER_TEMP/Aplicaciones"
+          codesign --verify --deep --strict "$RUNNER_TEMP/Aplicaciones/ICARUS Browser.app"
+      - name: Actualizar desde el navegador y comprobar versión, datos y reinicio
+        run: node tests/e2e/update-packaged.mjs --app "$RUNNER_TEMP/Aplicaciones/ICARUS Browser.app/Contents/MacOS/ICARUS Browser" --feed release --public-key "$RUNNER_TEMP/prueba.pub" --from "$CURRENT" --to "$NEXT"
 
   e2e:
     name: Pruebas de extremo a extremo (Electron en macOS)

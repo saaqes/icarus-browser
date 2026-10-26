@@ -58,7 +58,8 @@ export function UpdateButton() {
             <Icon name="upgrade" size={18} />
             {t.popoverTitle(available.version)}
           </h2>
-          <UpdateStatus state={state} />
+          {/* El título ya dice que hay versión nueva; el estado solo aporta en los demás casos. */}
+          {state.status !== 'available' && <UpdateStatus state={state} />}
           {available.notes.trim() && state.status === 'available' && <div className="update-notes">{available.notes.trim()}</div>}
           <UpdateButtons state={state} actions={actions} compact />
           <button

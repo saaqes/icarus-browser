@@ -6,7 +6,9 @@ plugins {
 }
 
 group = "io.github.saaqes.icarusbrowser"
-version = "0.2.0"
+// La misma versión que la app (package.json del proyecto).
+@Suppress("UNCHECKED_CAST")
+version = (groovy.json.JsonSlurper().parse(rootDir.resolve("../../../package.json")) as Map<String, Any?>)["version"] as String
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17

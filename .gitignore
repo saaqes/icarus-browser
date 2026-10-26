@@ -23,7 +23,8 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 dist-electron/
-release/
+# Paquetes de electron-builder (solo la carpeta raíz: scripts/release/ sí se versiona).
+/release/
 
 # Android (Gradle)
 mobile/android/**/.gradle/
@@ -32,6 +33,11 @@ mobile/android/local.properties
 mobile/android/.kotlin/
 *.keystore
 *.jks
+
+# Claves privadas de firma: nunca en el repositorio (build/update-public-key.pem sí).
+*.key
+*signing-key*.pem
+*private*.pem
 
 # iPhone (SwiftPM / Xcode / XcodeGen)
 mobile/ios/**/.build/
