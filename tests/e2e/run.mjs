@@ -976,7 +976,8 @@ await step('32. Zoom real por sitio: ampliar, reducir, restablecer y menú', asy
   assert(uiZoom === 1, `Cambió el zoom de la interfaz (${uiZoom})`);
   const indicator = win.getByTestId('zoom-indicator');
   await indicator.waitFor();
-  assert((await indicator.getAttribute('aria-label')) === 'Zoom: 125 %', `Indicador: ${await indicator.getAttribute('aria-label')}`);
+  // La interfaz recibe el zoom con el estado de la pestaña, que llega por IPC después.
+  await eventually(async () => (await indicator.getAttribute('aria-label')) === 'Zoom: 125 %', 'El indicador no muestra 125 %');
   // Otra pestaña del mismo sitio usa el mismo zoom.
   await win.keyboard.press('Control+T');
   await go('otraweb.com/b.html');
