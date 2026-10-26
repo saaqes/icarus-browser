@@ -121,10 +121,13 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
 
     /* ------------------------- Direcciones personalizadas ------------------------- */
 
-    /** Crea o edita una entrada. Devuelve los errores (con la entrada que choca) sin tocar las demás. */
-    fun saveCustomAddress(target: String, address: String, enabled: Boolean, editingId: String? = null): CustomAddresses.Validation {
+    /**
+     * Crea o edita una entrada. `sections`: `#home, #usuario` o vacío (todo el destino).
+     * Devuelve los errores (con la entrada que choca) sin tocar las demás.
+     */
+    fun saveCustomAddress(target: String, address: String, enabled: Boolean, editingId: String? = null, sections: String = ""): CustomAddresses.Validation {
         if (editingId == null && customAddresses.size >= CustomAddresses.MAX) return CustomAddresses.Validation.Errors(mapOf("target" to "limit"), emptyMap())
-        val result = CustomAddresses.validate(target, address, enabled, customAddresses, editingId)
+        val result = CustomAddresses.validate(target, address, enabled, customAddresses, editingId, sections)
         if (result !is CustomAddresses.Validation.Ok) return result
         val now = Instant.now().toString()
         change { data ->
@@ -136,10 +139,18 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
                 enabled = result.enabled,
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
+                sections = result.sections,
             )
             val list = if (existing == null) data.customAddresses + entry else data.customAddresses.map { if (it.id == entry.id) entry else it }
             data.copy(customAddresses = list)
         }
+        return result
+    }
+
+    /** «Guardar solo para #sección» (ver `CustomAddresses.saveSection`); si no es válido, no cambia nada. */
+    fun saveSectionAddress(target: String, section: String, base: String): CustomAddresses.SectionSave {
+        val result = CustomAddresses.saveSection(customAddresses, target, section, base, UUID.randomUUID().toString(), Instant.now().toString())
+        if (result is CustomAddresses.SectionSave.Ok) change { it.copy(customAddresses = result.entries) }
         return result
     }
 
@@ -150,8 +161,8 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
             val target = CustomAddresses.parseLocation(entry.target)
             val address = CustomAddresses.parseLocation(entry.address)
             if (target != null && address != null) {
-                val conflicts = CustomAddresses.findConflicts(target, address, customAddresses, id).conflicts
-                (conflicts["target"] ?: conflicts["address"])?.let { return it }
+                val conflicts = CustomAddresses.findConflicts(target, address, customAddresses, id, entry.sections).conflicts
+                (conflicts["target"] ?: conflicts["address"] ?: conflicts["sections"])?.let { return it }
             }
         }
         change { data ->

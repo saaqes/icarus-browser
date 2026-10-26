@@ -40,6 +40,18 @@
       "enabled": false,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "deriv-secciones",
+      "target": "https://bot.deriv.me/",
+      "address": "https://otrodominio.com/",
+      "sections": [
+        "home",
+        "usuario"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "cases": [
@@ -182,6 +194,55 @@
       "shown": "javascript:alert(1)",
       "short": "javascript:alert(1)",
       "full": "javascript:alert(1)"
+    },
+    {
+      "url": "https://bot.deriv.me/#inicio",
+      "entryId": "deriv",
+      "shown": "https://miweb.com/#inicio",
+      "short": "miweb.com/#inicio",
+      "full": "https://miweb.com/#inicio"
+    },
+    {
+      "url": "https://bot.deriv.me/#catalogo",
+      "entryId": "deriv",
+      "shown": "https://miweb.com/#catalogo",
+      "short": "miweb.com/#catalogo",
+      "full": "https://miweb.com/#catalogo"
+    },
+    {
+      "url": "https://bot.deriv.me/#home",
+      "entryId": "deriv-secciones",
+      "shown": "https://otrodominio.com/#home",
+      "short": "otrodominio.com/#home",
+      "full": "https://otrodominio.com/#home"
+    },
+    {
+      "url": "https://bot.deriv.me/#HOME",
+      "entryId": "deriv-secciones",
+      "shown": "https://otrodominio.com/#HOME",
+      "short": "otrodominio.com/#HOME",
+      "full": "https://otrodominio.com/#HOME"
+    },
+    {
+      "url": "https://bot.deriv.me/panel?x=1#/usuario/10",
+      "entryId": "deriv-secciones",
+      "shown": "https://otrodominio.com/panel?x=1#/usuario/10",
+      "short": "otrodominio.com/panel?x=1#/usuario/10",
+      "full": "https://otrodominio.com/panel?x=1#/usuario/10"
+    },
+    {
+      "url": "https://bot.deriv.me/#!/home",
+      "entryId": "deriv-secciones",
+      "shown": "https://otrodominio.com/#!/home",
+      "short": "otrodominio.com/#!/home",
+      "full": "https://otrodominio.com/#!/home"
+    },
+    {
+      "url": "https://bot.deriv.me/#home-2",
+      "entryId": "deriv",
+      "shown": "https://miweb.com/#home-2",
+      "short": "miweb.com/#home-2",
+      "full": "https://miweb.com/#home-2"
     }
   ]
 }

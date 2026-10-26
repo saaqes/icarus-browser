@@ -26,8 +26,10 @@ import { useBookmarks, useCustomAddresses, useSettings, useShortcuts } from '../
 import { useMessages } from '../../i18n';
 import { formatAddress, shortAddress } from '../../services/custom-addresses/display';
 import { classifyAddressEdit, joinBase, splitAddress, type AddressSplit } from '../../services/custom-addresses/rebase';
-import { renameCustomAddressBase } from '../../services/custom-addresses/store';
+import { formatSections, sectionOf } from '../../services/custom-addresses/sections';
+import { renameCustomAddressBase, saveSectionAddress } from '../../services/custom-addresses/store';
 import { getSearchProvider } from '../../services/search/providers';
+import { parseWebUrl } from '../../services/url-resolution/urlUtils';
 import type { CustomAddress } from '../../types/customAddress';
 import { BookmarkStar } from '../Bookmarks/BookmarkStar';
 import { Icon, type IconName } from '../common/Icon';
@@ -48,11 +50,19 @@ const SECURITY_ICONS: Record<SecurityState, IconName> = {
   internal: 'sparkle',
 };
 
-/** Base nueva confirmada en una página con dirección personalizada: guardar o ir. */
+/** Base nueva confirmada en una página con dirección personalizada: guardar, guardar solo para la sección o ir. */
 interface RebaseChoice {
   base: string;
   url: string;
   entry: CustomAddress;
+  /** Sección de la página (`home` en `…/#home`), si se puede guardar solo para ella. */
+  section: string | null;
+}
+
+type ChoiceKind = 'save' | 'save-section' | 'go';
+
+function choiceKinds(choice: RebaseChoice): ChoiceKind[] {
+  return choice.section ? ['save', 'save-section', 'go'] : ['save', 'go'];
 }
 
 export function AddressBar() {
@@ -87,6 +97,11 @@ export function AddressBar() {
 
   // Base (dirección personalizada u origen) y sufijo (ruta, consulta y fragmento) de la página.
   const split = presentation.kind === 'web' && !certificateError ? splitAddress(addressUrl, presentation.customAddress) : null;
+  /** Sección de la página para «Guardar solo para #sección» (no si la entrada ya es solo de esa sección). */
+  const sectionFor = (entry: CustomAddress) => {
+    const section = sectionOf(parseWebUrl(addressUrl)?.hash ?? '');
+    return section && !(entry.sections?.length === 1 && entry.sections[0] === section) ? section : null;
+  };
 
   const inputRef = useRef<HTMLInputElement>(null);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
@@ -203,28 +218,46 @@ export function AddressBar() {
       return;
     }
     if (current.entry) {
-      setChoice({ base: value.trim(), url: joined.url, entry: current.entry });
+      setChoice({ base: value.trim(), url: joined.url, entry: current.entry, section: sectionFor(current.entry) });
       setChoiceIndex(0);
       return;
     }
     if (navigateInput(joined.url)) finish();
   };
 
-  const applyChoice = (kind: 'save' | 'go', selected: RebaseChoice) => {
+  const applyChoice = (kind: ChoiceKind, selected: RebaseChoice) => {
     if (kind === 'go') {
       if (navigateInput(selected.url)) finish();
       return;
     }
-    // Guardar: cambia la base de la dirección personalizada (destino y estado intactos).
-    const result = renameCustomAddressBase(services.customAddresses.getSnapshot(), selected.entry.id, selected.base, services.now());
+    // Guardar: cambia la base de la dirección personalizada (destino, secciones y estado
+    // intactos) o, solo para la sección de la página, la usa en ella sin tocar las demás.
+    const entries = services.customAddresses.getSnapshot();
+    const result =
+      kind === 'save-section' && selected.section
+        ? saveSectionAddress(entries, { target: selected.entry.target, section: selected.section, base: selected.base }, { id: services.createId(), now: services.now() })
+        : renameCustomAddressBase(entries, selected.entry.id, selected.base, services.now());
     if (!result.ok) {
       setChoice(null);
-      setRebaseError(rebaseMessage(result.errors.address ?? result.errors.target));
+      setRebaseError(rebaseMessage(result.errors.address ?? result.errors.sections ?? result.errors.target));
       return;
     }
     services.customAddresses.set(result.entries);
-    notify('success', m.addressBar.rebase.saved(shortAddress(result.entry.address)));
+    const saved = shortAddress(result.entry.address);
+    notify('success', kind === 'save-section' && selected.section ? m.addressBar.rebase.savedSection(selected.section, saved) : m.addressBar.rebase.saved(saved));
     finish();
+  };
+
+  const choiceLabel = (kind: ChoiceKind, current: RebaseChoice) => {
+    const base = shortAddress(joinBaseLabel(current.base));
+    if (kind === 'go') return m.addressBar.rebase.go(shortAddress(current.url));
+    return kind === 'save-section' && current.section ? m.addressBar.rebase.saveSection(base, current.section) : m.addressBar.rebase.save(base);
+  };
+  const choiceDetail = (kind: ChoiceKind, current: RebaseChoice) => {
+    if (kind === 'go') return m.addressBar.rebase.goDetail;
+    if (kind === 'save-section') return m.addressBar.rebase.saveSectionDetail;
+    const old = shortAddress(current.entry.address);
+    return current.entry.sections?.length ? m.addressBar.rebase.saveDetailSections(old, formatSections(current.entry.sections)) : m.addressBar.rebase.saveDetail(old);
   };
 
   const run = (suggestion: Suggestion | undefined) => {
@@ -233,7 +266,7 @@ export function AddressBar() {
       // Si solo se cambió la base de una página personalizada, se ofrece guardarla.
       const edit = split?.entry ? classifyAddressEdit(split, value) : null;
       if (split?.entry && edit?.kind === 'rebase') {
-        setChoice({ base: edit.base, url: edit.url, entry: split.entry });
+        setChoice({ base: edit.base, url: edit.url, entry: split.entry, section: sectionFor(split.entry) });
         setChoiceIndex(0);
         return;
       }
@@ -248,7 +281,9 @@ export function AddressBar() {
       openUrl(suggestion.bookmark.url);
       done = true;
     } else {
-      openUrl(suggestion.entry.target);
+      // Una entrada de secciones abre su primera sección (así se ve con esa dirección).
+      const first = suggestion.entry.sections?.[0];
+      openUrl(first ? `${suggestion.entry.target}#${first}` : suggestion.entry.target);
       done = true;
     }
     if (done) finish();
@@ -256,12 +291,14 @@ export function AddressBar() {
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (choiceOpen && choice) {
+      const kinds = choiceKinds(choice);
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
-        setChoiceIndex((index) => (index + 1) % 2);
+        const step = event.key === 'ArrowDown' ? 1 : kinds.length - 1;
+        setChoiceIndex((index) => (index + step) % kinds.length);
       } else if (event.key === 'Enter') {
         event.preventDefault();
-        applyChoice(choiceIndex === 0 ? 'save' : 'go', choice);
+        applyChoice(kinds[choiceIndex] ?? 'save', choice);
       } else if (event.key === 'Escape') {
         event.preventDefault();
         setChoice(null);
@@ -445,7 +482,7 @@ export function AddressBar() {
       {choiceOpen && choice && (
         <div className="omnibox__dropdown">
           <ul role="listbox" aria-label={m.addressBar.rebase.choices} className="suggestions" data-testid="rebase-choices">
-            {(['save', 'go'] as const).map((kind, index) => (
+            {choiceKinds(choice).map((kind, index) => (
               <li
                 key={kind}
                 role="option"
@@ -456,14 +493,10 @@ export function AddressBar() {
                 onClick={() => applyChoice(kind, choice)}
               >
                 <span className="suggestion__icon">
-                  <Icon name={kind === 'save' ? 'check' : 'globe'} size={16} />
+                  <Icon name={kind === 'go' ? 'globe' : 'check'} size={16} />
                 </span>
-                <span className="suggestion__main">
-                  {kind === 'save' ? m.addressBar.rebase.save(shortAddress(joinBaseLabel(choice.base))) : m.addressBar.rebase.go(shortAddress(choice.url))}
-                </span>
-                <span className="suggestion__detail">
-                  {kind === 'save' ? m.addressBar.rebase.saveDetail(shortAddress(choice.entry.address)) : m.addressBar.rebase.goDetail}
-                </span>
+                <span className="suggestion__main">{choiceLabel(kind, choice)}</span>
+                <span className="suggestion__detail">{choiceDetail(kind, choice)}</span>
               </li>
             ))}
           </ul>

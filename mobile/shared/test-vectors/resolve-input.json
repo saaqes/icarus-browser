@@ -40,6 +40,18 @@
       "enabled": false,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "deriv-secciones",
+      "target": "https://bot.deriv.me/",
+      "address": "https://otrodominio.com/",
+      "sections": [
+        "home",
+        "usuario"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "cases": [
@@ -226,6 +238,27 @@
       "url": "https://bot.deriv.me/",
       "address": "https://miweb.com/",
       "entryId": "deriv"
+    },
+    {
+      "input": "otrodominio.com",
+      "kind": "custom",
+      "url": "https://bot.deriv.me/#home",
+      "address": "https://otrodominio.com/#home",
+      "entryId": "deriv-secciones"
+    },
+    {
+      "input": "otrodominio.com/#usuario",
+      "kind": "custom",
+      "url": "https://bot.deriv.me/#usuario",
+      "address": "https://otrodominio.com/#usuario",
+      "entryId": "deriv-secciones"
+    },
+    {
+      "input": "OTRODOMINIO.COM/panel#inicio",
+      "kind": "custom",
+      "url": "https://bot.deriv.me/panel#inicio",
+      "address": "https://otrodominio.com/panel#inicio",
+      "entryId": "deriv-secciones"
     },
     {
       "input": "MIWEB.COM/Panel?x=1#a",

@@ -40,6 +40,18 @@
       "enabled": false,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "deriv-secciones",
+      "target": "https://bot.deriv.me/",
+      "address": "https://otrodominio.com/",
+      "sections": [
+        "home",
+        "usuario"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "cases": [

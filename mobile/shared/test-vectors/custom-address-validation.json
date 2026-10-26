@@ -40,6 +40,18 @@
       "enabled": false,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "deriv-secciones",
+      "target": "https://bot.deriv.me/",
+      "address": "https://otrodominio.com/",
+      "sections": [
+        "home",
+        "usuario"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "cases": [
@@ -281,6 +293,121 @@
         "target": "https://bot.deriv.me/",
         "address": "https://otra.com/",
         "enabled": false
+      }
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "tercera.com",
+        "sections": "#perfil, #Ajustes",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": true,
+      "value": {
+        "target": "https://bot.deriv.me/",
+        "address": "https://tercera.com/",
+        "sections": [
+          "perfil",
+          "ajustes"
+        ],
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "tercera.com",
+        "sections": "#perfil #home",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "sections": "section-in-use"
+      },
+      "conflicts": {
+        "sections": "deriv-secciones"
+      }
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "otrodominio.com",
+        "sections": "#home #usuario #ayuda",
+        "enabled": true
+      },
+      "editingId": "deriv-secciones",
+      "ok": true,
+      "value": {
+        "target": "https://bot.deriv.me/",
+        "address": "https://otrodominio.com/",
+        "sections": [
+          "home",
+          "usuario",
+          "ayuda"
+        ],
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "miweb.com",
+        "sections": "#perfil",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "address": "address-in-use"
+      },
+      "conflicts": {
+        "address": "deriv"
+      }
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "tercera.com",
+        "sections": "#a/b",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "sections": "invalid-section"
+      },
+      "conflicts": {}
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "tercera.com",
+        "sections": "#s0 #s1 #s2 #s3 #s4 #s5 #s6 #s7 #s8 #s9 #s10 #s11 #s12 #s13 #s14 #s15 #s16 #s17 #s18 #s19 #s20",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "sections": "too-many-sections"
+      },
+      "conflicts": {}
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "otrodominio.com",
+        "sections": "",
+        "enabled": true
+      },
+      "editingId": "deriv-secciones",
+      "ok": false,
+      "errors": {
+        "target": "target-in-use"
+      },
+      "conflicts": {
+        "target": "deriv"
       }
     }
   ],

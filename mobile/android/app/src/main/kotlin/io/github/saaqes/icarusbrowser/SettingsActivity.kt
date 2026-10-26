@@ -471,7 +471,8 @@ class SettingsActivity : ScreenActivity() {
             addView(w.card {
                 for (entry in entries) {
                     val address = short(entry.address)
-                    val subtitle = ca("targetOf", "target" to short(entry.target)) + if (entry.enabled) "" else " · ${ca("disabled")}"
+                    val sections = if (entry.sections.isEmpty()) "" else " · " + ca("sectionsOf", "sections" to CustomAddresses.formatSections(entry.sections))
+                    val subtitle = ca("targetOf", "target" to short(entry.target)) + sections + if (entry.enabled) "" else " · ${ca("disabled")}"
                     val row = w.switchRow(address, subtitle, entry.enabled) { enabled ->
                         val conflict = app.profile.setCustomAddressEnabled(entry.id, enabled)
                         if (conflict != null) {
@@ -522,6 +523,8 @@ class SettingsActivity : ScreenActivity() {
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
         val address = w.field(caForm("address"), entry?.address.orEmpty(), caForm("addressPlaceholder"),
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
+        val sections = w.field(caForm("sections"), entry?.sections?.let(CustomAddresses::formatSections).orEmpty(), caForm("sectionsPlaceholder"),
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS)
         val enabled = CheckBox(this).apply {
             text = caForm("enabled")
             isChecked = entry?.enabled ?: true
@@ -530,17 +533,20 @@ class SettingsActivity : ScreenActivity() {
         }
         val preview = w.text("", 14f, p.fg2)
         fun updatePreview() {
-            val result = CustomAddresses.validate(target.value, address.value, true)
+            val result = CustomAddresses.validate(target.value, address.value, true, sectionsText = sections.value)
             preview.text = if (result is CustomAddresses.Validation.Ok) {
                 val shownTarget = short(result.target)
                 val shownAddress = short(result.address)
-                val example = "${result.target.trimEnd('/')}/pagina?x=1"
-                val exampleShown = CustomAddresses.displayUrlFor(example, listOf(CustomAddress("preview", result.target, result.address, true, "", "")))?.url ?: example
-                listOf(
+                val example = "${result.target.trimEnd('/')}/pagina?x=1" + (result.sections.firstOrNull()?.let { "#$it" } ?: "")
+                val sample = CustomAddress("preview", result.target, result.address, true, "", "", result.sections)
+                val exampleShown = CustomAddresses.displayUrlFor(example, listOf(sample))?.url ?: example
+                val lines = mutableListOf(
                     caForm("previewShows", "target" to shownTarget, "address" to shownAddress),
                     caForm("previewOpens", "address" to shownAddress, "target" to shownTarget),
                     caForm("previewPaths", "real" to short(example), "shown" to short(exampleShown)),
-                ).joinToString("\n")
+                )
+                if (result.sections.isNotEmpty()) lines.add(caForm("previewSections", "sections" to CustomAddresses.formatSections(result.sections)))
+                lines.joinToString("\n")
             } else {
                 caForm("previewIncomplete")
             }
@@ -552,6 +558,7 @@ class SettingsActivity : ScreenActivity() {
         }
         target.edit.addTextChangedListener(watcher)
         address.edit.addTextChangedListener(watcher)
+        sections.edit.addTextChangedListener(watcher)
         updatePreview()
         val choices = destinationChoices()
         val content = w.vertical(spacingDp = 12) {
@@ -576,13 +583,15 @@ class SettingsActivity : ScreenActivity() {
             }
             addView(address.view)
             addView(w.hint(caForm("addressHint")))
+            addView(sections.view)
+            addView(w.hint(caForm("sectionsHint")))
             addView(w.text(caForm("preview"), 14f, p.fg2, bold = true))
             addView(preview)
             addView(w.hint(caForm("limitation")))
             addView(enabled)
         }
         w.dialog(if (entry == null) caForm("createTitle") else caForm("editTitle"), content = content, positive = "Guardar") {
-            when (val result = app.profile.saveCustomAddress(target.value, address.value, enabled.isChecked, entry?.id)) {
+            when (val result = app.profile.saveCustomAddress(target.value, address.value, enabled.isChecked, entry?.id, sections.value)) {
                 is CustomAddresses.Validation.Ok -> {
                     toast(if (entry == null) ca("created", "address" to short(result.address)) else ca("saved"))
                     true
@@ -597,6 +606,7 @@ class SettingsActivity : ScreenActivity() {
                     }
                     target.setError(message("target"))
                     address.setError(message("address"))
+                    sections.setError(message("sections"))
                     false
                 }
             }

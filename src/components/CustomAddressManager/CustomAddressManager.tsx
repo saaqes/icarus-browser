@@ -18,6 +18,7 @@ import {
   emptyCustomAddressInput,
   exportCustomAddresses,
   filterCustomAddresses,
+  formatSections,
   mergeImportedCustomAddresses,
   parseCustomAddressFile,
   setCustomAddressEnabled,
@@ -47,7 +48,7 @@ export interface CustomAddressEditorStart {
 }
 
 function sameInput(a: CustomAddressInput, b: CustomAddressInput): boolean {
-  return a.target === b.target && a.address === b.address && a.enabled === b.enabled;
+  return a.target === b.target && a.address === b.address && (a.sections ?? '') === (b.sections ?? '') && a.enabled === b.enabled;
 }
 
 const SEARCH_THRESHOLD = 6;
@@ -191,6 +192,7 @@ export function CustomAddressManager({ onClose, start }: { onClose: () => void; 
                       <span className="address-row__text">
                         <span className="address-row__address">{address}</span>
                         <span className="address-row__target">{t.targetOf(target)}</span>
+                        {entry.sections?.length ? <span className="address-row__sections">{t.sectionsOf(formatSections(entry.sections))}</span> : null}
                         {!entry.enabled && <span className="address-row__state">{t.disabled}</span>}
                       </span>
                     </button>

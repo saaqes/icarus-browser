@@ -31,6 +31,78 @@ async function go(user: ReturnType<typeof renderApp>['user'], text: string) {
   await user.type(addressBar(), `${text}{Enter}`);
 }
 
+async function editBase(user: ReturnType<typeof renderApp>['user'], base: string) {
+  await user.click(addressBar());
+  await user.click(screen.getByRole('button', { name: 'Editar base' }));
+  await user.clear(addressBar());
+  await user.type(addressBar(), `${base}{Enter}`);
+  return screen.getByRole('listbox', { name: 'Qué hacer con la base nueva' });
+}
+
+describe('direcciones por sección: otro dominio para #home y #usuario', () => {
+  it('guarda la base nueva solo para la sección y el resto del sitio conserva la suya', async () => {
+    const { user, storage, open } = setup();
+    await go(user, 'miweb.com/#home');
+    expect(shown()).toBe('miweb.com/#home');
+
+    const choices = await editBase(user, 'otraweb.com');
+    expect(within(choices).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      expect.stringContaining('Guardar otraweb.com como dirección personalizada'),
+      expect.stringContaining('Guardar otraweb.com solo para #home'),
+      expect.stringContaining('Ir a otraweb.com/#home'),
+    ]);
+    expect(choices).toHaveTextContent('Las demás secciones del sitio conservan su dirección');
+    // Flecha arriba desde la primera opción va a la última; flecha abajo, a la siguiente.
+    await user.keyboard('{ArrowUp}');
+    expect(within(choices).getAllByRole('option')[2]).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+
+    expect(await screen.findByText('#home se mostrará como otraweb.com')).toBeInTheDocument();
+    expect(loadDocument(storage, customAddressesSchema).value).toEqual([
+      expect.objectContaining({ id: 'deriv', address: 'https://miweb.com/' }),
+      expect.objectContaining({ target: 'https://bot.deriv.me/', address: 'https://otraweb.com/', sections: ['home'], enabled: true }),
+    ]);
+    await waitFor(() => expect(shown()).toBe('otraweb.com/#home'));
+
+    // Otra sección del mismo sitio sigue con su dirección; escribir otraweb.com abre #home.
+    await go(user, 'miweb.com/#inicio');
+    expect(shown()).toBe('miweb.com/#inicio');
+    await go(user, 'otraweb.com');
+    expect(open).toHaveBeenLastCalledWith('https://bot.deriv.me/#home', '_blank', 'noopener,noreferrer');
+    expect(shown()).toBe('otraweb.com/#home');
+
+    // La misma base para #usuario se añade a esa entrada, sin crear otra.
+    await go(user, 'miweb.com/#usuario');
+    await editBase(user, 'otraweb.com');
+    await user.keyboard('{ArrowDown}{Enter}');
+    expect(await screen.findByText('#usuario se mostrará como otraweb.com')).toBeInTheDocument();
+    const saved = loadDocument(storage, customAddressesSchema).value;
+    expect(saved).toHaveLength(2);
+    expect(saved[1]?.sections).toEqual(['home', 'usuario']);
+
+    // En una pestaña nueva, cada sección se muestra con su dirección.
+    await user.keyboard('{Control>}t{/Control}');
+    await go(user, 'https://bot.deriv.me/#/usuario/10');
+    expect(shown()).toBe('otraweb.com/#/usuario/10');
+    await go(user, 'https://bot.deriv.me/#catalogo');
+    expect(shown()).toBe('miweb.com/#catalogo');
+  });
+
+  it('«Guardar» en una sección con dirección propia cambia esa dirección, no la del sitio', async () => {
+    const home: CustomAddress = { ...DERIV, id: 'home', address: 'https://otraweb.com/', sections: ['home', 'usuario'] };
+    const { user, storage } = setup([DERIV, home]);
+    await go(user, 'otraweb.com/#usuario');
+    const choices = await editBase(user, 'tercera.com');
+    expect(within(choices).getAllByRole('option')[0]).toHaveTextContent('Sustituye a otraweb.com en #home, #usuario');
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(shown()).toBe('tercera.com/#usuario'));
+    expect(loadDocument(storage, customAddressesSchema).value.map((item) => [item.id, item.address, item.sections ?? null])).toEqual([
+      ['deriv', 'https://miweb.com/', null],
+      ['home', 'https://tercera.com/', ['home', 'usuario']],
+    ]);
+  });
+});
+
 describe('barra inteligente: editar la base conservando la ruta', () => {
   it('cambia la base de la dirección personalizada conservando /#inicio y la guarda al confirmar', async () => {
     const { user, storage, open } = setup();
@@ -51,6 +123,7 @@ describe('barra inteligente: editar la base conservando la ruta', () => {
     const choices = screen.getByRole('listbox', { name: 'Qué hacer con la base nueva' });
     expect(within(choices).getAllByRole('option').map((option) => option.textContent)).toEqual([
       expect.stringContaining('Guardar otrapagina.com como dirección personalizada'),
+      expect.stringContaining('Guardar otrapagina.com solo para #inicio'),
       expect.stringContaining('Ir a otrapagina.com/#inicio'),
     ]);
     await user.keyboard('{Enter}');

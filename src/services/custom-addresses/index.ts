@@ -4,3 +4,4 @@ export * from './validation';
 export * from './store';
 export * from './display';
 export * from './rebase';
+export * from './sections';

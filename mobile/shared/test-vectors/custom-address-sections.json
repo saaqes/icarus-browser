@@ -1,0 +1,376 @@
+{
+  "description": "Secciones (#fragmento) de las direcciones personalizadas: sección de un fragmento, secciones escritas en el editor y «Guardar solo para #sección» (destino https://bot.deriv.me/, a partir de customAddresses; cada paso parte del anterior si fue bien; las entradas son las de ese destino).",
+  "customAddresses": [
+    {
+      "id": "deriv",
+      "target": "https://bot.deriv.me/",
+      "address": "https://miweb.com/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "local",
+      "target": "http://localhost:3000/",
+      "address": "http://miapp.com/v2",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "docs",
+      "target": "https://ejemplo.com/docs",
+      "address": "https://docs.miweb.org/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "migrada",
+      "target": "https://es.wikipedia.org/",
+      "address": "https://wiki.icarus/",
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "apagada",
+      "target": "https://apagada.com/",
+      "address": "https://desactivada.com/",
+      "enabled": false,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "deriv-secciones",
+      "target": "https://bot.deriv.me/",
+      "address": "https://otrodominio.com/",
+      "sections": [
+        "home",
+        "usuario"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "now": "2026-10-26T10:00:00.000Z",
+  "fragments": [
+    {
+      "hash": "",
+      "section": null
+    },
+    {
+      "hash": "#",
+      "section": null
+    },
+    {
+      "hash": "#/",
+      "section": null
+    },
+    {
+      "hash": "#inicio",
+      "section": "inicio"
+    },
+    {
+      "hash": "#HOME",
+      "section": "home"
+    },
+    {
+      "hash": "#/usuario/10",
+      "section": "usuario"
+    },
+    {
+      "hash": "#!/home",
+      "section": "home"
+    },
+    {
+      "hash": "#catalogo?pagina=2",
+      "section": "catalogo"
+    },
+    {
+      "hash": "#tab=2",
+      "section": "tab"
+    },
+    {
+      "hash": "#cat%C3%A1logo",
+      "section": "catálogo"
+    },
+    {
+      "hash": "#mal%ZZ",
+      "section": null
+    },
+    {
+      "hash": "#🚀",
+      "section": null
+    },
+    {
+      "hash": "#home-2.v~1_x",
+      "section": "home-2.v~1_x"
+    }
+  ],
+  "texts": [
+    {
+      "text": "",
+      "ok": true,
+      "sections": []
+    },
+    {
+      "text": "#",
+      "ok": true,
+      "sections": []
+    },
+    {
+      "text": "#home, #usuario",
+      "ok": true,
+      "sections": [
+        "home",
+        "usuario"
+      ]
+    },
+    {
+      "text": "#Home usuario;#/catalogo, #home",
+      "ok": true,
+      "sections": [
+        "home",
+        "usuario",
+        "catalogo"
+      ]
+    },
+    {
+      "text": "home #a/b",
+      "ok": false,
+      "error": "invalid-section"
+    },
+    {
+      "text": "#ho me?",
+      "ok": false,
+      "error": "invalid-section"
+    },
+    {
+      "text": "#cat%C3%A1logo #niño",
+      "ok": true,
+      "sections": [
+        "catálogo",
+        "niño"
+      ]
+    },
+    {
+      "text": "#s0 #s1 #s2 #s3 #s4 #s5 #s6 #s7 #s8 #s9 #s10 #s11 #s12 #s13 #s14 #s15 #s16 #s17 #s18 #s19 #s20",
+      "ok": false,
+      "error": "too-many-sections"
+    }
+  ],
+  "saves": [
+    {
+      "section": "perfil",
+      "base": "tercera.com",
+      "id": "s1",
+      "ok": true,
+      "entryId": "s1",
+      "entries": [
+        {
+          "id": "deriv",
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "id": "deriv-secciones",
+          "target": "https://bot.deriv.me/",
+          "address": "https://otrodominio.com/",
+          "sections": [
+            "home",
+            "usuario"
+          ],
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://tercera.com/",
+          "sections": [
+            "perfil"
+          ],
+          "enabled": true,
+          "id": "s1",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "section": "ajustes",
+      "base": "https://tercera.com/",
+      "id": "s2",
+      "ok": true,
+      "entryId": "s1",
+      "entries": [
+        {
+          "id": "deriv",
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "id": "deriv-secciones",
+          "target": "https://bot.deriv.me/",
+          "address": "https://otrodominio.com/",
+          "sections": [
+            "home",
+            "usuario"
+          ],
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://tercera.com/",
+          "sections": [
+            "perfil",
+            "ajustes"
+          ],
+          "enabled": true,
+          "id": "s1",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "section": "home",
+      "base": "tercera.com",
+      "id": "s3",
+      "ok": true,
+      "entryId": "s1",
+      "entries": [
+        {
+          "id": "deriv",
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "id": "deriv-secciones",
+          "target": "https://bot.deriv.me/",
+          "address": "https://otrodominio.com/",
+          "sections": [
+            "usuario"
+          ],
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://tercera.com/",
+          "sections": [
+            "perfil",
+            "ajustes",
+            "home"
+          ],
+          "enabled": true,
+          "id": "s1",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "section": "usuario",
+      "base": "miweb.com",
+      "id": "s4",
+      "ok": true,
+      "entryId": "deriv",
+      "entries": [
+        {
+          "id": "deriv",
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://tercera.com/",
+          "sections": [
+            "perfil",
+            "ajustes",
+            "home"
+          ],
+          "enabled": true,
+          "id": "s1",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "section": "perfil",
+      "base": "desactivada.com",
+      "id": "s5",
+      "ok": true,
+      "entryId": "s5",
+      "entries": [
+        {
+          "id": "deriv",
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://tercera.com/",
+          "sections": [
+            "ajustes",
+            "home"
+          ],
+          "enabled": true,
+          "id": "s1",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://desactivada.com/",
+          "sections": [
+            "perfil"
+          ],
+          "enabled": true,
+          "id": "s5",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "section": "perfil",
+      "base": "docs.miweb.org",
+      "id": "s6",
+      "ok": false,
+      "errors": {
+        "address": "address-in-use"
+      }
+    },
+    {
+      "section": "perfil",
+      "base": "tercera.com/#x",
+      "id": "s7",
+      "ok": false,
+      "errors": {
+        "address": "has-query"
+      }
+    }
+  ]
+}

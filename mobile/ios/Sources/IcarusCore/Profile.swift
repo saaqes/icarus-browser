@@ -187,16 +187,17 @@ public final class Profile {
 
     /// Crea o edita una entrada. Devuelve los errores (con la entrada que choca) sin tocar las demás.
     @discardableResult
-    public func saveCustomAddress(target: String, address: String, enabled: Bool, editingId: String? = nil) -> CustomAddresses.Validation {
+    public func saveCustomAddress(target: String, address: String, enabled: Bool, editingId: String? = nil, sections: String = "") -> CustomAddresses.Validation {
         let current = customAddresses
         if editingId == nil && current.count >= CustomAddresses.max { return .errors(["target": "limit"], conflicts: [:]) }
-        let result = CustomAddresses.validate(target: target, address: address, enabled: enabled, entries: current, editingId: editingId)
-        guard case .ok(let cleanTarget, let cleanAddress, let isEnabled) = result else { return result }
+        let result = CustomAddresses.validate(target: target, address: address, enabled: enabled, entries: current, editingId: editingId, sections: sections)
+        guard case .ok(let cleanTarget, let cleanAddress, let isEnabled, let cleanSections) = result else { return result }
         let now = Profile.timestamp()
         change { data in
             let existing = data.customAddresses.firstIndex { $0.id == editingId }
             let entry = CustomAddress(id: existing.map { data.customAddresses[$0].id } ?? UUID().uuidString, target: cleanTarget, address: cleanAddress,
-                                      enabled: isEnabled, createdAt: existing.map { data.customAddresses[$0].createdAt } ?? now, updatedAt: now)
+                                      enabled: isEnabled, createdAt: existing.map { data.customAddresses[$0].createdAt } ?? now, updatedAt: now,
+                                      sections: cleanSections)
             if let existing { data.customAddresses[existing] = entry } else { data.customAddresses.append(entry) }
         }
         return result
@@ -208,8 +209,8 @@ public final class Profile {
         let current = customAddresses
         guard let entry = current.first(where: { $0.id == id }) else { return nil }
         if enabled, let target = CustomAddresses.parseLocation(entry.target), let address = CustomAddresses.parseLocation(entry.address) {
-            let conflicts = CustomAddresses.findConflicts(target: target, address: address, current, exceptId: id).conflicts
-            if let other = conflicts["target"] ?? conflicts["address"] { return other }
+            let conflicts = CustomAddresses.findConflicts(target: target, address: address, current, exceptId: id, sections: entry.sections).conflicts
+            if let other = conflicts["target"] ?? conflicts["address"] ?? conflicts["sections"] { return other }
         }
         change { data in
             guard let index = data.customAddresses.firstIndex(where: { $0.id == id }) else { return }

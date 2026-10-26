@@ -5,37 +5,43 @@
  * Reglas para que mostrar y navegar sean siempre coherentes:
  * - La dirección usa el mismo protocolo que el destino: la barra nunca presenta
  *   como HTTPS una página HTTP (ni al revés).
- * - Entre las entradas activas, ningún destino se solapa con otro destino ni con
- *   otra dirección, y ninguna dirección se solapa con otra dirección ni con otro
- *   destino. Así cada URL real tiene como mucho una dirección visible y cada
- *   dirección escrita lleva a un único destino.
+ * - Entre las entradas activas, ningún destino se solapa con otra dirección y
+ *   ninguna dirección se solapa con otra dirección ni con otro destino. Dos destinos
+ *   que se solapan solo pueden convivir si uno es general y el otro está limitado a
+ *   unas secciones, o si los dos tienen secciones distintas. Así cada URL real tiene
+ *   como mucho una dirección visible y cada dirección escrita lleva a un único destino.
  * - La dirección no puede estar dentro de su propio destino (ni al revés).
  */
 
-import type { CustomAddress, CustomAddressInput } from '../../types/customAddress';
+import type { CustomAddress, CustomAddressInput, CustomAddressValue } from '../../types/customAddress';
 import { formatLocation, locationsOverlap, normalizeLocationInput, parseLocation, type Location, type LocationError } from './locations';
+import { parseSections, sectionsOverlap, type SectionsError } from './sections';
 
 export type CustomAddressFieldError =
   | LocationError
+  | SectionsError
   | 'protocol-mismatch'
   | 'same-as-target'
   | 'target-in-use'
   | 'target-is-address'
   | 'address-in-use'
-  | 'address-is-target';
+  | 'address-is-target'
+  | 'section-in-use';
 
-export type CustomAddressField = 'target' | 'address';
+export type CustomAddressField = 'target' | 'address' | 'sections';
 export type CustomAddressErrors = Partial<Record<CustomAddressField, CustomAddressFieldError>>;
 /** Entrada con la que choca cada campo (para nombrarla en el mensaje). */
 export type CustomAddressConflicts = Partial<Record<CustomAddressField, CustomAddress>>;
 
 export type CustomAddressValidation =
-  | { ok: true; value: CustomAddressInput }
+  | { ok: true; value: CustomAddressValue }
   | { ok: false; errors: CustomAddressErrors; conflicts: CustomAddressConflicts };
 
 interface Locations {
   target: Location;
   address: Location;
+  /** Secciones a las que se limita (vacío: todo el destino). */
+  sections?: readonly string[];
 }
 
 function locationsOf(entry: CustomAddress): Locations | null {
@@ -52,14 +58,21 @@ export function findConflicts(
 ): { errors: CustomAddressErrors; conflicts: CustomAddressConflicts } {
   const errors: CustomAddressErrors = {};
   const conflicts: CustomAddressConflicts = {};
+  const mine = locations.sections ?? [];
   for (const other of entries) {
     if (!other.enabled || other.id === exceptId) continue;
     const parsed = locationsOf(other);
     if (!parsed) continue;
+    const theirs = other.sections ?? [];
+    const sameTarget = locationsOverlap(locations.target, parsed.target);
     if (!errors.target) {
-      if (locationsOverlap(locations.target, parsed.target)) errors.target = 'target-in-use';
+      if (sameTarget && mine.length === 0 && theirs.length === 0) errors.target = 'target-in-use';
       else if (locationsOverlap(locations.target, parsed.address)) errors.target = 'target-is-address';
       if (errors.target) conflicts.target = other;
+    }
+    if (!errors.sections && sameTarget && sectionsOverlap(mine, theirs)) {
+      errors.sections = 'section-in-use';
+      conflicts.sections = other;
     }
     if (!errors.address) {
       if (locationsOverlap(locations.address, parsed.address)) errors.address = 'address-in-use';
@@ -91,16 +104,24 @@ export function validateCustomAddressInput(
     else if (locationsOverlap(address.location, target.location)) errors.address = 'same-as-target';
   }
 
+  const sections = parseSections(input.sections ?? '');
+  if (!sections.ok) errors.sections = sections.error;
+
   let conflicts: CustomAddressConflicts = {};
-  if (target.ok && address.ok && Object.keys(errors).length === 0 && input.enabled) {
-    const found = findConflicts({ target: target.location, address: address.location }, entries, editingId);
+  if (target.ok && address.ok && sections.ok && Object.keys(errors).length === 0 && input.enabled) {
+    const found = findConflicts({ target: target.location, address: address.location, sections: sections.sections }, entries, editingId);
     Object.assign(errors, found.errors);
     conflicts = found.conflicts;
   }
 
-  if (!target.ok || !address.ok || Object.keys(errors).length > 0) return { ok: false, errors, conflicts };
+  if (!target.ok || !address.ok || !sections.ok || Object.keys(errors).length > 0) return { ok: false, errors, conflicts };
   return {
     ok: true,
-    value: { target: formatLocation(target.location), address: formatLocation(address.location), enabled: Boolean(input.enabled) },
+    value: {
+      target: formatLocation(target.location),
+      address: formatLocation(address.location),
+      ...(sections.sections.length > 0 ? { sections: sections.sections } : {}),
+      enabled: Boolean(input.enabled),
+    },
   };
 }

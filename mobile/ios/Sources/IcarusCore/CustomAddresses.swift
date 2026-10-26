@@ -6,25 +6,54 @@ import Foundation
 /// El usuario asigna a un destino real (`https://bot.deriv.me/`) la dirección que quiere
 /// ver en la barra (`https://miweb.com/`). Mientras se navega dentro del destino, la barra
 /// muestra la dirección personalizada con la misma ruta, consulta y fragmento; al
-/// escribirla, ICARUS navega al destino real. La resolución es interna: WebKit siempre
-/// carga el sitio real, con su certificado.
+/// escribirla, ICARUS navega al destino real. Una entrada puede limitarse a unas
+/// secciones (`#home`), donde gana a la general del sitio. La resolución es interna:
+/// WebKit siempre carga el sitio real, con su certificado.
 public struct CustomAddress: Codable, Equatable, Identifiable {
     public var id: String
     /// Destino real: `protocolo://host[:puerto]/ruta-base`, sin consulta ni fragmento.
     public var target: String
     /// Dirección que muestra la barra, siempre con el protocolo del destino.
     public var address: String
+    /// Secciones a las que se limita (`home`, sin `#`); vacía: todo el destino.
+    public var sections: [String]
     public var enabled: Bool
     public var createdAt: String
     public var updatedAt: String
 
-    public init(id: String, target: String, address: String, enabled: Bool, createdAt: String, updatedAt: String) {
+    public init(id: String, target: String, address: String, enabled: Bool, createdAt: String, updatedAt: String, sections: [String] = []) {
         self.id = id
         self.target = target
         self.address = address
+        self.sections = sections
         self.enabled = enabled
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, target, address, sections, enabled, createdAt, updatedAt }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        target = try container.decode(String.self, forKey: .target)
+        address = try container.decode(String.self, forKey: .address)
+        sections = try container.decodeIfPresent([String].self, forKey: .sections) ?? []
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+    }
+
+    /// Como en escritorio y Android: `sections` solo se guarda si la entrada tiene alguna.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(target, forKey: .target)
+        try container.encode(address, forKey: .address)
+        if !sections.isEmpty { try container.encode(sections, forKey: .sections) }
+        try container.encode(enabled, forKey: .enabled)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
 
@@ -72,9 +101,21 @@ public enum CustomAddresses {
     }
 
     public enum Validation: Equatable {
-        case ok(target: String, address: String, enabled: Bool)
-        /// Errores por campo (`target`, `address`) y la entrada con la que choca cada uno.
+        case ok(target: String, address: String, enabled: Bool, sections: [String])
+        /// Errores por campo (`target`, `address`, `sections`) y la entrada con la que choca cada uno.
         case errors([String: String], conflicts: [String: CustomAddress])
+    }
+
+    public enum Sections: Equatable {
+        case ok([String])
+        /// `invalid-section` o `too-many-sections`.
+        case failure(String)
+    }
+
+    public enum SectionSave: Equatable {
+        /// `entry` es la entrada que muestra la sección después de guardar.
+        case ok(entries: [CustomAddress], entry: CustomAddress)
+        case failure(errors: [String: String], conflicts: [String: CustomAddress])
     }
 
     public enum Legacy: Equatable {
@@ -88,6 +129,59 @@ public enum CustomAddresses {
     private static let portSuffix = Pattern(":\\d+$")
     private static let isoDate = Pattern("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$")
     private static let aliasPrefix = Pattern("^(?:https?|icarus)://")
+    public static let maxSections = 20
+    private static let sectionNamePattern = Pattern("^[\\p{L}\\p{N}_.~-]{1,60}$")
+    private static let sectionLead = Pattern("^[!/]+")
+    /// Separadores como `\s` de JavaScript (espacios Unicode incluidos), comas y punto y coma.
+    private static let sectionSeparators: Set<Unicode.Scalar> = {
+        var set: Set<Unicode.Scalar> = ["\t", "\n", "\u{0B}", "\u{0C}", "\r", " ", "\u{A0}", "\u{1680}", "\u{2028}", "\u{2029}", "\u{202F}", "\u{205F}", "\u{3000}", "\u{FEFF}", ",", ";"]
+        for value in UInt32(0x2000)...UInt32(0x200A) {
+            if let scalar = Unicode.Scalar(value) { set.insert(scalar) }
+        }
+        return set
+    }()
+
+    /* ---------------------------------- Secciones ---------------------------------- */
+
+    /// Como `decodeURIComponent`: si la codificación no es válida, el texto queda igual.
+    private static func sectionName(_ token: String) -> String {
+        let raw = sectionLead.replacing(token.removingPrefix("#"), with: "")
+        return (raw.removingPercentEncoding ?? raw).lowercased()
+    }
+
+    /// Sección de un fragmento (con o sin `#`): el primer tramo, sin `#`, `!` ni `/` iniciales, en minúsculas.
+    public static func sectionOf(_ hash: String) -> String? {
+        let stripped = sectionLead.replacing(hash.removingPrefix("#"), with: "")
+        let head = stripped.firstIndex(where: { "/?&=".contains($0) }).map { String(stripped[..<$0]) } ?? stripped
+        let name = sectionName(head)
+        return sectionNamePattern.matches(name) ? name : nil
+    }
+
+    /// Secciones como las escribe el usuario: `#home, #usuario`, `home usuario`…
+    public static func parseSections(_ text: String) -> Sections {
+        var tokens: [String] = []
+        var current = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars {
+            if sectionSeparators.contains(scalar) {
+                tokens.append(String(current))
+                current = String.UnicodeScalarView()
+            } else {
+                current.append(scalar)
+            }
+        }
+        tokens.append(String(current))
+        var sections: [String] = []
+        for token in tokens {
+            if sectionLead.replacing(token.removingPrefix("#"), with: "").isEmpty { continue }
+            let name = sectionName(token)
+            if !sectionNamePattern.matches(name) { return .failure("invalid-section") }
+            if !sections.contains(name) { sections.append(name) }
+        }
+        return sections.count > maxSections ? .failure("too-many-sections") : .ok(sections)
+    }
+
+    /// Texto para el editor y los mensajes: `#home, #usuario`.
+    public static func formatSections(_ sections: [String]) -> String { sections.map { "#\($0)" }.joined(separator: ", ") }
 
     /* --------------------------------- Ubicaciones --------------------------------- */
 
@@ -138,10 +232,10 @@ public enum CustomAddresses {
         return pathname.hasPrefix(location.path + "/") ? String(pathname.dropFirst(location.path.count)) : nil
     }
 
-    /// La URL equivalente bajo otra ubicación.
-    public static func urlWithin(_ location: Location, _ rest: String, _ url: WebURL) -> String {
+    /// La URL equivalente bajo otra ubicación (`hash`: otro fragmento en lugar del de `url`).
+    public static func urlWithin(_ location: Location, _ rest: String, _ url: WebURL, hash: String? = nil) -> String {
         let path = location.path + rest
-        return "\(location.protocol)//\(location.host)\(path.isEmpty ? "/" : path)\(url.search)\(hashOf(url))"
+        return "\(location.protocol)//\(location.host)\(path.isEmpty ? "/" : path)\(url.search)\(hash ?? hashOf(url))"
     }
 
     /// ¿Comparten alguna dirección? Se ignora el protocolo.
@@ -157,6 +251,7 @@ public enum CustomAddresses {
         let entry: CustomAddress
         let target: Location
         let address: Location
+        var sections: [String] { entry.sections }
     }
 
     /// Entradas activas y válidas, de la más específica a la menos (en empate, la más antigua).
@@ -173,17 +268,21 @@ public enum CustomAddresses {
         }.map(\.element)
     }
 
-    /// URL real → dirección que muestra la barra (o nil si no hay entrada para ella).
+    /// URL real → dirección que muestra la barra (o nil si no hay entrada para ella). Gana la entrada de la sección.
     public static func displayURL(for href: String, _ entries: [CustomAddress]) -> DisplayMatch? {
         guard let url = UrlUtils.parseWebURL(href) else { return nil }
-        for item in active(entries) {
+        let section = sectionOf(hashOf(url))
+        let items = active(entries)
+        let ordered = items.filter { section != nil && $0.sections.contains(section!) } + items.filter { $0.sections.isEmpty }
+        for item in ordered {
             guard let rest = remainderWithin(item.target, url) else { continue }
             return DisplayMatch(entry: item.entry, url: urlWithin(item.address, rest, url))
         }
         return nil
     }
 
-    /// URL escrita dentro de una dirección personalizada → URL real del destino.
+    /// URL escrita dentro de una dirección personalizada → URL real del destino. Sin
+    /// fragmento, la dirección de una entrada de secciones abre su primera sección.
     public static func resolve(_ url: WebURL, _ entries: [CustomAddress], explicitProtocol: Bool) -> Resolution? {
         var best: (item: Parsed, rest: String)? = nil
         for item in active(entries) {
@@ -191,7 +290,12 @@ public enum CustomAddresses {
             if best == nil || item.address.path.count > best!.item.address.path.count { best = (item, rest) }
         }
         guard let best else { return nil }
-        return Resolution(entry: best.item.entry, url: urlWithin(best.item.target, best.rest, url), address: urlWithin(best.item.address, best.rest, url))
+        var hash = hashOf(url)
+        if hash.isEmpty, let first = best.item.sections.first {
+            hash = "#" + (first.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? first)
+        }
+        return Resolution(entry: best.item.entry, url: urlWithin(best.item.target, best.rest, url, hash: hash),
+                          address: urlWithin(best.item.address, best.rest, url, hash: hash))
     }
 
     /// Entradas activas cuya dirección empieza por lo escrito (para sugerencias).
@@ -216,16 +320,24 @@ public enum CustomAddresses {
 
     /* ---------------------------------- Validación ---------------------------------- */
 
-    /// Primera entrada activa (distinta de `exceptId`) que choca con estas ubicaciones.
-    public static func findConflicts(target: Location, address: Location, _ entries: [CustomAddress], exceptId: String?)
+    /// Primera entrada activa (distinta de `exceptId`) que choca con estas ubicaciones. Dos
+    /// destinos que se solapan conviven si uno es general y el otro tiene secciones, o si
+    /// las secciones de los dos son distintas.
+    public static func findConflicts(target: Location, address: Location, _ entries: [CustomAddress], exceptId: String?, sections: [String] = [])
         -> (errors: [String: String], conflicts: [String: CustomAddress]) {
         var errors: [String: String] = [:]
         var conflicts: [String: CustomAddress] = [:]
         for other in entries where other.enabled && other.id != exceptId {
             guard let otherTarget = parseLocation(other.target), let otherAddress = parseLocation(other.address) else { continue }
+            let sameTarget = overlap(target, otherTarget)
             if errors["target"] == nil {
-                if overlap(target, otherTarget) { errors["target"] = "target-in-use" } else if overlap(target, otherAddress) { errors["target"] = "target-is-address" }
+                if sameTarget && sections.isEmpty && other.sections.isEmpty { errors["target"] = "target-in-use" }
+                else if overlap(target, otherAddress) { errors["target"] = "target-is-address" }
                 if errors["target"] != nil { conflicts["target"] = other }
+            }
+            if errors["sections"] == nil && sameTarget && sections.contains(where: { other.sections.contains($0) }) {
+                errors["sections"] = "section-in-use"
+                conflicts["sections"] = other
             }
             if errors["address"] == nil {
                 if overlap(address, otherAddress) { errors["address"] = "address-in-use" } else if overlap(address, otherTarget) { errors["address"] = "address-is-target" }
@@ -236,10 +348,10 @@ public enum CustomAddresses {
     }
 
     /// Valida como la versión de escritorio: la dirección usa el protocolo del destino,
-    /// no puede estar dentro de su propio destino y, si está activa, ningún destino ni
-    /// dirección se solapa con los de otra entrada activa.
+    /// no puede estar dentro de su propio destino y, si está activa, no choca con otra
+    /// entrada activa (ver `findConflicts`). `sectionsText`: `#home, #usuario` o vacío.
     public static func validate(target targetText: String, address addressText: String, enabled: Bool,
-                                entries: [CustomAddress] = [], editingId: String? = nil) -> Validation {
+                                entries: [CustomAddress] = [], editingId: String? = nil, sections sectionsText: String = "") -> Validation {
         var errors: [String: String] = [:]
         let target = normalizeLocationInput(targetText)
         if case .failure(let error) = target { errors["target"] = error }
@@ -250,16 +362,67 @@ public enum CustomAddresses {
             if addressLocation.protocol != targetLocation.protocol { errors["address"] = "protocol-mismatch" }
             else if overlap(addressLocation, targetLocation) { errors["address"] = "same-as-target" }
         }
+        var sections: [String]? = nil
+        switch parseSections(sectionsText) {
+        case .ok(let names): sections = names
+        case .failure(let error): errors["sections"] = error
+        }
         var conflicts: [String: CustomAddress] = [:]
-        if let targetLocation = target.location, let addressLocation = address.location, errors.isEmpty, enabled {
-            let found = findConflicts(target: targetLocation, address: addressLocation, entries, exceptId: editingId)
+        if let targetLocation = target.location, let addressLocation = address.location, let sections, errors.isEmpty, enabled {
+            let found = findConflicts(target: targetLocation, address: addressLocation, entries, exceptId: editingId, sections: sections)
             errors.merge(found.errors) { current, _ in current }
             conflicts = found.conflicts
         }
-        guard let targetLocation = target.location, let addressLocation = address.location, errors.isEmpty else {
+        guard let targetLocation = target.location, let addressLocation = address.location, let sections, errors.isEmpty else {
             return .errors(errors, conflicts: conflicts)
         }
-        return .ok(target: targetLocation.format(), address: addressLocation.format(), enabled: enabled)
+        return .ok(target: targetLocation.format(), address: addressLocation.format(), enabled: enabled, sections: sections)
+    }
+
+    /// «Guardar solo para #sección», como en escritorio: la sección deja la entrada de
+    /// secciones que la tuviera (si se queda vacía, se elimina); con la base general del
+    /// destino, vuelve a usarla; si otra entrada de secciones del destino ya usa esa base,
+    /// se le añade; si no, se crea una entrada nueva. Si algo no es válido, no cambia nada.
+    public static func saveSection(_ entries: [CustomAddress], target: String, section: String, base: String, id: String, now: String) -> SectionSave {
+        guard let location = parseLocation(target) else { return .failure(errors: ["target": "invalid-url"], conflicts: [:]) }
+        let address: String
+        switch normalizeLocationInput(base, defaultProtocol: location.protocol) {
+        case .ok(let normalized): address = normalized.format()
+        case .failure(let error): return .failure(errors: ["address": error], conflicts: [:])
+        }
+        func ofTarget(_ entry: CustomAddress) -> Bool { entry.enabled && entry.target == target }
+
+        let remaining: [CustomAddress] = entries.compactMap { (entry: CustomAddress) -> CustomAddress? in
+            guard ofTarget(entry), entry.sections.contains(section) else { return entry }
+            var changed = entry
+            changed.sections.removeAll { $0 == section }
+            changed.updatedAt = now
+            return changed.sections.isEmpty ? nil : changed
+        }
+        if let general = remaining.first(where: { ofTarget($0) && $0.sections.isEmpty && $0.address == address }) {
+            return .ok(entries: remaining, entry: general)
+        }
+        if let sibling = remaining.first(where: { ofTarget($0) && !$0.sections.isEmpty && $0.address == address }) {
+            switch validate(target: sibling.target, address: address, enabled: true, entries: remaining, editingId: sibling.id,
+                            sections: formatSections(sibling.sections + [section])) {
+            case .errors(let errors, let conflicts): return .failure(errors: errors, conflicts: conflicts)
+            case .ok(let cleanTarget, let cleanAddress, _, let sections):
+                var entry = sibling
+                entry.target = cleanTarget
+                entry.address = cleanAddress
+                entry.enabled = true
+                entry.sections = sections
+                entry.updatedAt = now
+                return .ok(entries: remaining.map { $0.id == sibling.id ? entry : $0 }, entry: entry)
+            }
+        }
+        if remaining.count >= max { return .failure(errors: ["target": "limit"], conflicts: [:]) }
+        switch validate(target: target, address: address, enabled: true, entries: remaining, sections: "#\(section)") {
+        case .errors(let errors, let conflicts): return .failure(errors: errors, conflicts: conflicts)
+        case .ok(let cleanTarget, let cleanAddress, _, let sections):
+            let entry = CustomAddress(id: id, target: cleanTarget, address: cleanAddress, enabled: true, createdAt: now, updatedAt: now, sections: sections)
+            return .ok(entries: remaining + [entry], entry: entry)
+        }
     }
 
     /* ---------------------------- Carga y reglas antiguas ---------------------------- */
@@ -317,15 +480,24 @@ public enum CustomAddresses {
             guard let target = raw["target"] as? String, let address = raw["address"] as? String else { return .invalid }
             input = (target, address, raw["enabled"] as? Bool == true)
         }
-        guard case .ok(let target, let address, _) = validate(target: input.target, address: input.address, enabled: false) else { return .invalid }
+        // Secciones: lista de textos (si falta, la entrada es para todo el destino).
+        var sectionsText = ""
+        if let value = raw["sections"] {
+            guard let names = value as? [String] else { return .invalid }
+            sectionsText = names.joined(separator: " ")
+        }
+        guard case .ok(let target, let address, _, let sections) = validate(target: input.target, address: input.address, enabled: false, sections: sectionsText) else {
+            return .invalid
+        }
         return .entry(CustomAddress(id: String(id.trimmed.prefix(100)), target: target, address: address, enabled: input.enabled,
-                                    createdAt: date(raw["createdAt"], fallback: fallbackDate), updatedAt: date(raw["updatedAt"], fallback: fallbackDate)))
+                                    createdAt: date(raw["createdAt"], fallback: fallbackDate), updatedAt: date(raw["updatedAt"], fallback: fallbackDate),
+                                    sections: sections))
     }
 
     /// Añade una entrada; si choca con otra activa, se guarda desactivada (nunca se pierde).
     public static func appendResolvingConflicts(_ entries: [CustomAddress], _ entry: CustomAddress) -> (entries: [CustomAddress], disabled: Bool) {
         if entry.enabled, let target = parseLocation(entry.target), let address = parseLocation(entry.address),
-           !findConflicts(target: target, address: address, entries, exceptId: entry.id).errors.isEmpty {
+           !findConflicts(target: target, address: address, entries, exceptId: entry.id, sections: entry.sections).errors.isEmpty {
             var disabled = entry
             disabled.enabled = false
             return (entries + [disabled], true)
@@ -342,7 +514,7 @@ public enum CustomAddresses {
         for item in items.prefix(max) {
             guard let raw = item as? [String: Any], case .entry(let entry) = readEntry(raw, fallbackDate: epoch), !seen.contains(entry.id) else { continue }
             // Reglas antiguas idénticas (p. ej. una por fragmento) quedan en una sola entrada.
-            guard pairs.insert("\(entry.target) \(entry.address)").inserted else { continue }
+            guard pairs.insert("\(entry.target) \(entry.address) \(formatSections(entry.sections))").inserted else { continue }
             seen.insert(entry.id)
             entries = appendResolvingConflicts(entries, entry).entries
         }

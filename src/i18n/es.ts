@@ -20,10 +20,14 @@ const customAddressErrors: Record<CustomAddressFieldError, (otherAddress: string
   'protocol-mismatch': () =>
     'La dirección debe usar el mismo protocolo que el destino. ICARUS no muestra una conexión distinta de la real (por ejemplo, HTTPS para una página HTTP).',
   'same-as-target': () => 'La dirección personalizada no puede ser el propio destino ni estar dentro de él.',
-  'target-in-use': (address, target) => `Ese destino ya tiene una dirección: ${target} se muestra como ${address}. Edítala en la lista.`,
+  'target-in-use': (address, target) =>
+    `Ese destino ya tiene una dirección: ${target} se muestra como ${address}. Edítala en la lista o, para usar otra dirección solo en algunas partes del sitio, indica sus secciones (por ejemplo #home).`,
   'target-is-address': (address, target) => `${address} ya es la dirección personalizada de ${target}: un destino no puede ser otra dirección personalizada.`,
   'address-in-use': (address, target) => `${address} ya se usa para ${target}. Elige otra dirección o edita esa entrada.`,
   'address-is-target': (address, target) => `Esa dirección es el destino de otra entrada (${target} se muestra como ${address}).`,
+  'invalid-section': () => 'Escribe las secciones como #home, #usuario: letras, números, «-», «_» o «.», separadas por comas o espacios.',
+  'too-many-sections': () => 'Una entrada admite como máximo 20 secciones.',
+  'section-in-use': (address) => `Alguna de esas secciones ya se muestra como ${address}. Quítala de esa entrada o edítala.`,
 };
 
 const shortcutFieldErrors: Record<ShortcutFieldError, string> = {
@@ -155,10 +159,14 @@ export const es = {
       label: 'Dirección base',
       save: (base: string) => `Guardar ${base} como dirección personalizada`,
       saveDetail: (old: string) => `Sustituye a ${old} para todas sus páginas`,
+      saveDetailSections: (old: string, sections: string) => `Sustituye a ${old} en ${sections}`,
+      saveSection: (base: string, section: string) => `Guardar ${base} solo para #${section}`,
+      saveSectionDetail: 'Las demás secciones del sitio conservan su dirección',
       go: (url: string) => `Ir a ${url}`,
       goDetail: 'Abre esa dirección con la misma ruta',
       choices: 'Qué hacer con la base nueva',
       saved: (base: string) => `Dirección personalizada guardada: ${base}`,
+      savedSection: (section: string, base: string) => `#${section} se mostrará como ${base}`,
       errors: {
         required: 'Escribe la dirección base.',
         'invalid-url': 'La base no es una dirección válida.',
@@ -589,6 +597,7 @@ export const es = {
     deleteEntry: (address: string) => `Eliminar ${address}`,
     toggle: (address: string) => `Activar o desactivar ${address}`,
     targetOf: (target: string) => `Destino: ${target}`,
+    sectionsOf: (sections: string) => `Solo en ${sections}`,
     disabled: 'Desactivada',
     howTo: {
       title: 'Cómo funciona',
@@ -611,10 +620,15 @@ export const es = {
       address: '2. Dirección que se mostrará',
       addressHint: 'Por ejemplo miweb.com o https://miweb.com/app. Si no escribes el protocolo, se usa el del destino.',
       addressPlaceholder: 'miweb.com',
+      sections: '3. Secciones (opcional)',
+      sectionsHint:
+        'Para usar esta dirección solo en unas partes del sitio, escribe sus secciones: #home, #usuario. En ellas gana a la dirección general del sitio; déjalo vacío para todo el sitio.',
+      sectionsPlaceholder: '#home, #usuario',
       preview: 'Así se verá',
       previewShows: (target: string, address: string) => `En ${target} y todas sus páginas, la barra mostrará ${address}.`,
       previewOpens: (address: string, target: string) => `Escribir ${address} en ICARUS abrirá ${target}.`,
       previewPaths: (real: string, shown: string) => `Las rutas se conservan: ${real} se mostrará como ${shown}.`,
+      previewSections: (sections: string) => `Solo en ${sections}: el resto del sitio conserva su dirección.`,
       previewIncomplete: 'Completa el destino y la dirección para ver el resultado.',
       limitation:
         'La dirección personalizada no es un dominio de Internet: otros navegadores y dispositivos no la conocen. Si existe un sitio real con esa dirección, ICARUS abrirá tu destino en su lugar mientras esta entrada esté activa.',

@@ -16,7 +16,8 @@ import { describe, expect, it } from 'vitest';
 import { formatAddress, shortAddress } from '../../src/services/custom-addresses/display';
 import { displayUrlFor } from '../../src/services/custom-addresses/mapping';
 import { classifyAddressEdit, joinBase, splitAddress } from '../../src/services/custom-addresses/rebase';
-import { convertLegacyRule, sanitizeCustomAddresses } from '../../src/services/custom-addresses/store';
+import { parseSections, sectionOf } from '../../src/services/custom-addresses/sections';
+import { convertLegacyRule, sanitizeCustomAddresses, saveSectionAddress } from '../../src/services/custom-addresses/store';
 import { validateCustomAddressInput } from '../../src/services/custom-addresses/validation';
 import { buildSearchUrl } from '../../src/services/search/providers';
 import { createDefaultShortcuts } from '../../src/services/shortcuts/shortcuts';
@@ -57,8 +58,8 @@ const EPOCH = new Date('2026-01-01T00:00:00.000Z');
 
 /* ------------------------- Direcciones personalizadas ------------------------- */
 
-function entry(id: string, target: string, address: string, enabled = true): CustomAddress {
-  return { id, target, address, enabled, createdAt: EPOCH.toISOString(), updatedAt: EPOCH.toISOString() };
+function entry(id: string, target: string, address: string, enabled = true, sections?: string[]): CustomAddress {
+  return { id, target, address, ...(sections ? { sections } : {}), enabled, createdAt: EPOCH.toISOString(), updatedAt: EPOCH.toISOString() };
 }
 
 const VECTOR_ENTRIES: CustomAddress[] = [
@@ -67,6 +68,8 @@ const VECTOR_ENTRIES: CustomAddress[] = [
   entry('docs', 'https://ejemplo.com/docs', 'https://docs.miweb.org/'),
   entry('migrada', 'https://es.wikipedia.org/', 'https://wiki.icarus/'),
   entry('apagada', 'https://apagada.com/', 'https://desactivada.com/', false),
+  // Otra dirección para unas secciones del mismo sitio que «deriv».
+  entry('deriv-secciones', 'https://bot.deriv.me/', 'https://otrodominio.com/', true, ['home', 'usuario']),
 ];
 
 /* ------------------------- Edición de la base ------------------------- */
@@ -131,6 +134,9 @@ const INPUTS = [
   'bot.deriv.me',
   'icarus.marketing',
   'miweb.com',
+  'otrodominio.com',
+  'otrodominio.com/#usuario',
+  'OTRODOMINIO.COM/panel#inicio',
   'MIWEB.COM/Panel?x=1#a',
   'https://miweb.com/ruta',
   'http://miweb.com/',
@@ -196,6 +202,14 @@ const DISPLAY_URLS = [
   'http://www.ejemplo.com/a/',
   'https://usuario:clave@bot.deriv.me/',
   'javascript:alert(1)',
+  // Secciones: #home y #usuario se muestran con otrodominio.com; el resto, con miweb.com.
+  'https://bot.deriv.me/#inicio',
+  'https://bot.deriv.me/#catalogo',
+  'https://bot.deriv.me/#home',
+  'https://bot.deriv.me/#HOME',
+  'https://bot.deriv.me/panel?x=1#/usuario/10',
+  'https://bot.deriv.me/#!/home',
+  'https://bot.deriv.me/#home-2',
 ];
 
 /* ------------------------- Validación y conflictos ------------------------- */
@@ -218,6 +232,30 @@ const VALIDATION_CASES: Array<CustomAddressInput & { editingId?: string }> = [
   { target: 'nuevo2.com', address: 'bot.deriv.me', enabled: true },
   { target: 'https://ejemplo.com/blog', address: 'blog.miweb.org', enabled: true },
   { target: 'bot.deriv.me', address: 'otra.com', enabled: false },
+  // Secciones: conviven con la general del mismo destino; no se repiten ni se mezclan.
+  { target: 'bot.deriv.me', address: 'tercera.com', sections: '#perfil, #Ajustes', enabled: true },
+  { target: 'bot.deriv.me', address: 'tercera.com', sections: '#perfil #home', enabled: true },
+  { target: 'bot.deriv.me', address: 'otrodominio.com', sections: '#home #usuario #ayuda', enabled: true, editingId: 'deriv-secciones' },
+  { target: 'bot.deriv.me', address: 'miweb.com', sections: '#perfil', enabled: true },
+  { target: 'bot.deriv.me', address: 'tercera.com', sections: '#a/b', enabled: true },
+  { target: 'bot.deriv.me', address: 'tercera.com', sections: Array.from({ length: 21 }, (_, n) => `#s${n}`).join(' '), enabled: true },
+  { target: 'bot.deriv.me', address: 'otrodominio.com', sections: '', enabled: true, editingId: 'deriv-secciones' },
+];
+
+/* ------------------------------ Secciones (#) ------------------------------ */
+
+const SECTION_FRAGMENTS = ['', '#', '#/', '#inicio', '#HOME', '#/usuario/10', '#!/home', '#catalogo?pagina=2', '#tab=2', '#cat%C3%A1logo', '#mal%ZZ', '#🚀', '#home-2.v~1_x'];
+const SECTION_TEXTS = ['', '#', '#home, #usuario', '#Home usuario;#/catalogo, #home', 'home #a/b', '#ho me?', '#cat%C3%A1logo #niño', Array.from({ length: 21 }, (_, n) => `#s${n}`).join(' ')];
+
+/** «Guardar solo para #sección», uno tras otro desde VECTOR_ENTRIES (cada uno parte del resultado anterior si fue bien). */
+const SECTION_SAVES = [
+  { section: 'perfil', base: 'tercera.com', id: 's1' },
+  { section: 'ajustes', base: 'https://tercera.com/', id: 's2' },
+  { section: 'home', base: 'tercera.com', id: 's3' },
+  { section: 'usuario', base: 'miweb.com', id: 's4' },
+  { section: 'perfil', base: 'desactivada.com', id: 's5' },
+  { section: 'perfil', base: 'docs.miweb.org', id: 's6' },
+  { section: 'perfil', base: 'tercera.com/#x', id: 's7' },
 ];
 
 /** Reglas de alias guardadas por versiones anteriores (se convierten al leerlas). */
@@ -532,6 +570,29 @@ describe('datos compartidos con las apps móviles', () => {
     );
   });
 
+  it('vectores de las secciones', () => {
+    const now = new Date('2026-10-26T10:00:00.000Z');
+    let entries = VECTOR_ENTRIES;
+    const saves = SECTION_SAVES.map(({ section, base, id }) => {
+      const result = saveSectionAddress(entries, { target: 'https://bot.deriv.me/', section, base }, { id, now });
+      if (!result.ok) return { section, base, id, ok: false, errors: result.errors };
+      entries = result.entries;
+      return { section, base, id, ok: true, entryId: result.entry.id, entries: result.entries.filter((item) => item.target === 'https://bot.deriv.me/') };
+    });
+    expectShared(
+      'test-vectors/custom-address-sections.json',
+      json({
+        description:
+          'Secciones (#fragmento) de las direcciones personalizadas: sección de un fragmento, secciones escritas en el editor y «Guardar solo para #sección» (destino https://bot.deriv.me/, a partir de customAddresses; cada paso parte del anterior si fue bien; las entradas son las de ese destino).',
+        customAddresses: VECTOR_ENTRIES,
+        now: now.toISOString(),
+        fragments: SECTION_FRAGMENTS.map((hash) => ({ hash, section: sectionOf(hash) })),
+        texts: SECTION_TEXTS.map((text) => ({ text, ...parseSections(text) })),
+        saves,
+      }),
+    );
+  });
+
   it('vectores de ICARUS Shield', () => {
     const listText = `${BUILTIN_LIST_TEXT}\n${EXTRA_FILTERS.join('\n')}`;
     const parsed = parseFilterList(listText);
@@ -585,6 +646,7 @@ describe('datos compartidos con las apps móviles', () => {
           add: t.add,
           empty: t.empty,
           targetOf: template(t.targetOf, 'target'),
+          sectionsOf: template(t.sectionsOf, 'sections'),
           disabled: t.disabled,
           howTo: t.howTo,
           form: {
@@ -597,10 +659,14 @@ describe('datos compartidos con las apps móviles', () => {
             address: t.form.address,
             addressHint: t.form.addressHint,
             addressPlaceholder: t.form.addressPlaceholder,
+            sections: t.form.sections,
+            sectionsHint: t.form.sectionsHint,
+            sectionsPlaceholder: t.form.sectionsPlaceholder,
             preview: t.form.preview,
             previewShows: template(t.form.previewShows, 'target', 'address'),
             previewOpens: template(t.form.previewOpens, 'address', 'target'),
             previewPaths: template(t.form.previewPaths, 'real', 'shown'),
+            previewSections: template(t.form.previewSections, 'sections'),
             previewIncomplete: t.form.previewIncomplete,
             limitation: t.form.limitation,
             enabled: t.form.enabled,

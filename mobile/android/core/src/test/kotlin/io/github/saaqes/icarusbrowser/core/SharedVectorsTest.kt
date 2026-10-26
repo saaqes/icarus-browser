@@ -83,11 +83,13 @@ class SharedVectorsTest {
                 input.getBoolean("enabled"),
                 entries,
                 case.optString("editingId").takeIf { !case.isNull("editingId") },
+                input.optString("sections", ""),
             )
             val label = input.toString()
             if (case.getBoolean("ok")) {
                 val value = case.getJSONObject("value")
-                assertEquals(CustomAddresses.Validation.Ok(value.getString("target"), value.getString("address"), value.getBoolean("enabled")), result, label)
+                val sections = strings(value.optJSONArray("sections"))
+                assertEquals(CustomAddresses.Validation.Ok(value.getString("target"), value.getString("address"), value.getBoolean("enabled"), sections), result, label)
             } else {
                 val errors = assertIs<CustomAddresses.Validation.Errors>(result, label)
                 val expected = case.getJSONObject("errors")
@@ -124,6 +126,40 @@ class SharedVectorsTest {
         }
         assertEquals(expected, CustomAddresses.sanitize(rules))
     }
+
+    @Test
+    fun `las secciones y «Guardar solo para #sección» funcionan como en escritorio`() {
+        val data = vectors("custom-address-sections.json")
+        val fragments = data.getJSONArray("fragments")
+        for (index in 0 until fragments.length()) {
+            val case = fragments.getJSONObject(index)
+            assertEquals(case.optString("section").takeIf { !case.isNull("section") }, CustomAddresses.sectionOf(case.getString("hash")), case.toString())
+        }
+        val texts = data.getJSONArray("texts")
+        for (index in 0 until texts.length()) {
+            val case = texts.getJSONObject(index)
+            val expected = if (case.getBoolean("ok")) CustomAddresses.Sections.Ok(strings(case.getJSONArray("sections"))) else CustomAddresses.Sections.Failure(case.getString("error"))
+            assertEquals(expected, CustomAddresses.parseSections(case.getString("text")), case.toString())
+        }
+        var entries = CustomAddresses.sanitize(data.getJSONArray("customAddresses"))
+        val saves = data.getJSONArray("saves")
+        for (index in 0 until saves.length()) {
+            val case = saves.getJSONObject(index)
+            val result = CustomAddresses.saveSection(entries, "https://bot.deriv.me/", case.getString("section"), case.getString("base"), case.getString("id"), data.getString("now"))
+            if (case.getBoolean("ok")) {
+                val saved = assertIs<CustomAddresses.SectionSave.Ok>(result, case.toString())
+                assertEquals(case.getString("entryId"), saved.entry.id, case.toString())
+                assertEquals(CustomAddresses.sanitize(case.getJSONArray("entries")), saved.entries.filter { it.target == "https://bot.deriv.me/" }, case.toString())
+                entries = saved.entries
+            } else {
+                val failure = assertIs<CustomAddresses.SectionSave.Failure>(result, case.toString())
+                val expected = case.getJSONObject("errors")
+                assertEquals(expected.keys().asSequence().associateWith { expected.getString(it) }, failure.errors.errors, case.toString())
+            }
+        }
+    }
+
+    private fun strings(array: org.json.JSONArray?): List<String> = if (array == null) emptyList() else (0 until array.length()).map { array.getString(it) }
 
     @Test
     fun `el dominio registrable coincide con la Public Suffix List de escritorio`() {

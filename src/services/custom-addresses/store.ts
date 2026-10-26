@@ -4,12 +4,13 @@
  * importación/exportación.
  */
 
-import type { CustomAddress, CustomAddressInput } from '../../types/customAddress';
+import type { CustomAddress, CustomAddressInput, CustomAddressValue } from '../../types/customAddress';
 import type { DocumentSchema } from '../persistence/document';
 import { STORAGE_KEYS } from '../persistence/keys';
 import { isRecord, readIsoDate } from '../persistence/validation';
 import { parseWebUrl } from '../url-resolution/urlUtils';
-import { formatLocation, parseLocation } from './locations';
+import { formatLocation, normalizeLocationInput, parseLocation } from './locations';
+import { formatSections } from './sections';
 import { findConflicts, validateCustomAddressInput, type CustomAddressConflicts, type CustomAddressErrors } from './validation';
 
 export const MAX_CUSTOM_ADDRESSES = 200;
@@ -17,11 +18,16 @@ export const MAX_CUSTOM_ADDRESSES = 200;
 const EPOCH = '2026-01-01T00:00:00.000Z';
 
 export function emptyCustomAddressInput(): CustomAddressInput {
-  return { target: '', address: '', enabled: true };
+  return { target: '', address: '', sections: '', enabled: true };
 }
 
 export function toCustomAddressInput(entry: CustomAddress): CustomAddressInput {
-  return { target: entry.target, address: entry.address, enabled: entry.enabled };
+  return { target: entry.target, address: entry.address, sections: formatSections(entry.sections), enabled: entry.enabled };
+}
+
+/** Entrada con los valores validados (sin arrastrar unas secciones que ya no tiene). */
+function withValue(entry: Pick<CustomAddress, 'id' | 'createdAt' | 'updatedAt'>, value: CustomAddressValue): CustomAddress {
+  return { ...value, id: entry.id, createdAt: entry.createdAt, updatedAt: entry.updatedAt };
 }
 
 export type MutationResult =
@@ -37,7 +43,7 @@ export function createCustomAddress(
   const result = validateCustomAddressInput(input, entries);
   if (!result.ok) return result;
   const timestamp = context.now.toISOString();
-  const entry: CustomAddress = { ...result.value, id: context.id, createdAt: timestamp, updatedAt: timestamp };
+  const entry = withValue({ id: context.id, createdAt: timestamp, updatedAt: timestamp }, result.value);
   return { ok: true, entries: [...entries, entry], entry };
 }
 
@@ -46,19 +52,57 @@ export function updateCustomAddress(entries: CustomAddress[], id: string, input:
   if (!existing) return { ok: false, errors: {}, conflicts: {} };
   const result = validateCustomAddressInput(input, entries, id);
   if (!result.ok) return result;
-  const entry: CustomAddress = { ...existing, ...result.value, updatedAt: now.toISOString() };
+  const entry = withValue({ ...existing, updatedAt: now.toISOString() }, result.value);
   return { ok: true, entries: entries.map((item) => (item.id === id ? entry : item)), entry };
 }
 
 /**
  * Cambia la base (la dirección que muestra la barra) de una entrada, conservando
- * su destino y su estado. Es lo que guarda la barra cuando el usuario edita la base
- * de una página personalizada y confirma «Guardar»; valida igual que el editor.
+ * su destino, sus secciones y su estado. Es lo que guarda la barra cuando el usuario
+ * edita la base de una página personalizada y confirma «Guardar»; valida igual que
+ * el editor.
  */
 export function renameCustomAddressBase(entries: CustomAddress[], id: string, base: string, now: Date): MutationResult {
   const existing = entries.find((entry) => entry.id === id);
   if (!existing) return { ok: false, errors: {}, conflicts: {} };
-  return updateCustomAddress(entries, id, { target: existing.target, address: base, enabled: existing.enabled }, now);
+  return updateCustomAddress(entries, id, { target: existing.target, address: base, sections: formatSections(existing.sections), enabled: existing.enabled }, now);
+}
+
+/**
+ * «Guardar solo para #sección»: la base nueva se usa en esa sección del destino y el
+ * resto de secciones conserva su dirección.
+ * - La sección deja la entrada de secciones que la tuviera (si se queda vacía, se elimina).
+ * - Si la base es la dirección general del destino, la sección vuelve a usarla.
+ * - Si otra entrada de secciones del destino ya usa esa base, se le añade la sección;
+ *   si no, se crea una entrada nueva para esa sección.
+ * Si algo no es válido, no cambia nada.
+ */
+export function saveSectionAddress(
+  entries: CustomAddress[],
+  request: { target: string; section: string; base: string },
+  context: { id: string; now: Date },
+): MutationResult {
+  const target = parseLocation(request.target);
+  if (!target) return { ok: false, errors: { target: 'invalid-url' }, conflicts: {} };
+  const base = normalizeLocationInput(request.base, target.protocol);
+  if (!base.ok) return { ok: false, errors: { address: base.error }, conflicts: {} };
+  const address = formatLocation(base.location);
+  const timestamp = context.now.toISOString();
+  const ofTarget = (entry: CustomAddress) => entry.enabled && entry.target === request.target;
+
+  const remaining = entries.flatMap((entry) => {
+    if (!ofTarget(entry) || !entry.sections?.includes(request.section)) return [entry];
+    const sections = entry.sections.filter((name) => name !== request.section);
+    return sections.length > 0 ? [{ ...entry, sections, updatedAt: timestamp }] : [];
+  });
+  const general = remaining.find((entry) => ofTarget(entry) && !entry.sections?.length && entry.address === address);
+  if (general) return { ok: true, entries: remaining, entry: general };
+  const sibling = remaining.find((entry) => ofTarget(entry) && entry.sections?.length && entry.address === address);
+  if (sibling) {
+    const sections = formatSections([...(sibling.sections ?? []), request.section]);
+    return updateCustomAddress(remaining, sibling.id, { target: sibling.target, address, sections, enabled: true }, context.now);
+  }
+  return createCustomAddress(remaining, { target: request.target, address, sections: `#${request.section}`, enabled: true }, context);
 }
 
 export function deleteCustomAddress(entries: CustomAddress[], id: string): CustomAddress[] {
@@ -75,8 +119,8 @@ export function setCustomAddressEnabled(entries: CustomAddress[], id: string, en
     const target = parseLocation(entry.target);
     const address = parseLocation(entry.address);
     if (target && address) {
-      const { conflicts } = findConflicts({ target, address }, entries, id);
-      const other = conflicts.target ?? conflicts.address;
+      const { conflicts } = findConflicts({ target, address, sections: entry.sections }, entries, id);
+      const other = conflicts.target ?? conflicts.address ?? conflicts.sections;
       if (other) return { ok: false, conflictWith: other };
     }
   }
@@ -134,7 +178,8 @@ function readEntry(raw: unknown, fallbackDate: string): ReadResult {
     if (legacy.kind !== 'entry') return legacy;
     input = legacy.input;
   } else if (typeof raw.target === 'string' && typeof raw.address === 'string') {
-    input = { target: raw.target, address: raw.address, enabled: raw.enabled === true };
+    if (raw.sections !== undefined && !(Array.isArray(raw.sections) && raw.sections.every((name) => typeof name === 'string'))) return { kind: 'invalid' };
+    input = { target: raw.target, address: raw.address, sections: ((raw.sections as string[] | undefined) ?? []).join(' '), enabled: raw.enabled === true };
   } else {
     return { kind: 'invalid' };
   }
@@ -162,7 +207,7 @@ function appendResolvingConflicts(entries: CustomAddress[], entry: CustomAddress
   if (entry.enabled) {
     const target = parseLocation(entry.target);
     const address = parseLocation(entry.address);
-    const { conflicts } = target && address ? findConflicts({ target, address }, entries, entry.id) : { conflicts: {} };
+    const { conflicts } = target && address ? findConflicts({ target, address, sections: entry.sections }, entries, entry.id) : { conflicts: {} };
     if (Object.keys(conflicts).length > 0) return { entries: [...entries, { ...entry, enabled: false }], disabled: true };
   }
   return { entries: [...entries, entry], disabled: false };
@@ -185,7 +230,7 @@ export function sanitizeCustomAddresses(raw: unknown, issues: string[]): CustomA
     }
     // Varias reglas antiguas (p. ej. una por fragmento) pueden convertirse en la misma
     // entrada: se guarda una sola, sin perder nada (son idénticas).
-    const pair = `${read.entry.target} ${read.entry.address}`;
+    const pair = `${read.entry.target} ${read.entry.address} ${formatSections(read.entry.sections)}`;
     if (pairs.has(pair)) {
       issues.push(`customAddresses[${index}]:duplicate`);
       return;
@@ -285,9 +330,9 @@ export function mergeImportedCustomAddresses(
   return { entries, ...summary };
 }
 
-/** Busca por destino o dirección (sin protocolo). */
+/** Busca por destino, dirección o sección. */
 export function filterCustomAddresses(entries: CustomAddress[], query: string): CustomAddress[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return entries;
-  return entries.filter((entry) => [entry.target, entry.address].some((field) => field.toLowerCase().includes(needle)));
+  return entries.filter((entry) => [entry.target, entry.address, formatSections(entry.sections)].some((field) => field.toLowerCase().includes(needle)));
 }

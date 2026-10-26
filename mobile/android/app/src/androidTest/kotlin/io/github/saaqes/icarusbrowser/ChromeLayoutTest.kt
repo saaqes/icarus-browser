@@ -178,6 +178,41 @@ class ChromeLayoutTest {
     }
 
     @Test
+    fun otroDominioSoloParaUnasSeccionesDelSitio() {
+        setLook(ThemeId.ESSENTIAL)
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitFor(scenario, "pestaña inicial") { it.currentTab != null }
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                assertTrue(app.profile.saveCustomAddress(base, "miweb.com", true) is CustomAddresses.Validation.Ok)
+            }
+            onMain(scenario) { it.submitAddress("miweb.com/app.html#home") }
+            waitFor(scenario, "página en #home") { it.currentTab?.url == "$base/app.html#home" && it.currentTab?.loading == false }
+
+            // Cambiar la base en #home ofrece guardarla solo para esa sección.
+            onMain(scenario) { it.submitAddress("http://otraweb.com/app.html#home") }
+            assertEquals("home", onMain(scenario) { it.lastRebaseSection })
+            val general = app.profile.customAddresses.single()
+            assertTrue(onMain(scenario) { it.saveRebaseSection("otraweb.com", general, "home") })
+            waitFor(scenario, "#home con otraweb.com") { it.addressText == "otraweb.com/app.html#home" }
+            assertEquals(listOf("http://miweb.com/" to emptyList<String>(), "http://otraweb.com/" to listOf("home")), app.profile.customAddresses.map { it.address to it.sections })
+
+            // Otra sección de la misma página conserva la dirección general del sitio.
+            onMain(scenario) { it.currentTab!!.webView!!.evaluateJavascript("location.hash = 'inicio'", null) }
+            waitFor(scenario, "#inicio con miweb.com") { it.addressText == "miweb.com/app.html#inicio" }
+            // Escribir la dirección de la sección abre esa sección del sitio real.
+            onMain(scenario) { it.submitAddress("otraweb.com/app.html") }
+            waitFor(scenario, "otraweb.com abre #home") { it.currentTab?.url == "$base/app.html#home" && it.addressText == "otraweb.com/app.html#home" }
+            screenshot("seccion-home")
+
+            // Guardado en disco: se relee igual (con sus secciones) desde el archivo del perfil.
+            app.profile.flush()
+            val stored = File(File(app.filesDir, "icarus"), "profile.json")
+            val entries = CustomAddresses.sanitize(org.json.JSONObject(stored.readText()).optJSONArray("customAddresses"))
+            assertEquals(listOf("home"), entries.single { it.address == "http://otraweb.com/" }.sections)
+        }
+    }
+
+    @Test
     fun favoritosYEdicionDeLaBaseConservandoLaRuta() {
         setLook(ThemeId.ESSENTIAL)
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->

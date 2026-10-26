@@ -7,10 +7,13 @@
     "has-query": "Usa solo el sitio o una ruta, sin «?» ni «#»: la consulta y el fragmento se conservan solos al navegar.",
     "protocol-mismatch": "La dirección debe usar el mismo protocolo que el destino. ICARUS no muestra una conexión distinta de la real (por ejemplo, HTTPS para una página HTTP).",
     "same-as-target": "La dirección personalizada no puede ser el propio destino ni estar dentro de él.",
-    "target-in-use": "Ese destino ya tiene una dirección: {target} se muestra como {address}. Edítala en la lista.",
+    "target-in-use": "Ese destino ya tiene una dirección: {target} se muestra como {address}. Edítala en la lista o, para usar otra dirección solo en algunas partes del sitio, indica sus secciones (por ejemplo #home).",
     "target-is-address": "{address} ya es la dirección personalizada de {target}: un destino no puede ser otra dirección personalizada.",
     "address-in-use": "{address} ya se usa para {target}. Elige otra dirección o edita esa entrada.",
-    "address-is-target": "Esa dirección es el destino de otra entrada ({target} se muestra como {address})."
+    "address-is-target": "Esa dirección es el destino de otra entrada ({target} se muestra como {address}).",
+    "invalid-section": "Escribe las secciones como #home, #usuario: letras, números, «-», «_» o «.», separadas por comas o espacios.",
+    "too-many-sections": "Una entrada admite como máximo 20 secciones.",
+    "section-in-use": "Alguna de esas secciones ya se muestra como {address}. Quítala de esa entrada o edítala."
   },
   "shortcutErrors": {
     "required": "Este campo es obligatorio.",
@@ -46,6 +49,7 @@
     "add": "Añadir dirección",
     "empty": "Aún no hay direcciones personalizadas. Pulsa «Añadir dirección» para crear la primera.",
     "targetOf": "Destino: {target}",
+    "sectionsOf": "Solo en {sections}",
     "disabled": "Desactivada",
     "howTo": {
       "title": "Cómo funciona",
@@ -66,10 +70,14 @@
       "address": "2. Dirección que se mostrará",
       "addressHint": "Por ejemplo miweb.com o https://miweb.com/app. Si no escribes el protocolo, se usa el del destino.",
       "addressPlaceholder": "miweb.com",
+      "sections": "3. Secciones (opcional)",
+      "sectionsHint": "Para usar esta dirección solo en unas partes del sitio, escribe sus secciones: #home, #usuario. En ellas gana a la dirección general del sitio; déjalo vacío para todo el sitio.",
+      "sectionsPlaceholder": "#home, #usuario",
       "preview": "Así se verá",
       "previewShows": "En {target} y todas sus páginas, la barra mostrará {address}.",
       "previewOpens": "Escribir {address} en ICARUS abrirá {target}.",
       "previewPaths": "Las rutas se conservan: {real} se mostrará como {shown}.",
+      "previewSections": "Solo en {sections}: el resto del sitio conserva su dirección.",
       "previewIncomplete": "Completa el destino y la dirección para ver el resultado.",
       "limitation": "La dirección personalizada no es un dominio de Internet: otros navegadores y dispositivos no la conocen. Si existe un sitio real con esa dirección, ICARUS abrirá tu destino en su lugar mientras esta entrada esté activa.",
       "enabled": "Activa",

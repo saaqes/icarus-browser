@@ -365,7 +365,9 @@ struct CustomAddressList: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(address).foregroundColor(entry.enabled ? .primary : .secondary)
-                                Text(t("targetOf", ["target": CustomAddresses.shortAddress(entry.target)]) + (entry.enabled ? "" : " · \(t("disabled"))"))
+                                Text(t("targetOf", ["target": CustomAddresses.shortAddress(entry.target)])
+                                     + (entry.sections.isEmpty ? "" : " · " + t("sectionsOf", ["sections": CustomAddresses.formatSections(entry.sections)]))
+                                     + (entry.enabled ? "" : " · \(t("disabled"))"))
                                     .font(.footnote).foregroundColor(.secondary)
                             }
                         }
@@ -406,6 +408,7 @@ struct CustomAddressForm: View {
     @Environment(\.dismiss) private var dismiss
     @State private var target = ""
     @State private var address = ""
+    @State private var sections = ""
     @State private var enabled = true
     @State private var errors: [String: String] = [:]
     @State private var conflicts: [String: CustomAddress] = [:]
@@ -438,19 +441,21 @@ struct CustomAddressForm: View {
     }
 
     private var preview: String {
-        guard case .ok(let cleanTarget, let cleanAddress, _) = CustomAddresses.validate(target: target, address: address, enabled: true) else {
+        guard case .ok(let cleanTarget, let cleanAddress, _, let cleanSections) = CustomAddresses.validate(target: target, address: address, enabled: true, sections: sections) else {
             return form("previewIncomplete")
         }
         let shownTarget = CustomAddresses.shortAddress(cleanTarget)
         let shownAddress = CustomAddresses.shortAddress(cleanAddress)
-        let example = cleanTarget.removingSuffix("/") + "/pagina?x=1"
-        let sample = CustomAddress(id: "preview", target: cleanTarget, address: cleanAddress, enabled: true, createdAt: "", updatedAt: "")
+        let example = cleanTarget.removingSuffix("/") + "/pagina?x=1" + (cleanSections.first.map { "#\($0)" } ?? "")
+        let sample = CustomAddress(id: "preview", target: cleanTarget, address: cleanAddress, enabled: true, createdAt: "", updatedAt: "", sections: cleanSections)
         let exampleShown = CustomAddresses.displayURL(for: example, [sample])?.url ?? example
-        return [
+        var lines = [
             form("previewShows", ["target": shownTarget, "address": shownAddress]),
             form("previewOpens", ["address": shownAddress, "target": shownTarget]),
             form("previewPaths", ["real": CustomAddresses.shortAddress(example), "shown": CustomAddresses.shortAddress(exampleShown)]),
-        ].joined(separator: "\n")
+        ]
+        if !cleanSections.isEmpty { lines.append(form("previewSections", ["sections": CustomAddresses.formatSections(cleanSections)])) }
+        return lines.joined(separator: "\n")
     }
 
     var body: some View {
@@ -480,6 +485,14 @@ struct CustomAddressForm: View {
             } footer: {
                 Text(form("addressHint"))
             }
+            Section {
+                TextField(form("sectionsPlaceholder"), text: $sections).textInputAutocapitalization(.never).autocorrectionDisabled(true)
+                error("sections")
+            } header: {
+                Text(form("sections"))
+            } footer: {
+                Text(form("sectionsHint"))
+            }
             Section(form("preview")) {
                 Text(preview).font(.subheadline)
                 Text(form("limitation")).font(.footnote).foregroundColor(.secondary)
@@ -491,7 +504,7 @@ struct CustomAddressForm: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Guardar") {
-                    switch services.profile.saveCustomAddress(target: target, address: address, enabled: enabled, editingId: entry?.id) {
+                    switch services.profile.saveCustomAddress(target: target, address: address, enabled: enabled, editingId: entry?.id, sections: sections) {
                     case .ok: dismiss()
                     case .errors(let found, let others):
                         errors = found
@@ -507,6 +520,7 @@ struct CustomAddressForm: View {
                 // Completas, como en escritorio: así se conserva el protocolo (p. ej. un destino http://).
                 target = entry.target
                 address = entry.address
+                sections = CustomAddresses.formatSections(entry.sections)
                 enabled = entry.enabled
             } else if let initialTarget {
                 target = initialTarget

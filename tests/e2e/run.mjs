@@ -912,7 +912,10 @@ for (const [name, id] of [['Esencial', 'google-inspired'], ['Panorama', 'edge-in
     const choices = win.getByRole('listbox', { name: 'Qué hacer con la base nueva' });
     await choices.waitFor();
     const options = await choices.getByRole('option').allInnerTexts();
-    assert(options[0]?.includes('Guardar miweb2.com') && options[1]?.includes('Ir a miweb2.com/app#inicio'), `Opciones inesperadas: ${options.join(' | ')}`);
+    assert(
+      options[0]?.includes('Guardar miweb2.com') && options[1]?.includes('Guardar miweb2.com solo para #inicio') && options[2]?.includes('Ir a miweb2.com/app#inicio'),
+      `Opciones inesperadas: ${options.join(' | ')}`,
+    );
     await win.keyboard.press('Enter');
     // Se guarda y la misma página real se muestra con la base nueva y la misma ruta.
     await expectShown('miweb2.com/app#inicio', 'Tras guardar la base');
@@ -1081,6 +1084,48 @@ await step('35. Reiniciar conserva la base editada, los favoritos y el zoom; sin
   const storage = readFileSync(join(dataDir, 'ui-storage.json'), 'utf8');
   assert(!storage.includes('.icarus'), 'Los datos guardados contienen .icarus');
   return `${items.length} favorito · zoom 110 % · otraweb.com`;
+});
+
+await step('36. Secciones: otro dominio para #home en el mismo sitio, en otra pestaña y tras reiniciar', async () => {
+  await win.keyboard.press('Control+T');
+  await go('otraweb.com/app#home');
+  await waitForActiveTab('Aplicación');
+  await expectShown('otraweb.com/app#home');
+  await editBase('seccion.com');
+  const choices = win.getByRole('listbox', { name: 'Qué hacer con la base nueva' });
+  await choices.waitFor();
+  const options = await choices.getByRole('option').allInnerTexts();
+  assert(options.length === 3 && options[1]?.includes('Guardar seccion.com solo para #home'), `Opciones inesperadas: ${options.join(' | ')}`);
+  await win.keyboard.press('ArrowDown');
+  await win.keyboard.press('Enter');
+  await expectShown('seccion.com/app#home', 'Tras guardar solo para #home');
+  await eventually(async () => (await visibleUrl()) === `${base}/app#home`, 'La página real cambió');
+  // Otra sección de la misma página: vuelve la dirección general del sitio.
+  await visiblePageEval("location.hash = 'inicio'; true");
+  await expectShown('otraweb.com/app#inicio', 'En #inicio');
+  // Otra pestaña: escribir seccion.com abre la sección #home del sitio real.
+  await win.keyboard.press('Control+T');
+  await go('seccion.com/app');
+  await eventually(async () => (await visibleUrl()) === `${base}/app#home`, 'seccion.com no abrió #home del sitio real');
+  await expectShown('seccion.com/app#home', 'En otra pestaña');
+  // Guardado en disco junto a la dirección general, sin tocarla.
+  const entries = await eventually(() => {
+    try {
+      const stored = JSON.parse(String(JSON.parse(readFileSync(join(dataDir, 'ui-storage.json'), 'utf8')).data['icarus.aliasRules']));
+      const list = stored.data ?? stored;
+      return list.some((entry) => entry.address === 'http://seccion.com/' && entry.sections?.join() === 'home') ? list : null;
+    } catch {
+      return null;
+    }
+  }, 'La dirección de la sección no se guardó en disco');
+  assert(entries.some((entry) => entry.address === 'http://otraweb.com/' && !entry.sections), 'La dirección general del sitio cambió');
+  await app.close();
+  ({ app, win } = await launch());
+  await win.keyboard.press('Control+T');
+  await go(`${base}/app#home`);
+  await waitForActiveTab('Aplicación');
+  await expectShown('seccion.com/app#home', 'Tras reiniciar');
+  return 'seccion.com en #home · otraweb.com en #inicio · otra pestaña · tras reiniciar';
 });
 
 if (process.env.ICARUS_E2E_INTERNET === '1') {

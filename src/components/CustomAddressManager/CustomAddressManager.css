@@ -124,12 +124,18 @@
 }
 
 .address-row__target,
+.address-row__sections,
 .address-row__state {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-sm);
   color: var(--fg-3);
+}
+
+.address-row__sections {
+  color: var(--accent);
+  font-family: var(--font-mono);
 }
 
 .address-row__state {

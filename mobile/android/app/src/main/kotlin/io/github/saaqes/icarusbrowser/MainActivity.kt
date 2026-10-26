@@ -540,15 +540,30 @@ class MainActivity : Activity(), TabHost {
         }
     }
 
-    /** Guardar la base nueva en la dirección personalizada (persistente) o ir a la nueva dirección. */
+    /** Sección de la página (`home` en `…/#home`) para «Guardar solo para #sección», salvo si la entrada ya es solo de ella. */
+    private fun sectionFor(entry: CustomAddress): String? {
+        val fragment = currentTab?.url?.let { UrlUtils.parseWebUrl(it) }?.fragment ?: return null
+        return CustomAddresses.sectionOf("#$fragment")?.takeUnless { entry.sections == listOf(it) }
+    }
+
+    /** Guardar la base nueva en la dirección personalizada (persistente), solo para la sección de la página, o ir. */
     private fun showRebaseChoices(base: String, url: String, entry: CustomAddress) {
         val label = (AddressRebase.join(base, "") as? AddressRebase.Join.Ok)?.url?.let { CustomAddresses.shortAddress(it) } ?: base
+        val section = sectionFor(entry)
         lastRebaseChoice = base to url
+        lastRebaseSection = section
+        val old = CustomAddresses.shortAddress(entry.address)
         lateinit var dialog: Dialog
         val content = w.vertical(spacingDp = 4) {
-            addView(w.row(R.drawable.icarus_check, "Guardar $label como dirección personalizada", "Sustituye a ${CustomAddresses.shortAddress(entry.address)} para todas sus páginas") {
+            val scope = if (entry.sections.isEmpty()) "para todas sus páginas" else "en ${CustomAddresses.formatSections(entry.sections)}"
+            addView(w.row(R.drawable.icarus_check, "Guardar $label como dirección personalizada", "Sustituye a $old $scope") {
                 saveRebaseBase(base, entry)
             })
+            if (section != null) {
+                addView(w.row(R.drawable.icarus_check, "Guardar $label solo para #$section", "Las demás secciones del sitio conservan su dirección") {
+                    saveRebaseSection(base, entry, section)
+                })
+            }
             addView(w.row(R.drawable.icarus_globe, "Ir a ${CustomAddresses.shortAddress(url)}", "Abre esa dirección con la misma ruta") {
                 dialog.dismiss()
                 submitAddress(url, offerRebase = false)
@@ -566,14 +581,33 @@ class MainActivity : Activity(), TabHost {
     fun saveRebaseBase(base: String, entry: CustomAddress): Boolean {
         rebaseDialog?.dismiss()
         rebaseDialog = null
-        return when (val result = app.profile.saveCustomAddress(entry.target, base, entry.enabled, entry.id)) {
+        // Mismas secciones: renombrar una dirección de secciones no la convierte en la de todo el sitio.
+        return when (val result = app.profile.saveCustomAddress(entry.target, base, entry.enabled, entry.id, CustomAddresses.formatSections(entry.sections))) {
             is CustomAddresses.Validation.Ok -> {
                 showMessage("Dirección personalizada guardada: ${CustomAddresses.shortAddress(result.address)}")
                 render()
                 true
             }
             is CustomAddresses.Validation.Errors -> {
-                showMessage(rebaseError(result.errors["address"] ?: result.errors["target"]))
+                showMessage(rebaseError(result.errors["address"] ?: result.errors["sections"] ?: result.errors["target"]))
+                false
+            }
+        }
+    }
+
+    /** «Guardar solo para #sección»: la base nueva se usa en esa sección del destino y el resto conserva la suya. */
+    fun saveRebaseSection(base: String, entry: CustomAddress, section: String): Boolean {
+        rebaseDialog?.dismiss()
+        rebaseDialog = null
+        return when (val result = app.profile.saveSectionAddress(entry.target, section, base)) {
+            is CustomAddresses.SectionSave.Ok -> {
+                showMessage("#$section se mostrará como ${CustomAddresses.shortAddress(result.entry.address)}")
+                render()
+                true
+            }
+            is CustomAddresses.SectionSave.Failure -> {
+                val errors = result.errors.errors
+                showMessage(rebaseError(errors["address"] ?: errors["sections"] ?: errors["target"]))
                 false
             }
         }
@@ -1174,6 +1208,9 @@ class MainActivity : Activity(), TabHost {
     val contentView: View get() = webHolder
     /** Última base nueva ofrecida para guardar (base, URL con el sufijo conservado). */
     var lastRebaseChoice: Pair<String, String>? = null
+        private set
+    /** Sección que se ofreció guardar aparte con la última base nueva (null si no se ofreció). */
+    var lastRebaseSection: String? = null
         private set
     private var rebaseDialog: Dialog? = null
     fun currentAddressSplit(): AddressRebase.Split? = omnibox.currentSplit()

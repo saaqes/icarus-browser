@@ -76,10 +76,11 @@ final class SharedVectorsTests: XCTestCase {
             let input = item["input"] as! [String: Any]
             let label = "\(input)"
             let result = CustomAddresses.validate(target: input["target"] as! String, address: input["address"] as! String, enabled: input["enabled"] as! Bool,
-                                                  entries: entries, editingId: item["editingId"] as? String)
+                                                  entries: entries, editingId: item["editingId"] as? String, sections: input["sections"] as? String ?? "")
             if item["ok"] as! Bool {
                 let value = item["value"] as! [String: Any]
-                XCTAssertEqual(result, .ok(target: value["target"] as! String, address: value["address"] as! String, enabled: value["enabled"] as! Bool), label)
+                XCTAssertEqual(result, .ok(target: value["target"] as! String, address: value["address"] as! String, enabled: value["enabled"] as! Bool,
+                                           sections: value["sections"] as? [String] ?? []), label)
             } else {
                 guard case .errors(let errors, let conflicts) = result else { XCTFail("debería fallar: \(label)"); continue }
                 XCTAssertEqual(errors, item["errors"] as? [String: String], label)
@@ -111,12 +112,12 @@ final class SharedVectorsTests: XCTestCase {
     }
 
     func testDireccionesSinSufijosYNuncaHTTPComoHTTPS() {
-        guard case .ok(let target, let address, _) = CustomAddresses.validate(target: "bot.deriv.me", address: "miweb.com", enabled: true) else {
+        guard case .ok(let target, let address, _, _) = CustomAddresses.validate(target: "bot.deriv.me", address: "miweb.com", enabled: true) else {
             return XCTFail("debería ser válida")
         }
         XCTAssertEqual(target, "https://bot.deriv.me/")
         XCTAssertEqual(address, "https://miweb.com/")
-        guard case .ok(_, let local, _) = CustomAddresses.validate(target: "localhost:3000", address: "miapp.com", enabled: true) else { return XCTFail() }
+        guard case .ok(_, let local, _, _) = CustomAddresses.validate(target: "localhost:3000", address: "miapp.com", enabled: true) else { return XCTFail() }
         XCTAssertEqual(local, "http://miapp.com/")
         guard case .errors(let errors, _) = CustomAddresses.validate(target: "http://intranet.ejemplo.com", address: "https://miweb.com", enabled: true) else {
             return XCTFail()
@@ -128,6 +129,33 @@ final class SharedVectorsTests: XCTestCase {
         for real in ["https://bot.deriv.me/a/b?c=1#d", "https://bot.deriv.me/"] {
             let shown = CustomAddresses.displayURL(for: real, entries)!.url
             XCTAssertEqual(CustomAddresses.resolve(UrlUtils.parseWebURL(shown)!, entries, explicitProtocol: true)?.url, real)
+        }
+    }
+
+    func testLasSeccionesYGuardarSoloParaUnaSeccionComoEnEscritorio() throws {
+        let data = try Shared.json("test-vectors/custom-address-sections.json")
+        for item in data["fragments"] as! [[String: Any]] {
+            XCTAssertEqual(CustomAddresses.sectionOf(item["hash"] as! String), item["section"] as? String, "\(item)")
+        }
+        for item in data["texts"] as! [[String: Any]] {
+            let expected: CustomAddresses.Sections = item["ok"] as! Bool ? .ok(item["sections"] as! [String]) : .failure(item["error"] as! String)
+            XCTAssertEqual(CustomAddresses.parseSections(item["text"] as! String), expected, "\(item)")
+        }
+        var entries = Shared.customAddresses(data["customAddresses"])
+        let now = data["now"] as! String
+        for item in data["saves"] as! [[String: Any]] {
+            let result = CustomAddresses.saveSection(entries, target: "https://bot.deriv.me/", section: item["section"] as! String,
+                                                     base: item["base"] as! String, id: item["id"] as! String, now: now)
+            switch result {
+            case .ok(let saved, let entry):
+                XCTAssertTrue(item["ok"] as! Bool, "\(item)")
+                XCTAssertEqual(entry.id, item["entryId"] as? String, "\(item)")
+                XCTAssertEqual(saved.filter { $0.target == "https://bot.deriv.me/" }, Shared.customAddresses(item["entries"]), "\(item)")
+                entries = saved
+            case .failure(let errors, _):
+                XCTAssertFalse(item["ok"] as! Bool, "\(item)")
+                XCTAssertEqual(errors, item["errors"] as? [String: String], "\(item)")
+            }
         }
     }
 

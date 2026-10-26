@@ -3,9 +3,12 @@ import { useHistoryItems } from '../../hooks/useNative';
 import { useShortcuts } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
 import {
+  displayUrlFor,
   formatLocation,
+  formatSections,
   locationLabel,
   normalizeLocationInput,
+  parseSections,
   shortAddress,
   type CustomAddressConflicts,
   type CustomAddressErrors,
@@ -81,7 +84,7 @@ export function CustomAddressForm({
   const m = useMessages();
   const t = m.customAddresses.form;
   const options = useDestinationOptions(entries, editingId);
-  const message = (field: 'target' | 'address') => {
+  const message = (field: 'target' | 'address' | 'sections') => {
     const code = errors[field];
     if (!code) return null;
     const other = conflicts[field];
@@ -90,10 +93,16 @@ export function CustomAddressForm({
 
   const target = normalizeLocationInput(draft.target);
   const address = normalizeLocationInput(draft.address, target.ok ? target.location.protocol : undefined);
+  const sections = parseSections(draft.sections ?? '');
   const preview =
-    target.ok && address.ok && address.location.protocol === target.location.protocol
-      ? { target: formatLocation(target.location), address: formatLocation(address.location), label: locationLabel(target.location) }
+    target.ok && address.ok && sections.ok && address.location.protocol === target.location.protocol
+      ? { target: formatLocation(target.location), address: formatLocation(address.location), label: locationLabel(target.location), sections: sections.sections }
       : null;
+  // Ejemplo de ruta (con la primera sección, si hay) tal como lo mostraría la barra.
+  const example = preview ? `${preview.target.replace(/\/$/, '')}/ruta?x=1${preview.sections[0] ? `#${preview.sections[0]}` : ''}` : '';
+  const exampleShown = preview
+    ? displayUrlFor(example, [{ id: 'vista-previa', target: preview.target, address: preview.address, sections: preview.sections, enabled: true, createdAt: '', updatedAt: '' }])?.url ?? example
+    : '';
 
   return (
     <form
@@ -160,6 +169,20 @@ export function CustomAddressForm({
         )}
       </Field>
 
+      <Field label={t.sections} hint={t.sectionsHint} error={message('sections')}>
+        {(props) => (
+          <input
+            {...props}
+            className="input mono"
+            value={draft.sections ?? ''}
+            placeholder={t.sectionsPlaceholder}
+            spellCheck={false}
+            autoCapitalize="off"
+            onChange={(event) => onChange({ sections: event.target.value })}
+          />
+        )}
+      </Field>
+
       <section className={`address-preview${draft.enabled ? '' : ' is-inactive'}`} aria-label={t.preview}>
         <h4>{t.preview}</h4>
         {preview ? (
@@ -172,7 +195,8 @@ export function CustomAddressForm({
             <ul className="address-preview__facts">
               <li>{t.previewShows(preview.label, shortAddress(preview.address))}</li>
               <li>{t.previewOpens(shortAddress(preview.address), preview.label)}</li>
-              <li>{t.previewPaths(shortAddress(`${preview.target.replace(/\/$/, '')}/ruta?x=1`), shortAddress(`${preview.address.replace(/\/$/, '')}/ruta?x=1`))}</li>
+              <li>{t.previewPaths(shortAddress(example), shortAddress(exampleShown))}</li>
+              {preview.sections.length > 0 && <li>{t.previewSections(formatSections(preview.sections))}</li>}
             </ul>
           </>
         ) : (

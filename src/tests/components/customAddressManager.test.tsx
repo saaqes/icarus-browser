@@ -32,6 +32,42 @@ async function visit(user: User, url: string) {
 
 const display = () => document.querySelector('.omnibox__display')?.textContent ?? '';
 
+describe('Direcciones por sección en el editor', () => {
+  it('crea una dirección solo para #home y #usuario junto a la general del sitio', async () => {
+    const { user } = renderApp();
+    const manager = await openManager(user);
+    await user.click(within(manager).getByRole('button', { name: 'Añadir dirección' }));
+    await fill(user, manager, 'bot.deriv.me', 'miweb.com');
+    await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
+    await screen.findByText('Dirección miweb.com guardada.');
+
+    await user.click(within(manager).getByRole('button', { name: 'Añadir dirección' }));
+    await fill(user, manager, 'bot.deriv.me', 'otraweb.com');
+    const sections = within(manager).getByLabelText('3. Secciones (opcional)');
+    // Sin secciones choca con la general y el mensaje explica cómo usar secciones.
+    await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
+    expect(within(manager).getByText(/indica sus secciones \(por ejemplo #home\)/)).toBeInTheDocument();
+    await user.type(sections, '#a/b');
+    await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
+    expect(within(manager).getByText(/Escribe las secciones como #home, #usuario/)).toBeInTheDocument();
+    await user.clear(sections);
+    await user.type(sections, '#Home, usuario');
+    const preview = within(manager).getByRole('region', { name: 'Así se verá' });
+    expect(preview).toHaveTextContent('Solo en #home, #usuario: el resto del sitio conserva su dirección.');
+    expect(preview).toHaveTextContent('bot.deriv.me/ruta?x=1#home se mostrará como otraweb.com/ruta?x=1#home');
+    await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
+    await screen.findByText('Dirección otraweb.com guardada.');
+    expect(within(manager).getByRole('list', { name: DIALOG })).toHaveTextContent('Solo en #home, #usuario');
+    expect(sections).toHaveValue('#home, #usuario');
+
+    await user.click(within(manager).getByRole('button', { name: 'Cerrar' }));
+    await visit(user, 'https://bot.deriv.me/#usuario');
+    expect(display()).toBe('otraweb.com/#usuario');
+    await visit(user, 'https://bot.deriv.me/#inicio');
+    expect(display()).toBe('miweb.com/#inicio');
+  });
+});
+
 describe('Direcciones personalizadas (Configuración → Avanzado)', () => {
   it('no aparece en la página de inicio ni en la barra principal', () => {
     renderApp();
