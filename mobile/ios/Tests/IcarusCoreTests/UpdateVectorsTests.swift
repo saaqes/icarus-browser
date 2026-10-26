@@ -20,6 +20,10 @@ final class UpdateVectorsTests: XCTestCase {
     }
 
     func testFirmasValidacionYDecisionDeCadaManifiesto() throws {
+        #if !canImport(CryptoKit)
+        // Sin CryptoKit (Linux) ninguna firma se acepta: se comprueba en macOS (CI).
+        throw XCTSkip("CryptoKit solo existe en las plataformas de Apple")
+        #endif
         let data = try Shared.json("test-vectors/updates.json")
         let publicKey = data["publicKey"] as! String
         XCTAssertTrue(UpdateManifests.isValidPublicKey(publicKey))

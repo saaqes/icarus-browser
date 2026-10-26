@@ -212,8 +212,8 @@ async function diagnoseNetwork(run) {
 }
 
 /** Arranca el ejecutable instalado con el puerto de depuración y conecta con la interfaz. */
-async function launch(label) {
-  const child = spawn(app, ['--remote-debugging-port=0'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+async function launch(label, extraArgs = []) {
+  const child = spawn(app, ['--remote-debugging-port=0', ...extraArgs], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   const run = { label, child, output: '', exitCode: undefined, sessions: [] };
   const exited = new Promise((done) =>
     child.once('exit', (code) => {
@@ -341,12 +341,23 @@ try {
 
   const relaunched = await eventually(() => icarusProcesses()[0] ?? null, 'ICARUS no se volvió a abrir tras instalar', 90_000);
   console.log(`  ✓ ICARUS se volvió a abrir solo (pid ${relaunched.pid}${relaunched.command.includes('--updated') ? ', con --updated' : ''})`);
+  const requestsBefore = requests.length;
   await sleep(8000);
+  // Con firma ad hoc cada compilación tiene otra identidad: macOS pide permiso para leer la
+  // clave «ICARUS Browser Safe Storage» del llavero (cifrado de cookies) y, mientras no se
+  // responde, Chromium no envía peticiones. Se registra lo que ocurre (sin responder al aviso).
+  if (!isWindows) {
+    const agent = spawnSync('/bin/ps', ['-axo', 'pid=,command='], { encoding: 'utf8' }).stdout.split('\n').some((line) => /\/SecurityAgent(\s|$)/.test(line.trim()));
+    console.log(`  · Instancia reabierta: ${requests.length - requestsBefore} peticiones en 8 s; aviso del llavero (SecurityAgent) ${agent ? 'abierto' : 'no visible'}`);
+  }
   console.log(`  · ICARUS reabierto cerrado con: ${await closeGracefully(relaunched.pid)}`);
   const resolvedByRelaunch = !readJson('updates.json')?.pending;
 
   /* 4. Versión nueva: datos conservados y sin bucles. */
-  const second = await launch('Versión nueva');
+  // En macOS nadie puede responder en CI al aviso del llavero (ver arriba): esta instancia usa
+  // el llavero de prueba de Chromium (--use-mock-keychain, como Playwright). Solo afecta a la
+  // clave de cifrado de las cookies; los datos que se comprueban no dependen de ella.
+  const second = await launch('Versión nueva', isWindows ? [] : ['--use-mock-keychain']);
   runs.push(second);
   const next = second.ui;
   assert((await next.evaluate('window.icarusNative.appVersion')) === to, 'La interfaz no es la versión nueva');
