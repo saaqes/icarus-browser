@@ -14,7 +14,7 @@ import { showPageContextMenu } from './contextMenu';
 import { isAllowedPageNavigation, parseNavigableUrl, protocolOf } from './urlPolicy';
 import { nextZoom, zoomSite, type ZoomAction } from './zoom';
 
-const SNAPSHOT_TIMEOUT_MS = 400;
+const SNAPSHOT_TIMEOUT_MS = 3_000;
 
 interface TabRecord {
   id: string;
@@ -197,7 +197,8 @@ export class TabManager {
     if (!tab || this.visibleId !== tabId || tab.view.webContents.isDestroyed()) return null;
     try {
       // Una página que aún no ha pintado nada (p. ej. esperando credenciales) puede no
-      // devolver nunca la captura: se abandona a los 400 ms.
+      // devolver nunca la captura: se abandona a los 3 s. La interfaz no espera tanto (oculta
+      // la vista a los 500 ms) y muestra la captura cuando llega, también en equipos lentos.
       const image = await Promise.race([
         tab.view.webContents.capturePage(),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), SNAPSHOT_TIMEOUT_MS)),

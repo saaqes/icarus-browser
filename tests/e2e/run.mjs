@@ -41,6 +41,9 @@ async function step(name, fn) {
   } catch (error) {
     results.push({ name, ok: false, note: error.message });
     console.log(`  ✗ ${name}\n      ${String(error.message).split('\n').join('\n      ')}`);
+    // Un paso fallido puede dejar abierto un menú o un diálogo: se cierra para que el
+    // fallo no arrastre a los pasos siguientes.
+    for (let i = 0; i < 2; i += 1) await win?.keyboard.press('Escape').catch(() => {});
   }
 }
 function assert(condition, message) {
@@ -258,8 +261,10 @@ function visiblePageEval(code) {
   }, code);
 }
 async function openSettings(section) {
-  // Como en Chrome y Edge, Configuración está en el menú principal.
-  await win.getByRole('button', { name: 'Menú de ICARUS' }).click();
+  // Como en Chrome y Edge, Configuración está en el menú principal. Si ya está abierto,
+  // pulsar el botón lo cerraría.
+  const menu = win.getByRole('button', { name: 'Menú de ICARUS' });
+  if ((await menu.getAttribute('aria-expanded')) !== 'true') await menu.click();
   await win.getByRole('menuitem', { name: 'Configuración' }).click();
   await win.getByRole('button', { name: section, exact: true }).click();
 }
@@ -719,7 +724,7 @@ await step('24. E · Cerrar y volver a abrir conserva los datos y la dirección 
   await win.keyboard.press('Escape');
   // Restaurar la sesión al abrir, con una página personalizada en la pestaña activa.
   await openSettings('General');
-  await win.getByRole('radio', { name: 'Restaurar las pestañas de la sesión anterior' }).check({ force: true });
+  await win.getByRole('radio', { name: 'Restaurar las pestañas de la sesión anterior' }).check();
   await win.keyboard.press('Control+T');
   await go('otraweb.com/a.html');
   await waitForActiveTab('Página A');
