@@ -85,14 +85,15 @@ interface RadioListProps<T extends string> {
   value: T;
   options: ReadonlyArray<{ value: T; label: string; description?: string }>;
   onChange: (value: T) => void;
+  disabled?: boolean;
   children?: ReactNode;
 }
 
 /** Lista de opciones en vertical, para la página de configuración. */
-export function RadioList<T extends string>({ label, hideLabel = false, value, options, onChange, children }: RadioListProps<T>) {
+export function RadioList<T extends string>({ label, hideLabel = false, value, options, onChange, disabled = false, children }: RadioListProps<T>) {
   const name = useId();
   return (
-    <fieldset className="radio-list">
+    <fieldset className="radio-list" disabled={disabled}>
       <legend className={hideLabel ? 'visually-hidden' : 'field-label'}>{label}</legend>
       {options.map((option) => (
         <label key={option.value} className="radio-list__item">

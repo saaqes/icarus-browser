@@ -105,6 +105,7 @@ const api: IcarusNativeApi = {
     postpone: () => send('icarus:updates:postpone'),
     setChannel: (channel) => send('icarus:updates:channel', channel),
     acknowledge: () => send('icarus:updates:acknowledge'),
+    reveal: () => send('icarus:updates:reveal'),
     readyToRestart: () => send('icarus:updates:restart-ready'),
   },
   onEvent: (listener) => {

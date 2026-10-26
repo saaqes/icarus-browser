@@ -187,7 +187,8 @@ export class UpdateService {
   }
 
   setChannel(channel: UpdateChannel): void {
-    if (channel === this.state.channel) return;
+    // No se cambia de canal con una descarga o instalación en marcha.
+    if (channel === this.state.channel || this.busy || ['downloading', 'verifying', 'ready', 'installing'].includes(this.state.status)) return;
     this.save({ channel }, true);
     // Al cambiar de canal se olvida lo encontrado en el anterior.
     this.manifest = null;
@@ -205,6 +206,10 @@ export class UpdateService {
 
   acknowledge(): void {
     if (this.state.justUpdated) this.update({ justUpdated: null });
+  }
+
+  reveal(): void {
+    if (this.state.status === 'ready' && this.state.manualFile) this.options.installer.reveal(this.state.manualFile);
   }
 
   /** Comprueba ahora. `manual`: la pide el usuario (muestra los errores de red). */

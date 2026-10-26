@@ -20,6 +20,7 @@ import { DownloadsButton } from './DownloadsButton';
 import { FindBar } from './FindBar';
 import { Infobar } from './Infobar';
 import { ShieldButton } from './ShieldButton';
+import { UpdateButton } from './UpdateButton';
 import { WebArea } from './WebArea';
 import './BrowserShell.css';
 
@@ -63,6 +64,7 @@ function ToolbarActions() {
     <div className="toolbar__actions">
       {embedded && <ShieldButton />}
       {embedded && <DownloadsButton />}
+      {embedded && <UpdateButton />}
       <button type="button" className="icon-btn" onClick={() => openSettings()} aria-label={m.toolbar.settings} title={m.toolbar.settings}>
         <Icon name="settings" />
       </button>

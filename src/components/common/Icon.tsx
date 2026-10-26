@@ -77,6 +77,12 @@ const ICONS = {
   ),
   upload: <path d="M12 16V4m-5 5 5-5 5 5M5 20h14" />,
   download: <path d="M12 4v12m-5-5 5 5 5-5M5 20h14" />,
+  upgrade: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 16.5v-9M8.5 11 12 7.5l3.5 3.5" />
+    </>
+  ),
   restore: (
     <>
       <path d="M4 12a8 8 0 1 0 2.34-5.66" />

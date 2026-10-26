@@ -75,3 +75,13 @@ export const sessionSchema: DocumentSchema<StoredSession> = {
   defaults: () => null,
   sanitize: sanitizeSession,
 };
+
+/**
+ * Sesión que la interfaz guarda cuando ICARUS se reinicia para instalar una
+ * actualización: al volver se restaura una sola vez, aunque el usuario no tenga
+ * activado «Restaurar las pestañas de la sesión anterior».
+ */
+export const updateRestartSessionSchema: DocumentSchema<StoredSession> = {
+  ...sessionSchema,
+  key: STORAGE_KEYS.updateRestartSession,
+};

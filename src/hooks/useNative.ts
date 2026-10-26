@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useServices } from '../app/ServicesContext';
-import type { DesktopPreferences, DownloadItemInfo, HistoryItem, ShieldState } from '../types/native';
+import type { DesktopPreferences, DownloadItemInfo, HistoryItem, ShieldState, UpdateState } from '../types/native';
 
 export function useNative() {
   return useServices().native;
@@ -92,4 +92,27 @@ export function useDesktopPreferences(): [DesktopPreferences | null, (next: Desk
     [native],
   );
   return [preferences, update];
+}
+
+/** Estado del actualizador (null en la versión web o hasta recibirlo). */
+export function useUpdateState(): UpdateState | null {
+  const native = useNative();
+  const [state, setState] = useState<UpdateState | null>(null);
+  useEffect(() => {
+    if (!native) return undefined;
+    let active = true;
+    let fromEvent = false;
+    void native.updates.getState().then((value) => active && !fromEvent && setState(value));
+    const off = native.onEvent((event) => {
+      if (event.type !== 'update-state') return;
+      // Un evento es más reciente que la respuesta inicial, aunque llegue antes.
+      fromEvent = true;
+      setState(event.state);
+    });
+    return () => {
+      active = false;
+      off();
+    };
+  }, [native]);
+  return state;
 }

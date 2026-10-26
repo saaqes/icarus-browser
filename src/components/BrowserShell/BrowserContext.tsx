@@ -29,9 +29,11 @@ import { useServices } from '../../app/ServicesContext';
 import type { AppServices } from '../../app/services';
 import { useCustomAddresses, useSettings } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
+import { loadDocument, saveDocument } from '../../services/persistence/document';
 import { STORAGE_KEYS } from '../../services/persistence/keys';
 import { buildSearchUrl } from '../../services/search/providers';
 import { describePage, type PagePresentation } from '../../services/tabs/pages';
+import { updateRestartSessionSchema } from '../../services/tabs/session';
 import {
   createHistoryEntry,
   createSession,
@@ -124,6 +126,9 @@ function newTabPageFor(settings: Settings): PageEntry {
 
 function initialSession(services: AppServices): SessionState {
   const settings = services.settings.getSnapshot();
+  // Tras reiniciar para actualizar se recuperan siempre las pestañas abiertas.
+  const afterUpdate = loadDocument(services.storage, updateRestartSessionSchema).value;
+  if (afterUpdate) return afterUpdate;
   if (settings.general.startup === 'restore-session') {
     const stored = services.session.getSnapshot();
     if (stored) return stored;
@@ -181,6 +186,10 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!restore) services.storage.removeItem(STORAGE_KEYS.session);
   }, [restore, services]);
+  // La sesión guardada para el reinicio de actualización solo se usa una vez.
+  useEffect(() => {
+    services.storage.removeItem(STORAGE_KEYS.updateRestartSession);
+  }, [services]);
 
   const describe = useCallback(
     (page: PageEntry) =>
@@ -565,12 +574,16 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
           return setAuthRequests((requests) => [...requests.filter((request) => request.tabId !== event.request.tabId), event.request]);
         case 'auth-cancelled':
           return setAuthRequests((requests) => requests.filter((request) => request.id !== event.id));
+        case 'update-restart':
+          // ICARUS va a cerrarse para instalar una actualización: se guardan las pestañas para reabrirlas.
+          saveDocument(services.storage, updateRestartSessionSchema, sessionRef.current);
+          return native.updates.readyToRestart();
         default:
           return undefined;
       }
     };
     return native.onEvent(handle);
-  }, [m, native, notify, openUrl, runShortcut]);
+  }, [m, native, notify, openUrl, runShortcut, services]);
 
   // Al volver a una entrada web que no es la que muestra la vista (o al
   // restaurar la sesión), se carga su dirección en un tramo nuevo.

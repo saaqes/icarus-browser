@@ -12,6 +12,7 @@ import { GeneralSection } from './sections/GeneralSection';
 import { NavigationSection } from './sections/NavigationSection';
 import { PrivacySection } from './sections/PrivacySection';
 import { ShieldSection } from './sections/ShieldSection';
+import { UpdatesSection } from './sections/UpdatesSection';
 import './Settings.css';
 
 const SECTION_ICONS: Record<SettingsSection, IconName> = {
@@ -22,6 +23,7 @@ const SECTION_ICONS: Record<SettingsSection, IconName> = {
   shield: 'shield',
   downloads: 'download',
   advanced: 'sliders',
+  updates: 'upgrade',
   about: 'info',
 };
 
@@ -33,6 +35,7 @@ const SECTION_CONTENT: Record<SettingsSection, () => ReactNode> = {
   shield: () => <ShieldSection />,
   downloads: () => <DownloadsSection />,
   advanced: () => <AdvancedSection />,
+  updates: () => <UpdatesSection />,
   about: () => <AboutSection />,
 };
 
@@ -41,7 +44,7 @@ export function SettingsPage({ section }: { section: SettingsSection }) {
   const m = useMessages();
   const { setSettingsSection } = useBrowser();
   const { native } = useServices();
-  // Privacidad, Shield y Descargas solo existen en la aplicación de escritorio.
+  // Privacidad, Shield, Descargas y Actualizaciones solo existen en la aplicación de escritorio.
   const sections = SETTINGS_SECTIONS.filter((id) => native || !DESKTOP_ONLY_SECTIONS.includes(id));
   const current = sections.includes(section) ? section : 'general';
   return (

@@ -15,6 +15,7 @@ const SECTION_SLUGS: Record<SettingsSection, string> = {
   shield: 'shield',
   downloads: 'descargas',
   advanced: 'avanzado',
+  updates: 'actualizaciones',
   about: 'acerca-de',
 };
 

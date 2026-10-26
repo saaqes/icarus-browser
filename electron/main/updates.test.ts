@@ -194,7 +194,20 @@ describe('servicio de actualizaciones', () => {
     service.download(false);
     await until(service, 'ready');
     expect(installer.reveal).toHaveBeenCalledWith(service.getState().manualFile);
+    service.reveal();
+    expect(installer.reveal).toHaveBeenCalledTimes(2);
     expect(setup({ dataDir, plan }).service.getState().status).toBe('idle');
+  });
+
+  it('no cambia de canal con una actualización descargada', async () => {
+    publish('0.2.2');
+    const { service, dataDir } = setup();
+    await service.check();
+    service.download(false);
+    await until(service, 'ready');
+    service.setChannel('preview');
+    expect(service.getState()).toMatchObject({ channel: 'stable', status: 'ready', available: { version: '0.2.2' } });
+    expect(setup({ dataDir }).service.getState().channel).toBe('stable');
   });
 
   it('las preferencias guardadas se sanean sin perder el canal', () => {

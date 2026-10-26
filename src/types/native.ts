@@ -352,6 +352,8 @@ export interface IcarusNativeApi {
     setChannel(channel: UpdateChannel): void;
     /** Oculta la confirmación «ICARUS se ha actualizado». */
     acknowledge(): void;
+    /** Vuelve a mostrar el paquete descargado (modos manuales). */
+    reveal(): void;
     /** Respuesta a `update-restart`: la sesión ya está guardada. */
     readyToRestart(): void;
   };

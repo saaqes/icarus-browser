@@ -180,5 +180,6 @@ export function registerIpc(context: IpcContext): void {
   on('icarus:updates:postpone', () => context.updates.postpone());
   on('icarus:updates:channel', (channel) => context.updates.setChannel(assertOneOf(channel, UPDATE_CHANNELS, 'channel')));
   on('icarus:updates:acknowledge', () => context.updates.acknowledge());
+  on('icarus:updates:reveal', () => context.updates.reveal());
   on('icarus:updates:restart-ready', () => context.updates.readyToRestart());
 }

@@ -8,5 +8,7 @@ export const STORAGE_KEYS = {
   customAddresses: 'icarus.aliasRules',
   widgets: 'icarus.widgets',
   session: 'icarus.session',
+  /** Sesión guardada justo antes de reiniciar para actualizar (se restaura una vez). */
+  updateRestartSession: 'icarus.updateRestartSession',
   backgroundImage: 'icarus.backgroundImage',
 } as const;
