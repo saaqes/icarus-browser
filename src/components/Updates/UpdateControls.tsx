@@ -124,6 +124,19 @@ export function UpdateStatus({ state }: { state: UpdateState }) {
   );
 }
 
+/** macOS sin Developer ID: qué responder al aviso del llavero que aparecerá tras actualizar. */
+export function KeychainNotice({ state }: { state: UpdateState }) {
+  const m = useMessages();
+  const pending = state.status === 'available' || isUpdateInProgress(state);
+  if (!state.keychainNotice || !state.available || !pending) return null;
+  return (
+    <p className="update-status__meta update-status__notice">
+      <Icon name="info" size={14} />
+      <span>{m.updates.keychainNotice}</span>
+    </p>
+  );
+}
+
 /** Botones que corresponden al estado actual. */
 export function UpdateButtons({ state, actions, compact = false }: { state: UpdateState; actions: UpdateActions; compact?: boolean }) {
   const m = useMessages();

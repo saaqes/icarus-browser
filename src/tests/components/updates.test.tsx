@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { UpdatesView } from '../../components/Settings/sections/UpdatesSection';
@@ -36,6 +36,7 @@ function state(patch: Partial<UpdateState> = {}): UpdateState {
     manualFile: null,
     justUpdated: null,
     failedVersion: null,
+    keychainNotice: false,
     ...patch,
   };
 }
@@ -86,6 +87,19 @@ describe('Configuración → Actualizaciones', () => {
     expect(spies.postpone).toHaveBeenCalledOnce();
     await user.click(screen.getByRole('button', { name: 'Página de la versión' }));
     expect(spies.openRelease).toHaveBeenCalledWith(NEXT.releasePage);
+  });
+
+  it('macOS sin Developer ID: avisa antes de instalar de lo que pedirá el llavero', () => {
+    const notice = /Pulsa «Permitir siempre»/;
+    show(state({ status: 'available', available: NEXT, keychainNotice: true }), 'darwin');
+    expect(screen.getByText(notice)).toBeInTheDocument();
+    cleanup();
+    show(state({ status: 'available', available: NEXT }), 'darwin');
+    expect(screen.queryByText(notice)).toBeNull();
+    cleanup();
+    // Sin versión pendiente no hay nada que avisar.
+    show(state({ status: 'up-to-date', keychainNotice: true }), 'darwin');
+    expect(screen.queryByText(notice)).toBeNull();
   });
 
   it('no vuelve a ofrecer posponer una versión ya pospuesta', () => {

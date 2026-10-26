@@ -197,6 +197,16 @@ async function teamIdentifier(app: string): Promise<string | null> {
 }
 
 /**
+ * Sin Developer ID (firma ad hoc) cada versión tiene otra identidad de firma, así que
+ * tras actualizar macOS pide permiso para que ICARUS lea su clave del llavero («ICARUS
+ * Browser Safe Storage», con la que Chromium cifra las cookies). La interfaz lo avisa
+ * antes de instalar; con Developer ID la identidad se mantiene y no hay aviso.
+ */
+export async function macNeedsKeychainApproval(bundlePath: string): Promise<boolean> {
+  return (await teamIdentifier(bundlePath)) === null;
+}
+
+/**
  * Extrae el .zip verificado y comprueba la app resultante antes de usarla:
  * identificador, versión, firma de código íntegra y, si la app instalada tiene
  * Developer ID, el mismo equipo de Apple.

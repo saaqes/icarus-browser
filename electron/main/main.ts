@@ -24,7 +24,7 @@ import { TabManager } from './tabs';
 import { registerUiScheme, serveUi, UI_ENTRY, UI_ORIGIN } from './uiProtocol';
 import { UiStorage } from './uiStorage';
 import { electronFetch } from './updateFetch';
-import { launchMacSwap, launchWindowsInstaller, planInstall, stageMacUpdate, verifyWindowsInstaller } from './updateInstall';
+import { launchMacSwap, launchWindowsInstaller, macNeedsKeychainApproval, planInstall, stageMacUpdate, verifyWindowsInstaller } from './updateInstall';
 import { UpdateService, type UpdateInstaller } from './updates';
 import { readBuildInfo, updateConfig } from './updateSetup';
 import { createMainWindow } from './window';
@@ -294,7 +294,7 @@ function createUpdateService(dataDir: string, emit: (event: NativeEvent) => void
           }
         : { prepare: async (file) => file, launch: () => undefined, reveal: (file) => shell.showItemInFolder(file) };
 
-  return new UpdateService({
+  const service = new UpdateService({
     dataDir,
     currentVersion: app.getVersion(),
     plan,
@@ -310,6 +310,10 @@ function createUpdateService(dataDir: string, emit: (event: NativeEvent) => void
     headers: { 'User-Agent': `ICARUS-Browser/${app.getVersion()} (${process.platform}; ${process.arch})` },
     firstCheckDelayMs: config.firstCheckDelayMs,
   });
+  if (process.platform === 'darwin' && plan.bundlePath && service.supported) {
+    void macNeedsKeychainApproval(plan.bundlePath).then((notice) => service.setKeychainNotice(notice));
+  }
+  return service;
 }
 
 app.on('window-all-closed', () => app.quit());

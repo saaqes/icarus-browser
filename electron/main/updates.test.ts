@@ -191,6 +191,15 @@ describe('servicio de actualizaciones', () => {
     silent.close();
   });
 
+  it('el aviso del llavero de macOS solo cambia el estado cuando cambia', () => {
+    const { service, states } = setup();
+    expect(service.getState().keychainNotice).toBe(false);
+    service.setKeychainNotice(true);
+    service.setKeychainNotice(true);
+    expect(service.getState().keychainNotice).toBe(true);
+    expect(states.filter((item) => item.keychainNotice)).toHaveLength(1);
+  });
+
   it('sin clave pública o sin empaquetar no ofrece actualizaciones', async () => {
     publish('0.2.2');
     expect(setup({ publicKey: null }).service.getState()).toMatchObject({ mode: 'unsupported', unsupportedReason: 'no-key' });

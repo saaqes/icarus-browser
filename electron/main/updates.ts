@@ -133,6 +133,7 @@ export class UpdateService {
       manualFile: null,
       justUpdated: null,
       failedVersion: stored.failedVersion,
+      keychainNotice: false,
     };
     this.resolvePending(stored);
   }
@@ -209,6 +210,11 @@ export class UpdateService {
 
   acknowledge(): void {
     if (this.state.justUpdated) this.update({ justUpdated: null });
+  }
+
+  /** Lo decide main.ts al arrancar (en macOS consulta la firma de la app instalada). */
+  setKeychainNotice(value: boolean): void {
+    if (this.state.keychainNotice !== value) this.update({ keychainNotice: value });
   }
 
   reveal(): void {

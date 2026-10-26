@@ -244,6 +244,11 @@ export interface UpdateState {
   justUpdated: { from: string; to: string } | null;
   /** Versión cuya instalación falló (no se reintenta sola). */
   failedVersion: string | null;
+  /**
+   * macOS sin Developer ID: tras actualizar, el sistema pedirá permiso para que ICARUS
+   * use su clave del llavero (la que cifra las cookies).
+   */
+  keychainNotice: boolean;
 }
 
 export type NativeEvent =

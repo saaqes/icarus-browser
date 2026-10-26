@@ -79,6 +79,18 @@
   word-break: break-all;
 }
 
+.update-status__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  word-break: normal;
+}
+
+.update-status__notice svg {
+  flex: none;
+  margin-top: 2px;
+}
+
 .update-banner {
   display: flex;
   flex-wrap: wrap;

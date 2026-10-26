@@ -5,7 +5,7 @@ import type { UpdateState } from '../../../types/native';
 import { IcarusMark } from '../../common/IcarusLogo';
 import { Icon } from '../../common/Icon';
 import { RadioList } from '../../common/Controls';
-import { isUpdateInProgress, UpdateButtons, UpdateStatus, useUpdateActions, type UpdateActions } from '../../Updates/UpdateControls';
+import { isUpdateInProgress, KeychainNotice, UpdateButtons, UpdateStatus, useUpdateActions, type UpdateActions } from '../../Updates/UpdateControls';
 import { SettingsCard } from '../SettingsPage';
 
 export function UpdatesSection() {
@@ -75,6 +75,7 @@ export function UpdatesView({ state, platform, actions }: { state: UpdateState; 
           )}
         </div>
         {supported && <UpdateStatus state={state} />}
+        {supported && <KeychainNotice state={state} />}
         {supported && (!available || isUpdateInProgress(state)) && <UpdateButtons state={state} actions={actions} />}
       </SettingsCard>
 

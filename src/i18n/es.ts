@@ -778,6 +778,8 @@ export const es = {
       noKey:
         'Esta compilación no incluye la clave pública para verificar actualizaciones, así que ICARUS no las busca. Descarga las versiones nuevas desde la página del proyecto.',
     },
+    keychainNotice:
+      'Después de actualizar, macOS te pedirá permiso para que ICARUS use su clave del llavero («ICARUS Browser Safe Storage»), con la que cifra las cookies. Pulsa «Permitir siempre»: si lo deniegas, se cerrarán las sesiones que tengas iniciadas en las webs. El aviso aparece porque esta copia no está firmada con un Developer ID de Apple.',
     dataKept:
       'Tus datos están en la carpeta de datos de ICARUS, separada de la aplicación: pestañas, accesos directos, historial, direcciones personalizadas, cookies y configuración se conservan al actualizar.',
     errors: {

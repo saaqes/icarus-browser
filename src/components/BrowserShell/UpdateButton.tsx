@@ -12,7 +12,7 @@ import { useMessages } from '../../i18n';
 import { Icon } from '../common/Icon';
 import { useOverlayLayer } from '../common/overlayLayer';
 import { useToast } from '../common/Toast';
-import { shouldShowUpdateButton, UpdateButtons, UpdateStatus, useUpdateActions } from '../Updates/UpdateControls';
+import { KeychainNotice, shouldShowUpdateButton, UpdateButtons, UpdateStatus, useUpdateActions } from '../Updates/UpdateControls';
 import { useBrowser } from './BrowserContext';
 
 export function UpdateButton() {
@@ -61,6 +61,7 @@ export function UpdateButton() {
           {/* El título ya dice que hay versión nueva; el estado solo aporta en los demás casos. */}
           {state.status !== 'available' && <UpdateStatus state={state} />}
           {available.notes.trim() && state.status === 'available' && <div className="update-notes">{available.notes.trim()}</div>}
+          <KeychainNotice state={state} />
           <UpdateButtons state={state} actions={actions} compact />
           <button
             type="button"

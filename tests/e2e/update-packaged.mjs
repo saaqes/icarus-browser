@@ -307,6 +307,14 @@ try {
   assert(available.mode === 'automatic', `Modo de instalación ${available.mode}, se esperaba automatic`);
   await eventually(() => ui.evaluate(`Boolean(document.querySelector('.update-btn'))`), 'No apareció el aviso «Actualizar» en la barra');
   await ui.evaluate(`document.querySelector('.update-btn').click()`);
+  if (!isWindows) {
+    // La app de CI tiene firma ad hoc: antes de instalar se explica el aviso del llavero.
+    await eventually(
+      () => ui.evaluate(`document.querySelector('.update-popover')?.innerText.includes('Permitir siempre') ?? false`),
+      'El aviso no explica lo que pedirá el llavero de macOS',
+    );
+    console.log('  ✓ El aviso explica el permiso del llavero que pedirá macOS (firma ad hoc)');
+  }
   await eventually(() => clickButton(ui, '.update-popover', 'Actualizar ahora'), 'No apareció «Actualizar ahora»');
   console.log(`  ✓ Aviso de la versión ${to} y «Actualizar ahora» pulsado`);
 

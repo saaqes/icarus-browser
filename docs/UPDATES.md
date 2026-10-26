@@ -11,7 +11,7 @@ firmado** (`icarus-update.json`), publicado junto a cada versión en GitHub Rele
 | --- | --- | --- |
 | **Windows**, instalada con el instalador (`ICARUS-Browser-Setup-X.exe`) | Descarga el instalador nuevo, comprueba firma del manifiesto, SHA-256 y tamaño, y lo ejecuta en silencio sobre la versión actual (`/S --updated`). Un proceso auxiliar espera al instalador y vuelve a abrir ICARUS con las pestañas que tenías. | Solo pulsar «Actualizar ahora» (o «Instalar al cerrar ICARUS»). |
 | **Windows**, versión portátil (`.zip`) | Descarga y verifica el `.zip` nuevo y lo muestra en su carpeta: hay que descomprimirlo en lugar de la carpeta actual. | Sí: lo colocas tú. |
-| **macOS**, app en una carpeta con permiso de escritura (p. ej. *Aplicaciones*) | Descarga el `.zip` de la app, comprueba firma del manifiesto, SHA-256, identificador, versión y firma de código, y al cerrarse sustituye la app (con vuelta atrás si algo falla) y la vuelve a abrir. | Solo pulsar «Actualizar ahora». |
+| **macOS**, app en una carpeta con permiso de escritura (p. ej. *Aplicaciones*) | Descarga el `.zip` de la app, comprueba firma del manifiesto, SHA-256, identificador, versión y firma de código, y al cerrarse sustituye la app (con vuelta atrás si algo falla) y la vuelve a abrir. | Pulsar «Actualizar ahora». Sin Developer ID, además, macOS pide una vez tras cada actualización permiso para usar la clave del llavero (ver abajo). |
 | **macOS**, app sin permiso de escritura, abierta desde el `.dmg` o «trasladada» por Gatekeeper | Descarga y verifica el `.dmg` y lo abre: hay que arrastrar la app a *Aplicaciones*. | Sí: la colocas tú. |
 | **Linux** (carpeta `linux-unpacked`, no se publica paquete) | Avisa y abre la página de la versión. | Sí: manual. |
 | **Android**, APK instalado a mano | Descarga el APK, comprueba firma del manifiesto, SHA-256, tamaño, que es ICARUS, la versión anunciada, que es posterior y que está firmado con **el mismo certificado** que la app instalada. Después lo entrega al instalador de Android. | Sí, siempre: Android pide permiso una vez para «instalar apps desde ICARUS» y confirmación en cada actualización. Nunca se instala en silencio. |
@@ -306,3 +306,17 @@ cd mobile/ios && swift test                                  # núcleo de iPhone
 - Sin firma de código (Windows y macOS), el primer instalador sigue mostrando los avisos
   de SmartScreen y Gatekeeper; las actualizaciones posteriores no los muestran, porque
   ICARUS las descarga y verifica él mismo.
+- **macOS sin Developer ID: aviso del llavero tras actualizar.** Chromium cifra las
+  cookies con una clave guardada en el llavero («ICARUS Browser Safe Storage»), que
+  solo puede leer sin preguntar la app que la creó. Con firma ad hoc cada compilación
+  tiene otra identidad, así que la primera vez que se abre la versión nueva macOS
+  pregunta si ICARUS puede usar esa clave; mientras no se responde, las páginas no
+  cargan. Hay que pulsar «Permitir siempre» (con la contraseña del Mac); si se
+  deniega, se pierden las cookies (se cierran las sesiones iniciadas en las webs), no
+  el resto de datos. ICARUS lo explica junto a «Actualizar ahora» cuando la app
+  instalada no tiene Developer ID. La prueba real de CI lo confirmó: la instancia
+  reabierta no hizo ninguna petición y el aviso del sistema (SecurityAgent) estaba
+  abierto. Como en CI nadie puede responderlo, la instancia con la que la prueba
+  comprueba la versión nueva usa `--use-mock-keychain` (solo en la prueba). Con
+  Developer ID la identidad se mantiene entre versiones y el aviso no aparece. No se
+  elude: es una protección del sistema.
