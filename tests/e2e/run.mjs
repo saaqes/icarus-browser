@@ -916,7 +916,8 @@ for (const [name, id] of [['Esencial', 'google-inspired'], ['Panorama', 'edge-in
     await win.keyboard.press('Enter');
     // Se guarda y la misma página real se muestra con la base nueva y la misma ruta.
     await expectShown('miweb2.com/app#inicio', 'Tras guardar la base');
-    assert((await visibleUrl()) === `${base}/app#inicio`, `La página real cambió: ${await visibleUrl()}`);
+    // La lista de opciones oculta la página como cualquier menú; vuelve a verse un instante después.
+    await eventually(async () => (await visibleUrl()) === `${base}/app#inicio`, 'La página real cambió');
     await eventually(async () => (await savedAddresses()).includes('http://miweb2.com/'), 'La base nueva no se guardó en disco');
 
     // Otra sección de la aplicación: misma configuración, sin entradas nuevas.
@@ -932,7 +933,7 @@ for (const [name, id] of [['Esencial', 'google-inspired'], ['Panorama', 'edge-in
     await choices.waitFor();
     await win.keyboard.press('Enter');
     await expectShown('otraweb.com/panel/usuarios?id=10', 'Tras volver a la base anterior');
-    assert((await visibleUrl()) === `${base}/panel/usuarios?id=10`, 'La ruta con consulta no se conservó');
+    await eventually(async () => (await visibleUrl()) === `${base}/panel/usuarios?id=10`, 'La ruta con consulta no se conservó');
 
     // Una dirección completa nueva no hereda la ruta anterior.
     await go('otraweb.com');
