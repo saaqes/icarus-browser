@@ -57,7 +57,8 @@ jobs:
               ready=false
               continue
             fi
-            ids+=("$(jq -r '.id' <<<"$run")")
+            # La CI de Linux no genera paquetes: basta con que termine bien.
+            if [ "$name" != CI ]; then ids+=("$(jq -r '.id' <<<"$run")"); fi
           done
           # Ya hay un borrador de este commit (automático o creado a mano): no se repite.
           existing=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq "[.[] | select(.draft and .target_commitish == \"$SHA\")] | .[0].tag_name // empty")
