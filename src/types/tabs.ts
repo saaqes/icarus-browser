@@ -7,7 +7,7 @@
  * versión web las páginas se entregan al navegador del sistema.
  */
 
-export const SETTINGS_SECTIONS = ['general', 'appearance', 'navigation', 'privacy', 'shield', 'downloads', 'advanced', 'updates', 'about'] as const;
+export const SETTINGS_SECTIONS = ['profile', 'general', 'appearance', 'navigation', 'privacy', 'shield', 'downloads', 'advanced', 'updates', 'about'] as const;
 /** Secciones que solo existen en la aplicación de escritorio. */
 export const DESKTOP_ONLY_SECTIONS: readonly SettingsSection[] = ['privacy', 'shield', 'downloads', 'updates'];
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];

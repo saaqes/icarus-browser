@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useServices } from '../../app/ServicesContext';
 import { useMessages } from '../../i18n';
+import { useAppearance } from '../../hooks/useAppearance';
 import { AddressBar } from '../AddressBar/AddressBar';
+import { useAppShortcut } from '../AddressBar/PageActions';
 import { BookmarksButton } from '../Bookmarks/BookmarksButton';
 import { BookmarksPage } from '../Bookmarks/BookmarksPage';
 import { Icon } from '../common/Icon';
@@ -14,6 +16,8 @@ import { ExternalPage } from '../InternalPages/ExternalPage';
 import { HistoryPage } from '../InternalPages/HistoryPage';
 import { NavigationControls } from '../NavigationControls/NavigationControls';
 import { NewTabPage } from '../NewTabPage/NewTabPage';
+import { ProfileButton } from '../Profile/ProfileButton';
+import { ReaderView } from '../Reader/ReaderView';
 import { SettingsPage } from '../Settings/SettingsPage';
 import { TabBar } from '../TabBar/TabBar';
 import { AuthDialog } from './AuthDialog';
@@ -21,7 +25,7 @@ import { useBrowser } from './BrowserContext';
 import { DownloadsButton } from './DownloadsButton';
 import { FindBar } from './FindBar';
 import { Infobar } from './Infobar';
-import { ShieldButton } from './ShieldButton';
+import { ExtensionsButton, ShieldButton } from './ShieldButton';
 import { UpdateButton } from './UpdateButton';
 import { WebArea } from './WebArea';
 import { useActiveZoom, ZoomMenuRow } from './ZoomControls';
@@ -39,13 +43,20 @@ function ProgressBar() {
 
 /**
  * Derecha de la barra, en el orden de Chrome y Edge: herramientas (Shield,
- * descargas, actualización), favoritos y el menú principal. El mismo componente
- * en todos los estilos, así que Esencial (Chrome) y Panorama (Edge) coinciden.
+ * descargas, actualización), favoritos, el perfil y el menú principal. En Panorama
+ * se ordena como Edge: Extensiones (con Shield dentro), Favoritos, descargas y
+ * actualización si las hay, el perfil y «…».
  */
 function ToolbarActions() {
   const m = useMessages();
-  const { newTab, openSettings, openPage, currentEntry, setCustomizeOpen, embedded, reopenClosedTab, openFind, liveWebTabId } = useBrowser();
+  const { themeId } = useAppearance();
+  const edgeStyle = themeId === 'edge-inspired';
+  const { newTab, openSettings, openPage, currentEntry, setCustomizeOpen, embedded, reopenClosedTab, openFind, liveWebTabId, describe, toggleReader } =
+    useBrowser();
   const zoom = useActiveZoom();
+  const presentation = describe(currentEntry.page);
+  const isWebPage = presentation.kind === 'web';
+  const appShortcut = useAppShortcut(isWebPage ? presentation.realUrl : '', presentation.title);
   const items: MenuEntry[] = [
     { id: 'new-tab', label: m.menu.newTab, icon: 'plus', shortcut: 'Ctrl+T', onSelect: newTab },
   ];
@@ -62,6 +73,10 @@ function ToolbarActions() {
     items.push({ id: 'sep-zoom', separator: true }, { id: 'zoom', custom: <ZoomMenuRow zoom={zoom ?? 100} />, height: 40 });
     if (zoom === null) items.pop();
     items.push({ id: 'find', label: m.menu.find, icon: 'search', shortcut: 'Ctrl+F', disabled: !liveWebTabId, onSelect: openFind });
+    items.push({ id: 'reader', label: m.menu.reader, icon: 'reader', disabled: !liveWebTabId, onSelect: toggleReader });
+  }
+  if (isWebPage) {
+    items.push({ id: 'add-to-new-tab', label: appShortcut.added ? m.appShortcut.remove : m.menu.addToNewTab, icon: 'appsAdd', onSelect: appShortcut.toggle });
   }
   items.push(
     { id: 'sep-settings', separator: true },
@@ -79,12 +94,14 @@ function ToolbarActions() {
   );
   return (
     <div className="toolbar__actions">
-      {embedded && <ShieldButton />}
+      {embedded && (edgeStyle ? <ExtensionsButton /> : <ShieldButton />)}
+      {edgeStyle && <BookmarksButton />}
       {embedded && <DownloadsButton />}
       {embedded && <UpdateButton />}
-      <BookmarksButton />
+      {!edgeStyle && <BookmarksButton />}
+      <ProfileButton />
       <MenuButton label={m.toolbar.menu} items={items}>
-        <Icon name="more" />
+        <Icon name={edgeStyle ? 'moreHorizontal' : 'more'} />
       </MenuButton>
     </div>
   );
@@ -173,6 +190,13 @@ function useNativeViewport(viewportRef: React.RefObject<HTMLElement | null>) {
   return visibleTab ? snapshot : null;
 }
 
+/** Modo lectura de la pestaña activa, sobre su página (que sigue cargada debajo). */
+function ActiveReader() {
+  const { reader, activeTab, liveWebTabId } = useBrowser();
+  if (!reader || reader.tabId !== activeTab.id || liveWebTabId !== activeTab.id) return null;
+  return <ReaderView key={`${reader.tabId}:${reader.url}`} tabId={reader.tabId} url={reader.url} />;
+}
+
 /** Ventana del navegador: pestañas, barra de herramientas y contenido de la pestaña activa. */
 export function BrowserShell() {
   const m = useMessages();
@@ -195,6 +219,7 @@ export function BrowserShell() {
       <main className="viewport" id="icarus-viewport" ref={viewportRef}>
         <TabContent />
         {snapshot && <img className="viewport__snapshot" src={snapshot} alt="" aria-hidden="true" />}
+        <ActiveReader />
       </main>
       <CustomizeDrawer />
       {native && <AuthDialog />}

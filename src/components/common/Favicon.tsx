@@ -26,7 +26,14 @@ function nativeFavicon(native: IcarusNativeApi, url: string): Promise<string | n
   if (!origin) return Promise.resolve(null);
   let promise = nativeCache.get(origin);
   if (!promise) {
-    promise = native.favicons.get(url).catch(() => null);
+    // Un sitio sin icono se vuelve a pedir más adelante: puede aprenderse al visitarlo.
+    promise = native.favicons
+      .get(url)
+      .catch(() => null)
+      .then((data) => {
+        if (!data) nativeCache.delete(origin);
+        return data;
+      });
     nativeCache.set(origin, promise);
   }
   return promise;

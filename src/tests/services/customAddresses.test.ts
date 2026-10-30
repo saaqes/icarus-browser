@@ -273,6 +273,7 @@ describe('formato de la barra (como Chrome)', () => {
     expect(formatAddress('https://miweb.com/panel?x=1#a', false)).toEqual({ prefix: '', host: 'miweb.com', rest: '/panel?x=1#a' });
     expect(formatAddress('http://localhost:3000/', false)).toEqual({ prefix: '', host: 'localhost:3000', rest: '' });
     expect(formatAddress('https://www.google.com/', true)).toEqual({ prefix: 'https://', host: 'www.google.com', rest: '/' });
+    expect(formatAddress('https://home.deriv.me/dashboard/login', true)).toEqual({ prefix: 'https://', host: 'home.deriv.me', rest: '/dashboard/login' });
     expect(shortAddress('https://bot.deriv.me/')).toBe('bot.deriv.me');
   });
 });

@@ -199,7 +199,7 @@ export function CustomAddressForm({
         {preview ? (
           <>
             <div className="address-preview__bar" data-testid="address-preview">
-              <Icon name={preview.address.startsWith('http:') ? 'warning' : 'sliders'} size={14} />
+              <Icon name={preview.address.startsWith('http:') ? 'warning' : 'lock'} size={14} />
               {preview.address.startsWith('http:') && <span className="address-preview__insecure">{m.addressBar.notSecure}</span>}
               <span>{shortAddress(preview.address)}</span>
             </div>

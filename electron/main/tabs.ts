@@ -9,8 +9,9 @@
  */
 
 import { WebContentsView, type BrowserWindow, type Input, type Session, type WebContents } from 'electron';
-import type { FindResult, NavigateResult, NavigationErrorInfo, ShortcutAction, ViewportRect, WebTabState } from '../../src/types/native';
+import type { FindResult, NavigateResult, NavigationErrorInfo, ReaderContent, ShortcutAction, ViewportRect, WebTabState } from '../../src/types/native';
 import { showPageContextMenu } from './contextMenu';
+import { READER_SCRIPT, READER_TIMEOUT_MS, READER_WORLD_ID, sanitizeReaderContent } from './reader';
 import { isAllowedPageNavigation, parseNavigableUrl, protocolOf } from './urlPolicy';
 import { nextZoom, zoomSite, type ZoomAction } from './zoom';
 
@@ -30,7 +31,8 @@ export interface TabManagerHooks {
   openInNewTab: (url: string, background: boolean) => void;
   searchInNewTab: (text: string) => void;
   navigationBlocked: (tabId: string, url: string, protocol: string) => void;
-  fetchFavicon: (iconUrl: string) => Promise<string | null>;
+  /** Primer icono válido de los que declara la página. */
+  fetchFavicon: (pageUrl: string, candidates: string[]) => Promise<string | null>;
   onCommit: (tabId: string, contents: WebContents, url: string) => void;
   onTitle: (url: string, title: string) => void;
   onMainFrameStart: (tabId: string, contents: WebContents) => void;
@@ -210,6 +212,21 @@ export class TabManager {
     }
   }
 
+  /** Texto principal de la página para el modo lectura (solo texto, en un mundo aislado). */
+  async readerContent(tabId: string): Promise<ReaderContent | null> {
+    const tab = this.tabs.get(tabId);
+    if (!tab || tab.view.webContents.isDestroyed() || !parseNavigableUrl(tab.view.webContents.getURL())) return null;
+    try {
+      const raw = await Promise.race([
+        tab.view.webContents.executeJavaScriptInIsolatedWorld(READER_WORLD_ID, [{ code: READER_SCRIPT }]),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), READER_TIMEOUT_MS)),
+      ]);
+      return sanitizeReaderContent(raw);
+    } catch {
+      return null;
+    }
+  }
+
   /** Busca texto en la página de la pestaña (Ctrl+F). */
   find(tabId: string, text: string, options: { forward: boolean; next: boolean }): void {
     const tab = this.tabs.get(tabId);
@@ -340,11 +357,12 @@ export class TabManager {
       this.emit(tab);
     });
     contents.on('page-favicon-updated', (_event, favicons) => {
-      const icon = favicons.find((url) => parseNavigableUrl(url));
-      if (!icon) return;
+      // Se prueban en orden todos los iconos que declara la página (también los incrustados).
+      const candidates = favicons.filter((url) => parseNavigableUrl(url) || /^data:image\//i.test(url));
+      if (candidates.length === 0) return;
       const pageUrl = contents.getURL();
-      void this.hooks.fetchFavicon(icon).then((dataUrl) => {
-        if (!this.tabs.has(tab.id) || contents.isDestroyed() || contents.getURL() !== pageUrl) return;
+      void this.hooks.fetchFavicon(pageUrl, candidates).then((dataUrl) => {
+        if (!dataUrl || !this.tabs.has(tab.id) || contents.isDestroyed() || contents.getURL() !== pageUrl) return;
         tab.state = { ...tab.state, favicon: dataUrl };
         this.emit(tab);
       });

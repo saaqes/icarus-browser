@@ -8,6 +8,7 @@ import { SETTINGS_SECTIONS, type PageEntry, type SettingsSection } from '../../t
 export const INTERNAL_PROTOCOL = 'icarus:';
 
 const SECTION_SLUGS: Record<SettingsSection, string> = {
+  profile: 'perfil',
   general: 'general',
   appearance: 'apariencia',
   navigation: 'navegacion',

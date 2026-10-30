@@ -11,11 +11,13 @@ import { DownloadsSection } from './sections/DownloadsSection';
 import { GeneralSection } from './sections/GeneralSection';
 import { NavigationSection } from './sections/NavigationSection';
 import { PrivacySection } from './sections/PrivacySection';
+import { ProfileSection } from './sections/ProfileSection';
 import { ShieldSection } from './sections/ShieldSection';
 import { UpdatesSection } from './sections/UpdatesSection';
 import './Settings.css';
 
 const SECTION_ICONS: Record<SettingsSection, IconName> = {
+  profile: 'user',
   general: 'settings',
   appearance: 'brush',
   navigation: 'globe',
@@ -28,6 +30,7 @@ const SECTION_ICONS: Record<SettingsSection, IconName> = {
 };
 
 const SECTION_CONTENT: Record<SettingsSection, () => ReactNode> = {
+  profile: () => <ProfileSection />,
   general: () => <GeneralSection />,
   appearance: () => <AppearanceSection />,
   navigation: () => <NavigationSection />,

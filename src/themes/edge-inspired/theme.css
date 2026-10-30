@@ -6,7 +6,8 @@
 
 .icarus-root[data-theme='edge-inspired'] {
   --radius-tab: 8px;
-  --radius-omnibox: 10px;
+  /* Barra de direcciones en píldora, como en Edge. */
+  --radius-omnibox: 999px;
   --radius-card: 12px;
   --app-bg: #eef1f6;
   --tabstrip-bg: #e8ecf2;
@@ -56,42 +57,71 @@
   --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
-/* Pestañas rectangulares flotantes. */
+/*
+ * Pestañas como en Edge: la activa queda pegada a la barra de herramientas (mismo
+ * fondo, esquinas superiores redondeadas y «pies» curvos, como en Esencial) y las
+ * inactivas flotan como rectángulos redondeados que se resaltan al pasar el ratón.
+ */
 .icarus-root[data-theme='edge-inspired'] .tabstrip {
-  align-items: center;
-  height: 44px;
+  align-items: flex-end;
+  height: 40px;
 }
 
 .icarus-root[data-theme='edge-inspired'] .tabstrip__tabs {
-  align-items: center;
-  gap: 4px;
+  align-items: flex-end;
+  gap: 2px;
+  padding-inline: 8px;
 }
 
 .icarus-root[data-theme='edge-inspired'] .tab {
-  height: 32px;
+  height: 30px;
+  margin-bottom: 4px;
   border-radius: var(--radius-tab);
 }
 
 .icarus-root[data-theme='edge-inspired'] .tab.is-active {
-  box-shadow:
-    0 1px 3px rgba(10, 20, 40, 0.12),
-    0 0 0 1px rgba(10, 20, 40, 0.04);
+  height: 34px;
+  margin-bottom: 0;
+  border-radius: var(--radius-tab) var(--radius-tab) 0 0;
+  background: var(--toolbar-bg);
+}
+
+.icarus-root[data-theme='edge-inspired'] .tab.is-active::before,
+.icarus-root[data-theme='edge-inspired'] .tab.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+}
+
+.icarus-root[data-theme='edge-inspired'] .tab.is-active::before {
+  left: -8px;
+  top: auto;
+  background: radial-gradient(circle at 0 0, transparent 8px, var(--toolbar-bg) 8.5px);
+}
+
+.icarus-root[data-theme='edge-inspired'] .tab.is-active::after {
+  right: -8px;
+  background: radial-gradient(circle at 100% 0, transparent 8px, var(--toolbar-bg) 8.5px);
 }
 
 .icarus-root[data-theme='edge-inspired'] .tab:not(.is-active) + .tab:not(.is-active)::before {
   display: none;
 }
 
-.icarus-root[data-theme='edge-inspired'] .tabstrip__brand,
 .icarus-root[data-theme='edge-inspired'] .tabstrip__new {
-  margin-bottom: 0;
+  margin: 0 0 5px 2px;
+  border-radius: 6px;
+}
+
+.icarus-root[data-theme='edge-inspired'] .tabstrip > .menu-root {
+  align-self: flex-end;
+  margin-bottom: 5px;
 }
 
 /* Barra compacta y pegada al contenido, como Edge: nada de altura de más. */
-.icarus-root[data-theme='edge-inspired'] .tabstrip {
-  height: 40px;
-}
-
 .icarus-root[data-theme='edge-inspired'] .toolbar {
   gap: var(--space-1);
   min-height: 42px;
@@ -99,10 +129,12 @@
   padding-bottom: 4px;
 }
 
+/* A la derecha de la barra, los botones van seguidos y sin separador, como en Edge. */
 .icarus-root[data-theme='edge-inspired'] .toolbar__actions {
-  padding-left: var(--space-2);
-  border-left: 1px solid var(--toolbar-border);
+  gap: 4px;
+  padding-left: var(--space-1);
 }
+
 
 .icarus-root[data-theme='edge-inspired'] .omnibox__field {
   height: 34px;

@@ -76,6 +76,9 @@ const hits = { a: 0 };
 const slowResponses = new Set();
 // PNG de 1×1 píxeles usado como favicon de prueba.
 const ICON_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+// GIF de 1×1 píxeles: segundo icono de /iconos.html, servido sin tipo de imagen.
+const ICON_GIF = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#d33"/></svg>';
 const page = (title, body) =>
   `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${title}</title></head><body><h1>${title}</h1>${body}</body></html>`;
 const server = http.createServer((request, response) => {
@@ -119,6 +122,28 @@ const server = http.createServer((request, response) => {
       );
     case '/icono.png':
       return send(200, 'image/png', Buffer.from(ICON_PNG, 'base64'));
+    case '/iconos.html':
+      // El primer icono no existe; el segundo es un GIF real servido como binario genérico.
+      return send(
+        200,
+        'text/html; charset=utf-8',
+        '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Varios iconos</title><link rel="icon" href="/no-existe.png"><link rel="icon" href="/icono-binario"></head><body><p>Iconos</p></body></html>',
+      );
+    case '/articulo.html':
+      // Artículo con navegación, anuncio lateral y texto que parece HTML: el modo lectura
+      // debe mostrar solo el texto principal y como texto.
+      return send(
+        200,
+        'text/html; charset=utf-8',
+        '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Diario de vuelo</title><meta name="author" content="Dédalo"></head><body>' +
+          '<nav><a href="/a.html">Menú del sitio</a></nav><aside><p>Publicidad molesta que no debe leerse en el modo lectura.</p></aside>' +
+          '<article><h1>Diario de vuelo</h1><p>El vuelo empezó al amanecer, con las alas recién enceradas y el viento a favor.</p>' +
+          '<h2>Sobre el mar</h2><p>Ícaro subió demasiado y la cera empezó a ablandarse con el calor del sol de mediodía.</p>' +
+          '<p>&lt;b&gt;Esto no es HTML&lt;/b&gt; y se muestra como texto.</p><ul><li>Plumas</li><li>Cera</li></ul></article>' +
+          '<script src="/ads/banner.js"></script></body></html>',
+      );
+    case '/icono-binario':
+      return send(200, 'application/octet-stream', Buffer.from(ICON_GIF, 'base64'));
     case '/lento.html':
       // Envía el principio del documento y deja la respuesta abierta para que la pestaña siga cargando.
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
@@ -277,8 +302,21 @@ const shownAddress = () => win.evaluate(() => document.querySelector('.omnibox__
 const visibleChrome = () =>
   win.evaluate(() => `${document.querySelector('.omnibox')?.textContent ?? ''} ${document.querySelector('.tab.is-active')?.getAttribute('title') ?? ''}`);
 const securityState = () => win.evaluate(() => document.querySelector('.omnibox__info')?.getAttribute('data-security') ?? null);
+/**
+ * Dirección visible en forma corta. En Panorama (Edge) la barra siempre lleva el protocolo
+ * real delante: se exige y se compara el resto (sin `www.` ni la barra final de la raíz).
+ */
+async function shownShort() {
+  const shown = await shownAddress();
+  if ((await win.locator('.icarus-root').getAttribute('data-theme')) !== 'edge-inspired' || !shown) return shown;
+  const match = /^https?:\/\/(?:www\.)?(.*?)(\/?)$/.exec(shown);
+  return match ? (match[1].includes('/') ? `${match[1]}${match[2]}` : match[1]) : `(sin protocolo en Panorama) ${shown}`;
+}
 async function expectShown(text, message) {
-  return eventually(async () => ((await shownAddress()) === text ? text : null), `${message ?? 'La barra no muestra la dirección esperada'}: «${text}»`);
+  return eventually(
+    async () => ((await shownAddress()) === text || (await shownShort()) === text ? text : null),
+    `${message ?? 'La barra no muestra la dirección esperada'}: «${text}»`,
+  );
 }
 async function openAddressEditor() {
   await openSettings('Avanzado');
@@ -513,7 +551,7 @@ await step('15. Historial persistente', async () => {
   await eventually(async () => (await win.locator('.history-row__title', { hasText: 'Página A' }).count()) > 0, 'El historial no lista Página A');
 });
 
-await step('16. Icono real del sitio y detener la carga', async () => {
+await step('16. Iconos reales de los sitios (detectados solos) y detener la carga', async () => {
   await go(`${local}/icono.html`);
   await waitForActiveTab('Con icono');
   const icon = await eventually(
@@ -521,6 +559,33 @@ await step('16. Icono real del sitio y detener la carga', async () => {
     'La pestaña no muestra el icono real del sitio',
   );
   assert(icon.startsWith('data:image/png;base64,'), `El icono no procede del sitio (${icon.slice(0, 30)})`);
+
+  // Varios iconos declarados: se prueban en orden y se reconoce la imagen por su contenido.
+  await go(`${base}/iconos.html`);
+  await waitForActiveTab('Varios iconos');
+  await eventually(
+    () => win.evaluate((gif) => document.querySelector('[role="tab"][aria-selected="true"] img.favicon')?.getAttribute('src') === `data:image/gif;base64,${gif}`, ICON_GIF),
+    'La pestaña no muestra el segundo icono declarado (el primero no existe)',
+  );
+
+  // Un sitio nunca visitado (acceso directo, favorito): sin /favicon.ico, el icono se
+  // descubre en los <link rel="icon"> de su página principal.
+  const iconSite = http.createServer((request, response) => {
+    const routes = {
+      '/': ['text/html; charset=utf-8', '<!doctype html><html><head><link rel="shortcut icon" href="/static/marca.svg"></head><body>Tienda</body></html>'],
+      '/static/marca.svg': ['image/svg+xml', ICON_SVG],
+    };
+    const route = routes[new URL(request.url, 'http://x').pathname];
+    response.writeHead(route ? 200 : 404, { 'content-type': route ? route[0] : 'text/html' });
+    response.end(route ? route[1] : '<p>No encontrado</p>');
+  });
+  await new Promise((resolve) => iconSite.listen(0, '127.0.0.1', resolve));
+  try {
+    const discovered = await win.evaluate((url) => window.icarusNative.favicons.get(url), `http://127.0.0.1:${iconSite.address().port}/tienda/ofertas`);
+    assert(discovered === `data:image/svg+xml;base64,${Buffer.from(ICON_SVG).toString('base64')}`, `No se descubrió el icono del sitio (${String(discovered).slice(0, 40)})`);
+  } finally {
+    iconSite.close();
+  }
 
   await go(`${local}/lento.html`);
   const controls = win.locator('.nav-controls');
@@ -530,7 +595,7 @@ await step('16. Icono real del sitio y detener la carga', async () => {
     webContents.getAllWebContents().some((wc) => !wc.isDestroyed() && wc.getURL().includes('/lento.html') && wc.isLoading()),
   );
   assert(!loading, 'Chromium sigue cargando la página después de detenerla');
-  return 'icono data:image/png · carga detenida';
+  return 'icono data:image/png · segundo candidato GIF · SVG descubierto · carga detenida';
 });
 
 await step('17. Atajos: Ctrl+L desde la página, Ctrl+W, Ctrl+Mayús+T y Ctrl+Tab', async () => {
@@ -762,7 +827,7 @@ await step('26. C · Escribir google.com navega a la dirección real (añade htt
     if (await win.locator('.error-page').count()) return { error: (await win.locator('.error-card__details').innerText()).replace(/\s+/g, ' ') };
     return null;
   }, 'google.com no navegó', 30_000);
-  const shown = await shownAddress();
+  const shown = await shownShort();
   assert(/^google\.com/.test(shown), `La barra no muestra google.com (${shown})`);
   if (outcome.error) {
     assert(outcome.error.includes('https://google.com/'), `No se intentó abrir https://google.com/ (${outcome.error})`);
@@ -830,6 +895,9 @@ await step('29. G · La barra se comporta igual en los estilos Esencial (Chrome)
     await go('otraweb.com/a.html');
     await waitForActiveTab('Página A');
     await expectShown('otraweb.com/a.html', `En ${name}`);
+    // Panorama (Edge) muestra siempre el protocolo real; Esencial (Chrome), la forma corta.
+    const expectedText = id === 'edge-inspired' ? 'http://otraweb.com/a.html' : 'otraweb.com/a.html';
+    assert((await shownAddress()) === expectedText, `En ${name}, la barra muestra «${await shownAddress()}» en lugar de «${expectedText}»`);
     assert(!(await visibleChrome()).includes('127.0.0.1'), `En ${name} se ve la dirección original`);
     assert((await securityState()) === 'insecure', `En ${name}, estado de seguridad inesperado: ${await securityState()}`);
     // Clic: dirección completa seleccionada; escribir la reemplaza y Escape la recupera.
@@ -1158,6 +1226,85 @@ await step('37. Misma dirección para dos sitios reales repartiendo las seccione
   return 'miweb3.com#inicio → 127.0.0.1 · miweb3.com#home → localhost (duplicada)';
 });
 
+await step('38. Panorama como Edge: pestaña pegada, protocolo visible, iconos de la derecha, modo lectura, Nueva pestaña y perfil', async () => {
+  await setStyle('Panorama', 'edge-inspired');
+  await go(`${local}/articulo.html`);
+  await waitForActiveTab('Diario de vuelo');
+  // La dirección lleva siempre el protocolo real delante (aquí http://, nunca https://).
+  await eventually(async () => (await shownAddress()) === `${local}/articulo.html`, 'La barra no muestra el protocolo delante');
+  assert((await securityState()) === 'insecure', `Una página HTTP no se indica como no segura (${await securityState()})`);
+
+  // La pestaña activa está pegada a la barra, con su mismo fondo (como en Esencial).
+  const geometry = await win.evaluate(() => {
+    const tab = document.querySelector('.tab.is-active');
+    const strip = document.querySelector('.tabstrip').getBoundingClientRect();
+    return {
+      gap: Math.round(strip.bottom - tab.getBoundingClientRect().bottom),
+      tab: getComputedStyle(tab).backgroundColor,
+      bar: getComputedStyle(document.querySelector('.toolbar')).backgroundColor,
+    };
+  });
+  assert(geometry.gap === 0 && geometry.tab === geometry.bar, `La pestaña activa no está pegada a la barra: ${JSON.stringify(geometry)}`);
+
+  // Derecha, en el orden de Edge: Extensiones, Favoritos, (descargas), perfil y «…».
+  const labels = await win.evaluate(() => [...document.querySelectorAll('.toolbar__actions button[aria-label]')].map((button) => button.getAttribute('aria-label')));
+  const at = (pattern) => labels.findIndex((label) => pattern.test(label));
+  const order = [at(/^Extensiones/), at(/^Favoritos$/), at(/^Perfil: /), at(/^Menú de ICARUS$/)];
+  assert(order.every((index, i) => index >= 0 && (i === 0 || index > order[i - 1])), `Orden inesperado: ${labels.join(' | ')}`);
+  assert(at(/Shield/) === at(/^Extensiones/), `Shield no está dentro de Extensiones: ${labels.join(' | ')}`);
+  await win.getByTestId('extensions-button').click();
+  const extensions = win.getByRole('dialog', { name: 'Extensiones' });
+  await extensions.waitFor();
+  const extensionsText = await extensions.innerText();
+  assert(extensionsText.includes('ICARUS Shield') && extensionsText.includes('Integrada en ICARUS'), `Panel de extensiones inesperado: ${extensionsText}`);
+  await win.keyboard.press('Escape');
+  await extensions.waitFor({ state: 'hidden' });
+
+  // Modo lectura: solo el texto del artículo, como texto, con la página oculta debajo.
+  await win.getByTestId('reader-button').click();
+  const reader = win.getByTestId('reader-view');
+  await reader.waitFor();
+  await eventually(async () => (await reader.innerText()).includes('El vuelo empezó al amanecer'), 'El modo lectura no muestra el texto del artículo');
+  const readerText = await reader.innerText();
+  assert(readerText.includes('Sobre el mar') && readerText.includes('Plumas') && readerText.includes('Dédalo'), 'Faltan partes del artículo');
+  assert(!readerText.includes('Publicidad molesta') && !readerText.includes('Menú del sitio'), 'El modo lectura incluye la navegación o el anuncio');
+  assert(readerText.includes('<b>Esto no es HTML</b>'), 'El texto con aspecto de HTML no se muestra como texto');
+  assert((await reader.locator('b, script, img, iframe, a').count()) === 0, 'El modo lectura contiene elementos de la página');
+  await eventually(async () => !(await views()).some((view) => view.visible), 'La página sigue visible sobre el modo lectura');
+  await win.keyboard.press('Escape');
+  await reader.waitFor({ state: 'hidden' });
+  await eventually(async () => (await views()).some((view) => view.visible && view.url?.endsWith('/articulo.html')), 'La página no volvió a mostrarse');
+
+  // «Añadir a Nueva pestaña» (icono de aplicaciones de la barra).
+  const appButton = win.getByTestId('app-shortcut-button');
+  await appButton.click();
+  await eventually(async () => (await appButton.getAttribute('aria-pressed')) === 'true', 'La página no se añadió a Nueva pestaña');
+  await win.keyboard.press('Control+T');
+  await win.getByRole('button', { name: /Diario de vuelo/ }).first().waitFor({ timeout: 10_000 });
+
+  // Perfil personalizable: nombre y foto, visibles al momento y guardados en disco.
+  await win.getByTestId('profile-button').click();
+  await win.getByRole('button', { name: 'Personalizar perfil' }).click();
+  await win.getByRole('textbox', { name: 'Nombre del perfil' }).fill('Ícaro');
+  await win.getByTestId('profile-photo-input').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from(ICON_PNG, 'base64') });
+  await eventually(
+    async () => (await win.getByTestId('profile-button').locator('img').getAttribute('src').catch(() => null))?.startsWith('data:image/jpeg;base64,'),
+    'La foto del perfil no aparece en la barra',
+  );
+  assert((await win.getByTestId('profile-button').getAttribute('aria-label')) === 'Perfil: Ícaro', 'El nombre del perfil no se aplicó');
+  await eventually(() => {
+    try {
+      const storage = JSON.parse(readFileSync(join(dataDir, 'ui-storage.json'), 'utf8'));
+      const saved = JSON.parse(String(storage.data['icarus.settings']));
+      const profile = (saved.data ?? saved).profile;
+      return profile.name === 'Ícaro' && String(profile.photo).startsWith('data:image/jpeg;base64,');
+    } catch {
+      return false;
+    }
+  }, 'El perfil no se guardó en disco');
+  return `${labels.join(' · ')} · lectura, acceso directo y perfil`;
+});
+
 if (process.env.ICARUS_E2E_INTERNET === '1') {
   await step('Internet (A): https://bot.deriv.me/ con la dirección personalizada https://miweb.com/', async () => {
     await addCustomAddress('https://bot.deriv.me', 'https://miweb.com');
@@ -1173,7 +1320,7 @@ if (process.env.ICARUS_E2E_INTERNET === '1') {
     }, 'No se cargó bot.deriv.me', 45_000);
     assert(!outcome.error, outcome.error?.replace(/\s+/g, ' '));
     const finalHost = new URL(outcome.url).host;
-    const shown = await shownAddress();
+    const shown = await shownShort();
     if (finalHost === 'bot.deriv.me') {
       assert(shown.startsWith('miweb.com'), `La barra no muestra miweb.com (${shown})`);
       assert(!(await visibleChrome()).includes('deriv'), 'La barra o la pestaña muestran bot.deriv.me');
@@ -1203,7 +1350,10 @@ if (process.env.ICARUS_E2E_INTERNET === '1') {
       }, `No se cargó ${url}`, 45_000);
       assert(!outcome.error, outcome.error?.replace(/\s+/g, ' '));
       assert(outcome.url.startsWith('https://'), `La página no se cargó por HTTPS (${outcome.url})`);
-      return `«${outcome.title}» · ${new URL(outcome.url).host}`;
+      // HTTPS verificado por Chromium: candado delante de la dirección.
+      const icon = await win.evaluate(() => document.querySelector('.omnibox__info')?.getAttribute('data-icon') ?? null);
+      assert((await securityState()) === 'secure' && icon === 'lock', `No se muestra el candado (${await securityState()}, ${icon})`);
+      return `«${outcome.title}» · ${new URL(outcome.url).host} · candado`;
     });
   }
 }

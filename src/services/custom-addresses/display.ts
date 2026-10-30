@@ -4,7 +4,9 @@
  * - Sin foco (forma corta): sin `https://` ni `http://`, sin `www.` y sin la barra
  *   final cuando la ruta es solo `/`. La seguridad la indica el icono de la izquierda
  *   («No seguro» en HTTP), no el texto.
- * - Con foco o con «Mostrar siempre las URL completas»: la URL completa.
+ * - Con «Mostrar siempre las URL completas» y en el estilo Panorama (Edge): con el
+ *   protocolo real delante (`https://home.deriv.me/dashboard/login`).
+ * - Con foco: la URL completa, para editarla.
  */
 
 import { parseWebUrl } from '../url-resolution/urlUtils';

@@ -108,6 +108,11 @@ export interface BrowserController {
   find: { tabId: string; token: number } | null;
   openFind: () => void;
   closeFind: () => void;
+  /** Modo lectura abierto en una pestaña para la dirección `url` (se cierra al navegar). */
+  reader: { tabId: string; url: string } | null;
+  /** Abre (o cierra, si ya está abierto) el modo lectura de la página activa. */
+  toggleReader: () => void;
+  closeReader: () => void;
   /** Zoom real de la página activa (solo en la aplicación de escritorio). */
   zoomPage: (action: ZoomAction) => void;
   /** Cambia con Ctrl+D: la barra abre el editor del favorito de la página actual. */
@@ -156,6 +161,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequestInfo[]>([]);
   const [authRequests, setAuthRequests] = useState<AuthRequestInfo[]>([]);
   const [find, setFind] = useState<{ tabId: string; token: number } | null>(null);
+  const [reader, setReader] = useState<{ tabId: string; url: string } | null>(null);
   const [customAddressEditor, setCustomAddressEditor] = useState<CustomAddressEditorRequest | null>(null);
   const addressBarFocus = useRef<(() => void) | null>(null);
   /** Entrada web que muestra ahora la vista de cada pestaña (tramo «vivo»). */
@@ -504,6 +510,23 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     setFind((current) => ({ tabId: tab.id, token: (current?.token ?? 0) + 1 }));
   }, [embedded]);
 
+  const toggleReader = useCallback(() => {
+    const tab = getActiveTab(sessionRef.current);
+    const entry = getCurrentEntry(tab);
+    const url = webStateRef.current[tab.id]?.url;
+    if (!embedded || entry.page.kind !== 'web' || liveEntry.current.get(tab.id) !== entry.id || !url) return;
+    setReader((current) => (current?.tabId === tab.id ? null : { tabId: tab.id, url }));
+  }, [embedded]);
+
+  const closeReader = useCallback(() => setReader(null), []);
+
+  // Como en Edge, el modo lectura se cierra al navegar a otra página o al cerrar la pestaña.
+  useEffect(() => {
+    if (!reader) return;
+    const state = webState[reader.tabId];
+    if (!state || state.url !== reader.url) setReader(null);
+  }, [reader, webState]);
+
   const closeFind = useCallback(() => {
     const current = findRef.current;
     if (current) native?.tabs.stopFind(current.tabId);
@@ -697,6 +720,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       find,
       openFind,
       closeFind,
+      reader,
+      toggleReader,
+      closeReader,
       zoomPage,
       bookmarkRequest,
       requestBookmark,
@@ -739,6 +765,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
       find,
       openFind,
       closeFind,
+      reader,
+      toggleReader,
+      closeReader,
       zoomPage,
       bookmarkRequest,
       requestBookmark,

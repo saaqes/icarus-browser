@@ -2,9 +2,11 @@
  * Barra de direcciones (omnibox), con el comportamiento de Chrome y Edge.
  *
  * - Una sola dirección: la personalizada si la página está dentro de su destino;
- *   si no, la real. Sin foco se muestra en forma corta (sin `https://` ni `www.`).
- * - A la izquierda, el estado real de la conexión: icono de información del sitio
- *   en HTTPS, «No seguro» en HTTP y «No seguro» en rojo con `https` tachado si el
+ *   si no, la real. Sin foco, en Esencial e ICARUS se muestra en forma corta (sin
+ *   `https://` ni `www.`, como Chrome); en Panorama, siempre con el protocolo real
+ *   (`https://` o `http://`), como Edge.
+ * - A la izquierda, el estado real de la conexión: candado en HTTPS verificado,
+ *   «No seguro» en HTTP y «No seguro» en rojo con `https` tachado si el
  *   certificado no es válido. Con un error de certificado se muestra la dirección
  *   real que falló: el aviso siempre se refiere al sitio que respondió.
  * - Al hacer clic se muestra la dirección completa seleccionada; Enter navega,
@@ -16,11 +18,13 @@
  *   página (`/#inicio`). Si la página tiene una dirección personalizada, al
  *   confirmar se elige entre guardar la base nueva en esa dirección (persistente) o
  *   ir a la nueva dirección. Escribir una dirección completa nunca hereda la ruta.
- * - A la derecha: zoom (si no es 100 %) y la estrella de favoritos.
+ * - A la derecha: zoom (si no es 100 %) y la estrella de favoritos; en Panorama,
+ *   como en Edge, también «Añadir a Nueva pestaña» y el modo lectura.
  */
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useServices } from '../../app/ServicesContext';
+import { useAppearance } from '../../hooks/useAppearance';
 import { useHistoryItems } from '../../hooks/useNative';
 import { useBookmarks, useCustomAddresses, useSettings, useShortcuts } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
@@ -39,11 +43,12 @@ import { useBrowser } from '../BrowserShell/BrowserContext';
 import { ZoomIndicator } from '../BrowserShell/ZoomControls';
 import { SiteInfoPopover, type SecurityState } from './SiteInfoPopover';
 import { SuggestionList } from './SuggestionList';
+import { AppShortcutButton, ReaderButton } from './PageActions';
 import { buildSuggestions, type Suggestion } from './suggestions';
 import './AddressBar.css';
 
 const SECURITY_ICONS: Record<SecurityState, IconName> = {
-  secure: 'sliders',
+  secure: 'lock',
   unverified: 'info',
   insecure: 'warning',
   dangerous: 'warning',
@@ -69,6 +74,8 @@ export function AddressBar() {
   const m = useMessages();
   const { currentEntry, activeTab, describe, navigateInput, openUrl, registerAddressBar, webState, liveWebTabId } = useBrowser();
   const services = useServices();
+  const { themeId } = useAppearance();
+  const edgeStyle = themeId === 'edge-inspired';
   const desktop = Boolean(services.native);
   const notify = useToast();
   const [settings] = useSettings();
@@ -326,8 +333,9 @@ export function AddressBar() {
     }
   };
 
-  // Con un certificado no válido se muestra el protocolo tachado, como en Chrome.
-  const parts = formatAddress(addressUrl, settings.navigation.showFullUrls || security === 'dangerous');
+  // Con un certificado no válido se muestra el protocolo tachado, como en Chrome. En Panorama
+  // (Edge) la dirección siempre lleva su protocolo real delante.
+  const parts = formatAddress(addressUrl, settings.navigation.showFullUrls || security === 'dangerous' || edgeStyle);
   // Como en Chrome: el icono del sitio sigue visible al hacer clic y cambia a la lupa al escribir.
   const showInfoButton = presentation.kind !== 'newtab' && !(editing && dirty);
   const notSecure = security === 'insecure' || security === 'dangerous' ? m.addressBar.notSecure : null;
@@ -358,6 +366,7 @@ export function AddressBar() {
               setInfoOpen((open) => !open);
             }}
             data-security={security}
+            data-icon={SECURITY_ICONS[security]}
           >
             <Icon name={SECURITY_ICONS[security]} size={16} />
             {securityLabel && <span className="omnibox__security-label">{securityLabel}</span>}
@@ -459,6 +468,9 @@ export function AddressBar() {
         )}
 
         {showPageActions && desktop && <ZoomIndicator />}
+        {/* Panorama (Edge): añadir a Nueva pestaña y modo lectura junto a la estrella, como en Edge. */}
+        {showPageActions && edgeStyle && <AppShortcutButton url={presentation.realUrl} title={presentation.title} />}
+        {showPageActions && edgeStyle && liveWebTabId === activeTab.id && <ReaderButton />}
         {showPageActions && <BookmarkStar url={presentation.realUrl} title={presentation.title} />}
 
         {editing && value && !rebase && (

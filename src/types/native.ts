@@ -9,6 +9,14 @@
 
 export const NATIVE_API_VERSION = 1;
 
+/** Texto de una página para el modo lectura: solo texto, nunca HTML. */
+export interface ReaderContent {
+  title: string;
+  siteName: string;
+  byline: string;
+  blocks: { type: 'heading' | 'paragraph' | 'item' | 'quote' | 'code'; level: number; text: string }[];
+}
+
 export interface ViewportRect {
   x: number;
   y: number;
@@ -302,6 +310,8 @@ export interface IcarusNativeApi {
     setBounds(rect: ViewportRect): void;
     /** Captura la página visible para mostrarla bajo menús y diálogos. */
     snapshot(tabId: string): Promise<string | null>;
+    /** Texto principal de la página para el modo lectura (null si no es una página web). */
+    readerContent(tabId: string): Promise<ReaderContent | null>;
     /**
      * Busca texto en la página; los resultados llegan como eventos `find-result`.
      * `next` continúa la búsqueda del mismo texto (siguiente o anterior coincidencia).

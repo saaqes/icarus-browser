@@ -115,6 +115,7 @@ export function registerIpc(context: IpcContext): void {
   on('icarus:tabs:show', (tabId) => context.tabs.show(tabId === null ? null : assertId(tabId, 'tabId')));
   on('icarus:tabs:bounds', (rect) => context.tabs.setBounds(assertRect(rect)));
   handle('icarus:tabs:snapshot', (tabId) => context.tabs.snapshot(assertId(tabId, 'tabId')));
+  handle('icarus:tabs:reader', (tabId) => context.tabs.readerContent(assertId(tabId, 'tabId')));
   handle('icarus:tabs:zoom', (tabId, action) => context.tabs.zoom(assertId(tabId, 'tabId'), assertOneOf(action, ZOOM_ACTIONS, 'action')));
 
   on('icarus:window:titlebar', (color, symbolColor) =>

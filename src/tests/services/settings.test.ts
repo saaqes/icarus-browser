@@ -3,9 +3,11 @@ import {
   createDefaultSettings,
   resetBackground,
   resetThemeConfig,
+  sanitizeSettings,
   setTheme,
   updateGeneral,
   updateLayout,
+  updateProfile,
   updateThemeConfig,
 } from '../../services/settings/settings';
 import { createBackup, parseBackup } from '../../services/backup/backup';
@@ -91,5 +93,33 @@ describe('copia de seguridad', () => {
     expect(parseBackup('x')).toEqual({ ok: false, error: 'invalid-json' });
     expect(parseBackup('{"format":"icarus-backup","version":99,"data":{}}')).toEqual({ ok: false, error: 'newer-version' });
     expect(parseBackup('{"format":"otro","data":{}}')).toEqual({ ok: false, error: 'invalid-format' });
+  });
+});
+
+describe('perfil', () => {
+  const photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+  it('por defecto no tiene nombre ni foto', () => {
+    expect(createDefaultSettings().profile).toEqual({ name: '', photo: null, color: '#0b63c4' });
+  });
+
+  it('solo acepta fotos rasterizadas incrustadas, nunca SVG ni direcciones remotas', () => {
+    const base = createDefaultSettings();
+    expect(updateProfile(base, { photo }).profile.photo).toBe(photo);
+    expect(updateProfile(base, { photo: 'data:image/svg+xml;base64,PHN2Zz4=' }).profile.photo).toBeNull();
+    expect(updateProfile(base, { photo: 'https://ejemplo.com/foto.png' }).profile.photo).toBeNull();
+    expect(updateProfile(base, { name: 'x'.repeat(80) }).profile.name).toHaveLength(40);
+  });
+
+  it('corrige datos guardados no válidos y completa en silencio el perfil que falta', () => {
+    const issues: string[] = [];
+    const raw = { ...createDefaultSettings(), profile: { name: '  Ana  ', photo: 'javascript:alert(1)', color: 'rojo' } };
+    expect(sanitizeSettings(raw, issues).profile).toEqual({ name: 'Ana', photo: null, color: '#0b63c4' });
+    expect(issues).toEqual(expect.arrayContaining(['profile.photo', 'profile.color']));
+
+    const missing: string[] = [];
+    const { profile: _profile, ...older } = createDefaultSettings();
+    expect(sanitizeSettings(older, missing).profile).toEqual(createDefaultSettings().profile);
+    expect(missing.every((issue) => issue.endsWith(':missing'))).toBe(true);
   });
 });

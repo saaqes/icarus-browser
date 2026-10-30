@@ -100,7 +100,7 @@ async function start(): Promise<void> {
   };
 
   const history = new HistoryStore(join(dataDir, 'history.json'), () => emit({ type: 'history-changed' }));
-  const favicons = new FaviconService(webSession);
+  const favicons = new FaviconService(webSession, join(dataDir, 'favicons.json'));
   let tabs: TabManager;
 
   // Refresca (como mucho cada 250 ms) el contador de bloqueos de las pestañas afectadas.
@@ -156,7 +156,7 @@ async function start(): Promise<void> {
     openInNewTab: (url, background) => emit({ type: 'open-in-new-tab', url, background }),
     searchInNewTab: (text) => emit({ type: 'search-in-new-tab', text }),
     navigationBlocked: (tabId, url, protocol) => emit({ type: 'navigation-blocked', tabId, url: url.slice(0, 300), protocol }),
-    fetchFavicon: (iconUrl) => favicons.fetchIcon(iconUrl),
+    fetchFavicon: (pageUrl, candidates) => favicons.fetchPageIcon(pageUrl, candidates),
     onCommit: (tabId, contents, url) => {
       history.add(url, contents.getTitle());
       permissions.cancelForTab(tabId);
@@ -184,7 +184,11 @@ async function start(): Promise<void> {
   downloads.attach(webSession);
 
   const clearData = async (options: ClearDataOptions) => {
-    if (options.history) history.clear(options.range);
+    if (options.history) {
+      history.clear(options.range);
+      // Los iconos recordados dicen qué sitios se visitaron: se borran con el historial.
+      favicons.clear();
+    }
     if (options.downloads) downloads.clear();
     if (options.cache) await webSession.clearCache();
     if (options.cookies) {
@@ -254,6 +258,7 @@ async function start(): Promise<void> {
       shield.flush();
       preferencesFile.flush();
       zoom.flush();
+      favicons.flush();
       // Con «Instalar al cerrar ICARUS», el instalador empieza cuando todo está guardado.
       updates.onQuit();
     };

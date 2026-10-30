@@ -14,6 +14,8 @@ import {
   EXTERNAL_OPENING_MODES,
   LANGUAGE_CODES,
   NEW_TAB_PAGES,
+  PROFILE_COLORS,
+  PROFILE_NAME_MAX,
   SEARCH_POSITIONS,
   SEARCH_PROVIDER_IDS,
   SHORTCUT_COLUMNS,
@@ -28,6 +30,7 @@ import {
   type GeneralSettings,
   type HomeLayout,
   type HomePageSetting,
+  type ProfileSettings,
   type NavigationSettings,
   type Settings,
   type ThemeConfig,
@@ -70,7 +73,36 @@ export function createDefaultSettings(): Settings {
       loadFavicons: true,
       showFullUrls: false,
     },
+    profile: { name: '', photo: null, color: PROFILE_COLORS[0] },
   };
+}
+
+/* ---------------------------------- Perfil ---------------------------------- */
+
+/** Tamaño máximo de la foto guardada (ya reducida a 128×128 suele ocupar menos de 20 KB). */
+export const PROFILE_PHOTO_MAX_LENGTH = 200_000;
+
+/** ¿Es una foto de perfil válida? Solo imágenes rasterizadas en base64, sin SVG ni direcciones remotas. */
+export function isValidProfilePhoto(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= PROFILE_PHOTO_MAX_LENGTH && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+}
+
+/** Inicial del perfil (o null si no tiene nombre: se muestra la silueta). */
+export function profileInitial(profile: ProfileSettings): string | null {
+  const first = [...profile.name.trim()][0];
+  return first ? first.toLocaleUpperCase('es') : null;
+}
+
+function sanitizeProfile(raw: unknown, fallback: ProfileSettings, issues: string[]): ProfileSettings {
+  const value = readRecord(raw, 'profile', issues);
+  const name = typeof value.name === 'string' ? value.name.trim().slice(0, PROFILE_NAME_MAX) : fallback.name;
+  if (value.name !== undefined && typeof value.name !== 'string') issues.push('profile.name');
+  let photo: string | null = null;
+  if (value.photo !== undefined && value.photo !== null) {
+    if (isValidProfilePhoto(value.photo)) photo = value.photo;
+    else issues.push('profile.photo');
+  }
+  return { name, photo, color: readEnum(value.color, PROFILE_COLORS, fallback.color, 'profile.color', issues) };
 }
 
 /* -------------------------------- Saneamiento -------------------------------- */
@@ -168,7 +200,7 @@ export function sanitizeSettings(raw: unknown, issues: string[]): Settings {
     showFullUrls: readBoolean(navigationRaw.showFullUrls, defaults.navigation.showFullUrls, 'navigation.showFullUrls', issues),
   };
 
-  return { general, appearance, navigation };
+  return { general, appearance, navigation, profile: sanitizeProfile(root.profile, defaults.profile, issues) };
 }
 
 export const settingsSchema: DocumentSchema<Settings> = {
@@ -227,5 +259,13 @@ export function updateAppearance(settings: Settings, patch: Partial<Pick<Appeara
 
 export function updateNavigation(settings: Settings, patch: Partial<NavigationSettings>): Settings {
   return { ...settings, navigation: { ...settings.navigation, ...patch } };
+}
+
+export function updateProfile(settings: Settings, patch: Partial<ProfileSettings>): Settings {
+  const next = { ...settings.profile, ...patch };
+  return {
+    ...settings,
+    profile: { ...next, name: next.name.slice(0, PROFILE_NAME_MAX), photo: isValidProfilePhoto(next.photo) ? next.photo : null },
+  };
 }
 

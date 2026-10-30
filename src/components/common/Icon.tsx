@@ -36,6 +36,56 @@ const ICONS = {
       <circle cx="12" cy="18.5" r="1.1" fill="currentColor" />
     </>
   ),
+  /** «…» horizontal, el menú principal de Edge. */
+  moreHorizontal: (
+    <>
+      <circle cx="5.5" cy="12" r="1.1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.1" fill="currentColor" />
+      <circle cx="18.5" cy="12" r="1.1" fill="currentColor" />
+    </>
+  ),
+  /** Silueta del perfil sin foto ni nombre. */
+  user: (
+    <>
+      <circle cx="12" cy="8.5" r="3.6" />
+      <path d="M5 19.5c.9-3.4 3.7-5.4 7-5.4s6.1 2 7 5.4" />
+    </>
+  ),
+  /** Extensiones (pieza de puzle, como en Edge y Chrome). */
+  puzzle: (
+    <path d="M9 4.5a2 2 0 0 1 4 0V6h3.5a1.5 1.5 0 0 1 1.5 1.5V11h-1.5a2 2 0 0 0 0 4H18v3.5a1.5 1.5 0 0 1-1.5 1.5H13v-1.5a2 2 0 0 0-4 0V20H5.5A1.5 1.5 0 0 1 4 18.5V15h1.5a2 2 0 0 0 0-4H4V7.5A1.5 1.5 0 0 1 5.5 6H9Z" />
+  ),
+  /** Añadir a la página Nueva pestaña (tres cuadros y un «+», como el de aplicaciones de Edge). */
+  appsAdd: (
+    <>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.2" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2" />
+      <path d="M16.75 4v6.5M13.5 7.25H20" />
+    </>
+  ),
+  /** Igual, ya añadido. */
+  appsAdded: (
+    <>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.2" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2" />
+      <path d="m13.6 7.3 2.1 2.1 4-4.2" />
+    </>
+  ),
+  /** Modo lectura (página con líneas de texto, como el lector inmersivo de Edge). */
+  reader: (
+    <>
+      <path d="M5 4.5h14v15H5z" />
+      <path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4.5" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.3l1.5-2h5.4l1.5 2h2.3A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5Z" />
+      <circle cx="12" cy="12.8" r="3.3" />
+    </>
+  ),
   edit: <path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Zm10-12 3 3" />,
   trash: <path d="M5 7h14M10 7V5h4v2m-7 0 .8 12h8.4L17 7M10.5 11v5m3-5v5" />,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,

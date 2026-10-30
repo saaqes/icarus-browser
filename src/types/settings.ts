@@ -112,8 +112,24 @@ export interface NavigationSettings {
   showFullUrls: boolean;
 }
 
+/** Colores del círculo del perfil cuando no hay foto (como los avatares de Chrome y Edge). */
+export const PROFILE_COLORS = ['#0b63c4', '#7b3fe4', '#c2185b', '#d93025', '#e37400', '#188038', '#00796b', '#5f6368'] as const;
+export type ProfileColor = (typeof PROFILE_COLORS)[number];
+export const PROFILE_NAME_MAX = 40;
+
+/** Perfil que se muestra en la barra (botón redondo a la derecha, como Chrome y Edge). */
+export interface ProfileSettings {
+  /** Nombre del perfil; vacío muestra «Perfil». */
+  name: string;
+  /** Foto reducida (data URL PNG, JPEG o WebP) o null para mostrar la inicial. */
+  photo: string | null;
+  /** Color del círculo con la inicial. */
+  color: ProfileColor;
+}
+
 export interface Settings {
   general: GeneralSettings;
   appearance: AppearanceSettings;
   navigation: NavigationSettings;
+  profile: ProfileSettings;
 }
