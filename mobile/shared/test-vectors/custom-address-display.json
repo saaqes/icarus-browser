@@ -52,6 +52,17 @@
       "enabled": true,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "tienda",
+      "target": "https://otrositio.com/",
+      "address": "https://miweb.com/",
+      "sections": [
+        "tienda"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "cases": [
@@ -243,6 +254,27 @@
       "shown": "https://miweb.com/#home-2",
       "short": "miweb.com/#home-2",
       "full": "https://miweb.com/#home-2"
+    },
+    {
+      "url": "https://otrositio.com/#tienda",
+      "entryId": "tienda",
+      "shown": "https://miweb.com/#tienda",
+      "short": "miweb.com/#tienda",
+      "full": "https://miweb.com/#tienda"
+    },
+    {
+      "url": "https://otrositio.com/#inicio",
+      "entryId": null,
+      "shown": "https://otrositio.com/#inicio",
+      "short": "otrositio.com/#inicio",
+      "full": "https://otrositio.com/#inicio"
+    },
+    {
+      "url": "https://bot.deriv.me/#tienda",
+      "entryId": null,
+      "shown": "https://bot.deriv.me/#tienda",
+      "short": "bot.deriv.me/#tienda",
+      "full": "https://bot.deriv.me/#tienda"
     }
   ]
 }

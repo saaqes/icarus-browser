@@ -276,18 +276,33 @@ public enum CustomAddresses {
         let ordered = items.filter { section != nil && $0.sections.contains(section!) } + items.filter { $0.sections.isEmpty }
         for item in ordered {
             guard let rest = remainderWithin(item.target, url) else { continue }
+            // Una general no muestra una sección que otra entrada reclama con la misma dirección.
+            if item.sections.isEmpty, let section,
+               items.contains(where: { $0.entry.id != item.entry.id && $0.sections.contains(section) && overlap($0.address, item.address) }) {
+                continue
+            }
             return DisplayMatch(entry: item.entry, url: urlWithin(item.address, rest, url))
         }
         return nil
     }
 
+    /// Para una dirección escrita: la entrada de su sección, después la general y después las demás.
+    private static func rank(_ item: Parsed, _ section: String?) -> Int {
+        if let section, item.sections.contains(section) { return 0 }
+        return item.sections.isEmpty ? 1 : 2
+    }
+
     /// URL escrita dentro de una dirección personalizada → URL real del destino. Sin
     /// fragmento, la dirección de una entrada de secciones abre su primera sección.
     public static func resolve(_ url: WebURL, _ entries: [CustomAddress], explicitProtocol: Bool) -> Resolution? {
+        let section = sectionOf(hashOf(url))
         var best: (item: Parsed, rest: String)? = nil
+        // Como el orden estable de escritorio: mejor rango y, en empate, la ruta más larga; si no, la primera.
         for item in active(entries) {
             guard let rest = remainderWithin(item.address, url, anyProtocol: !explicitProtocol) else { continue }
-            if best == nil || item.address.path.count > best!.item.address.path.count { best = (item, rest) }
+            guard let current = best else { best = (item, rest); continue }
+            let (itemRank, currentRank) = (rank(item, section), rank(current.item, section))
+            if itemRank < currentRank || (itemRank == currentRank && item.address.path.count > current.item.address.path.count) { best = (item, rest) }
         }
         guard let best else { return nil }
         var hash = hashOf(url)
@@ -298,11 +313,23 @@ public enum CustomAddresses {
                           address: urlWithin(best.item.address, best.rest, url, hash: hash))
     }
 
-    /// Entradas activas cuya dirección empieza por lo escrito (para sugerencias).
+    /// Entradas activas cuya dirección empieza por lo escrito (para sugerencias); una dirección compartida, una vez (la general si la hay).
     public static func startingWith(_ text: String, _ entries: [CustomAddress]) -> [CustomAddress] {
         let needle = text.trimmed.lowercased().removingPrefix("https://").removingPrefix("http://").removingPrefix("www.")
         if needle.isEmpty { return [] }
-        return active(entries).filter { $0.address.label.hasPrefix(needle) || $0.address.label.removingPrefix("www.").hasPrefix(needle) }.map(\.entry)
+        var labels: [String] = []
+        var byLabel: [String: Parsed] = [:]
+        for item in active(entries) {
+            let label = item.address.label
+            guard label.hasPrefix(needle) || label.removingPrefix("www.").hasPrefix(needle) else { continue }
+            if let current = byLabel[label] {
+                if rank(item, nil) < rank(current, nil) { byLabel[label] = item }
+            } else {
+                labels.append(label)
+                byLabel[label] = item
+            }
+        }
+        return labels.compactMap { byLabel[$0]?.entry }
     }
 
     /// Dirección para la barra: forma corta (sin foco, como Chrome) o completa.
@@ -321,26 +348,28 @@ public enum CustomAddresses {
     /* ---------------------------------- Validación ---------------------------------- */
 
     /// Primera entrada activa (distinta de `exceptId`) que choca con estas ubicaciones. Dos
-    /// destinos que se solapan conviven si uno es general y el otro tiene secciones, o si
-    /// las secciones de los dos son distintas.
+    /// entradas pueden compartir destino, dirección o los dos si se reparten las secciones:
+    /// solo chocan si las dos son generales o si repiten una sección.
     public static func findConflicts(target: Location, address: Location, _ entries: [CustomAddress], exceptId: String?, sections: [String] = [])
         -> (errors: [String: String], conflicts: [String: CustomAddress]) {
         var errors: [String: String] = [:]
         var conflicts: [String: CustomAddress] = [:]
         for other in entries where other.enabled && other.id != exceptId {
             guard let otherTarget = parseLocation(other.target), let otherAddress = parseLocation(other.address) else { continue }
+            let general = sections.isEmpty && other.sections.isEmpty
             let sameTarget = overlap(target, otherTarget)
+            let sameAddress = overlap(address, otherAddress)
             if errors["target"] == nil {
-                if sameTarget && sections.isEmpty && other.sections.isEmpty { errors["target"] = "target-in-use" }
+                if sameTarget && general { errors["target"] = "target-in-use" }
                 else if overlap(target, otherAddress) { errors["target"] = "target-is-address" }
                 if errors["target"] != nil { conflicts["target"] = other }
             }
-            if errors["sections"] == nil && sameTarget && sections.contains(where: { other.sections.contains($0) }) {
+            if errors["sections"] == nil && (sameTarget || sameAddress) && sections.contains(where: { other.sections.contains($0) }) {
                 errors["sections"] = "section-in-use"
                 conflicts["sections"] = other
             }
             if errors["address"] == nil {
-                if overlap(address, otherAddress) { errors["address"] = "address-in-use" } else if overlap(address, otherTarget) { errors["address"] = "address-is-target" }
+                if sameAddress && general { errors["address"] = "address-in-use" } else if overlap(address, otherTarget) { errors["address"] = "address-is-target" }
                 if errors["address"] != nil { conflicts["address"] = other }
             }
         }
@@ -400,6 +429,14 @@ public enum CustomAddresses {
             return changed.sections.isEmpty ? nil : changed
         }
         if let general = remaining.first(where: { ofTarget($0) && $0.sections.isEmpty && $0.address == address }) {
+            // Si otra entrada ya reclama esa sección con la misma dirección, la general no la mostraría.
+            let generalAddress = parseLocation(general.address)
+            let claimed = remaining.first { other in
+                guard other.enabled, other.id != general.id, other.sections.contains(section), let generalAddress,
+                      let otherAddress = parseLocation(other.address) else { return false }
+                return overlap(otherAddress, generalAddress)
+            }
+            if let claimed { return .failure(errors: ["sections": "section-in-use"], conflicts: ["sections": claimed]) }
             return .ok(entries: remaining, entry: general)
         }
         if let sibling = remaining.first(where: { ofTarget($0) && !$0.sections.isEmpty && $0.address == address }) {

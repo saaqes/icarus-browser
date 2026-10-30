@@ -516,12 +516,15 @@ class SettingsActivity : ScreenActivity() {
         return seen.toList()
     }
 
-    /** Crear o editar una dirección: los conflictos se muestran en el campo y nunca se sobrescribe otra entrada. */
-    private fun editAddress(entry: CustomAddress?, initialTarget: String? = null) {
+    /**
+     * Crear o editar una dirección: los conflictos se muestran en el campo y nunca se
+     * sobrescribe otra entrada. Con `initialAddress` (al duplicar), el foco va a las secciones.
+     */
+    private fun editAddress(entry: CustomAddress?, initialTarget: String? = null, initialAddress: String? = null) {
         // Completas, como en escritorio: así se conserva el protocolo (p. ej. un destino http://).
         val target = w.field(caForm("target"), entry?.target ?: initialTarget.orEmpty(), caForm("targetPlaceholder"),
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
-        val address = w.field(caForm("address"), entry?.address.orEmpty(), caForm("addressPlaceholder"),
+        val address = w.field(caForm("address"), entry?.address ?: initialAddress.orEmpty(), caForm("addressPlaceholder"),
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
         val sections = w.field(caForm("sections"), entry?.sections?.let(CustomAddresses::formatSections).orEmpty(), caForm("sectionsPlaceholder"),
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS)
@@ -561,6 +564,7 @@ class SettingsActivity : ScreenActivity() {
         sections.edit.addTextChangedListener(watcher)
         updatePreview()
         val choices = destinationChoices()
+        lateinit var dialog: Dialog
         val content = w.vertical(spacingDp = 12) {
             addView(target.view)
             addView(w.hint(caForm("targetHint")))
@@ -589,8 +593,16 @@ class SettingsActivity : ScreenActivity() {
             addView(preview)
             addView(w.hint(caForm("limitation")))
             addView(enabled)
+            if (entry != null) {
+                // Duplicar: otra entrada con el mismo destino y la misma dirección; solo cambian las secciones.
+                addView(w.button(caForm("duplicate")) {
+                    dialog.dismiss()
+                    editAddress(null, entry.target, entry.address)
+                })
+                addView(w.hint(caForm("duplicateTitle")))
+            }
         }
-        w.dialog(if (entry == null) caForm("createTitle") else caForm("editTitle"), content = content, positive = "Guardar") {
+        dialog = w.dialog(if (entry == null) caForm("createTitle") else caForm("editTitle"), content = content, positive = "Guardar") {
             when (val result = app.profile.saveCustomAddress(target.value, address.value, enabled.isChecked, entry?.id, sections.value)) {
                 is CustomAddresses.Validation.Ok -> {
                     toast(if (entry == null) ca("created", "address" to short(result.address)) else ca("saved"))
@@ -610,7 +622,9 @@ class SettingsActivity : ScreenActivity() {
                     false
                 }
             }
-        }.show()
+        }
+        dialog.show()
+        if (entry == null && initialAddress != null) sections.edit.requestFocus()
     }
 
     /* ----------------------------- Accesos directos ----------------------------- */

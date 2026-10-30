@@ -9,7 +9,7 @@ import type { DocumentSchema } from '../persistence/document';
 import { STORAGE_KEYS } from '../persistence/keys';
 import { isRecord, readIsoDate } from '../persistence/validation';
 import { parseWebUrl } from '../url-resolution/urlUtils';
-import { formatLocation, normalizeLocationInput, parseLocation } from './locations';
+import { formatLocation, locationsOverlap, normalizeLocationInput, parseLocation } from './locations';
 import { formatSections } from './sections';
 import { findConflicts, validateCustomAddressInput, type CustomAddressConflicts, type CustomAddressErrors } from './validation';
 
@@ -68,6 +68,12 @@ export function renameCustomAddressBase(entries: CustomAddress[], id: string, ba
   return updateCustomAddress(entries, id, { target: existing.target, address: base, sections: formatSections(existing.sections), enabled: existing.enabled }, now);
 }
 
+function sameAddress(a: string, b: string): boolean {
+  const first = parseLocation(a);
+  const second = parseLocation(b);
+  return first !== null && second !== null && locationsOverlap(first, second);
+}
+
 /**
  * «Guardar solo para #sección»: la base nueva se usa en esa sección del destino y el
  * resto de secciones conserva su dirección.
@@ -96,7 +102,13 @@ export function saveSectionAddress(
     return sections.length > 0 ? [{ ...entry, sections, updatedAt: timestamp }] : [];
   });
   const general = remaining.find((entry) => ofTarget(entry) && !entry.sections?.length && entry.address === address);
-  if (general) return { ok: true, entries: remaining, entry: general };
+  if (general) {
+    // Si otra entrada ya reclama esa sección con la misma dirección, la general no la mostraría.
+    const claimed = remaining.find(
+      (entry) => entry.enabled && entry.id !== general.id && entry.sections?.includes(request.section) && sameAddress(entry.address, general.address),
+    );
+    return claimed ? { ok: false, errors: { sections: 'section-in-use' }, conflicts: { sections: claimed } } : { ok: true, entries: remaining, entry: general };
+  }
   const sibling = remaining.find((entry) => ofTarget(entry) && entry.sections?.length && entry.address === address);
   if (sibling) {
     const sections = formatSections([...(sibling.sections ?? []), request.section]);

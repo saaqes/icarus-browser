@@ -52,6 +52,17 @@
       "enabled": true,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "tienda",
+      "target": "https://otrositio.com/",
+      "address": "https://miweb.com/",
+      "sections": [
+        "tienda"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "cases": [
@@ -259,6 +270,20 @@
       "url": "https://bot.deriv.me/panel#inicio",
       "address": "https://otrodominio.com/panel#inicio",
       "entryId": "deriv-secciones"
+    },
+    {
+      "input": "miweb.com/#tienda",
+      "kind": "custom",
+      "url": "https://otrositio.com/#tienda",
+      "address": "https://miweb.com/#tienda",
+      "entryId": "tienda"
+    },
+    {
+      "input": "miweb.com/catalogo#/tienda/7",
+      "kind": "custom",
+      "url": "https://otrositio.com/catalogo#/tienda/7",
+      "address": "https://miweb.com/catalogo#/tienda/7",
+      "entryId": "tienda"
     },
     {
       "input": "MIWEB.COM/Panel?x=1#a",

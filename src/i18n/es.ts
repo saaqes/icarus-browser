@@ -23,7 +23,8 @@ const customAddressErrors: Record<CustomAddressFieldError, (otherAddress: string
   'target-in-use': (address, target) =>
     `Ese destino ya tiene una dirección: ${target} se muestra como ${address}. Edítala en la lista o, para usar otra dirección solo en algunas partes del sitio, indica sus secciones (por ejemplo #home).`,
   'target-is-address': (address, target) => `${address} ya es la dirección personalizada de ${target}: un destino no puede ser otra dirección personalizada.`,
-  'address-in-use': (address, target) => `${address} ya se usa para ${target}. Elige otra dirección o edita esa entrada.`,
+  'address-in-use': (address, target) =>
+    `${address} ya se usa para ${target}. Elige otra dirección, edita esa entrada o, para compartirla, indica las secciones de cada una (por ejemplo #home).`,
   'address-is-target': (address, target) => `Esa dirección es el destino de otra entrada (${target} se muestra como ${address}).`,
   'invalid-section': () => 'Escribe las secciones como #home, #usuario: letras, números, «-», «_» o «.», separadas por comas o espacios.',
   'too-many-sections': () => 'Una entrada admite como máximo 20 secciones.',
@@ -633,6 +634,8 @@ export const es = {
       limitation:
         'La dirección personalizada no es un dominio de Internet: otros navegadores y dispositivos no la conocen. Si existe un sitio real con esa dirección, ICARUS abrirá tu destino en su lugar mientras esta entrada esté activa.',
       enabled: 'Activa',
+      duplicate: 'Duplicar',
+      duplicateTitle: 'Crear otra entrada con el mismo destino y la misma dirección, para otras secciones',
       remove: 'Eliminar',
       unsaved: 'Cambios sin guardar',
       fixErrors: 'Revisa los campos marcados.',

@@ -413,6 +413,11 @@ struct CustomAddressForm: View {
     @State private var errors: [String: String] = [:]
     @State private var conflicts: [String: CustomAddress] = [:]
     @State private var loaded = false
+    /// «Duplicar»: el formulario pasa a crear otra entrada con el mismo destino y la misma dirección.
+    @State private var duplicating = false
+    @FocusState private var sectionsFocused: Bool
+
+    private var editingId: String? { duplicating ? nil : entry?.id }
 
     private func form(_ key: String, _ params: [String: String] = [:]) -> String { services.text("customAddresses", "form", key, params) }
 
@@ -487,6 +492,7 @@ struct CustomAddressForm: View {
             }
             Section {
                 TextField(form("sectionsPlaceholder"), text: $sections).textInputAutocapitalization(.never).autocorrectionDisabled(true)
+                    .focused($sectionsFocused)
                 error("sections")
             } header: {
                 Text(form("sections"))
@@ -498,13 +504,30 @@ struct CustomAddressForm: View {
                 Text(form("limitation")).font(.footnote).foregroundColor(.secondary)
             }
             Toggle(form("enabled"), isOn: $enabled)
+            if let entry, !duplicating {
+                Section {
+                    Button(form("duplicate")) {
+                        // Mismo destino y misma dirección (las guardadas); solo cambian las secciones.
+                        target = entry.target
+                        address = entry.address
+                        sections = ""
+                        enabled = true
+                        errors = [:]
+                        conflicts = [:]
+                        duplicating = true
+                        sectionsFocused = true
+                    }
+                } footer: {
+                    Text(form("duplicateTitle"))
+                }
+            }
         }
-        .navigationTitle(entry == nil ? form("createTitle") : form("editTitle"))
+        .navigationTitle(editingId == nil ? form("createTitle") : form("editTitle"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Guardar") {
-                    switch services.profile.saveCustomAddress(target: target, address: address, enabled: enabled, editingId: entry?.id, sections: sections) {
+                    switch services.profile.saveCustomAddress(target: target, address: address, enabled: enabled, editingId: editingId, sections: sections) {
                     case .ok: dismiss()
                     case .errors(let found, let others):
                         errors = found

@@ -52,6 +52,17 @@
       "enabled": true,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "tienda",
+      "target": "https://otrositio.com/",
+      "address": "https://miweb.com/",
+      "sections": [
+        "tienda"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "now": "2026-10-26T10:00:00.000Z",
@@ -358,10 +369,41 @@
       "section": "perfil",
       "base": "docs.miweb.org",
       "id": "s6",
-      "ok": false,
-      "errors": {
-        "address": "address-in-use"
-      }
+      "ok": true,
+      "entryId": "s6",
+      "entries": [
+        {
+          "id": "deriv",
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://tercera.com/",
+          "sections": [
+            "ajustes",
+            "home"
+          ],
+          "enabled": true,
+          "id": "s1",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://docs.miweb.org/",
+          "sections": [
+            "perfil"
+          ],
+          "enabled": true,
+          "id": "s6",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        }
+      ]
     },
     {
       "section": "perfil",
@@ -371,6 +413,66 @@
       "errors": {
         "address": "has-query"
       }
+    },
+    {
+      "section": "tienda",
+      "base": "miweb.com",
+      "id": "s8",
+      "ok": false,
+      "errors": {
+        "sections": "section-in-use"
+      }
+    },
+    {
+      "section": "tienda",
+      "base": "cuarta.com",
+      "id": "s9",
+      "ok": true,
+      "entryId": "s9",
+      "entries": [
+        {
+          "id": "deriv",
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://tercera.com/",
+          "sections": [
+            "ajustes",
+            "home"
+          ],
+          "enabled": true,
+          "id": "s1",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://docs.miweb.org/",
+          "sections": [
+            "perfil"
+          ],
+          "enabled": true,
+          "id": "s6",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://cuarta.com/",
+          "sections": [
+            "tienda"
+          ],
+          "enabled": true,
+          "id": "s9",
+          "createdAt": "2026-10-26T10:00:00.000Z",
+          "updatedAt": "2026-10-26T10:00:00.000Z"
+        }
+      ]
     }
   ]
 }

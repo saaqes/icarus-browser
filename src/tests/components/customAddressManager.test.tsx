@@ -33,6 +33,53 @@ async function visit(user: User, url: string) {
 const display = () => document.querySelector('.omnibox__display')?.textContent ?? '';
 
 describe('Direcciones por sección en el editor', () => {
+  it('«Duplicar» repite el destino y la dirección para otras secciones, también con otro sitio real', async () => {
+    const { user } = renderApp();
+    const manager = await openManager(user);
+    await user.click(within(manager).getByRole('button', { name: 'Añadir dirección' }));
+    await fill(user, manager, 'bot.deriv.me', 'miweb.com');
+    await user.type(within(manager).getByLabelText('3. Secciones (opcional)'), '#inicio');
+    await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
+    await screen.findByText('Dirección miweb.com guardada.');
+
+    // Duplicar: mismo destino y misma dirección, sin secciones y con el foco en ellas.
+    await user.click(within(manager).getByRole('button', { name: 'Duplicar' }));
+    expect(within(manager).getByRole('form', { name: 'Nueva dirección personalizada' })).toBeInTheDocument();
+    expect(within(manager).getByLabelText('1. Destino real')).toHaveValue('https://bot.deriv.me/');
+    expect(within(manager).getByLabelText('2. Dirección que se mostrará')).toHaveValue('https://miweb.com/');
+    const sections = within(manager).getByLabelText('3. Secciones (opcional)');
+    expect(sections).toHaveValue('');
+    expect(sections).toHaveFocus();
+    // Repetir una sección no se permite: cada dirección escrita lleva a un solo sitio.
+    await user.type(sections, '#inicio');
+    await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
+    expect(within(manager).getByText(/Alguna de esas secciones ya se muestra como miweb.com/)).toBeInTheDocument();
+    await user.clear(sections);
+    await user.type(sections, '#catalogo');
+    await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
+    await screen.findAllByText('Dirección miweb.com guardada.');
+
+    // Otra vez, ahora con otro sitio real y la misma dirección visible.
+    await user.click(within(manager).getByRole('button', { name: 'Duplicar' }));
+    await fill(user, manager, 'otrositio.com', 'miweb.com');
+    await user.type(within(manager).getByLabelText('3. Secciones (opcional)'), '#tienda');
+    await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
+    const list = within(manager).getByRole('list', { name: DIALOG });
+    await within(list).findByText('Solo en #tienda');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+
+    await user.click(within(manager).getByRole('button', { name: 'Cerrar' }));
+    await visit(user, 'https://bot.deriv.me/#catalogo');
+    expect(display()).toBe('miweb.com/#catalogo');
+    await visit(user, 'https://otrositio.com/#tienda');
+    expect(display()).toBe('miweb.com/#tienda');
+    await visit(user, 'miweb.com/#tienda');
+    expect(display()).toBe('miweb.com/#tienda');
+    // miweb.com#tienda es de otrositio.com: bot.deriv.me#tienda se muestra con su dirección real.
+    await visit(user, 'https://bot.deriv.me/ofertas#tienda');
+    expect(display()).toBe('bot.deriv.me/ofertas#tienda');
+  });
+
   it('crea una dirección solo para #home y #usuario junto a la general del sitio', async () => {
     const { user } = renderApp();
     const manager = await openManager(user);
@@ -148,7 +195,7 @@ describe('Direcciones personalizadas (Configuración → Avanzado)', () => {
 
     await fill(user, manager, 'otro.com', 'miweb.com');
     await user.click(within(manager).getByRole('button', { name: 'Guardar' }));
-    expect(within(manager).getByText('miweb.com ya se usa para bot.deriv.me. Elige otra dirección o edita esa entrada.')).toBeInTheDocument();
+    expect(within(manager).getByText('miweb.com ya se usa para bot.deriv.me. Elige otra dirección, edita esa entrada o, para compartirla, indica las secciones de cada una (por ejemplo #home).')).toBeInTheDocument();
     expect(await screen.findByRole('alert')).toHaveTextContent('Revisa los campos marcados.');
     expect(services.customAddresses.getSnapshot()).toHaveLength(1);
   });

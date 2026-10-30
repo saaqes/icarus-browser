@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addressesStartingWith,
   createCustomAddress,
   displayUrlFor,
   parseSections,
@@ -112,10 +113,11 @@ describe('validación con secciones', () => {
       errors: { sections: 'section-in-use' },
       conflicts: { sections: { id: 'home' } },
     });
-    // La dirección sigue siendo única: cada dirección escrita lleva a un solo destino.
-    expect(validateCustomAddressInput({ target: 'bot.deriv.me', address: 'miweb.com', sections: '#perfil', enabled: true }, [general])).toMatchObject({
+    // Dos generales no comparten dirección: cada dirección escrita lleva a un solo destino.
+    expect(validateCustomAddressInput({ target: 'otrositio.com', address: 'miweb.com', enabled: true }, [general])).toMatchObject({
       ok: false,
       errors: { address: 'address-in-use' },
+      conflicts: { address: { id: 'general' } },
     });
     expect(validateCustomAddressInput({ target: 'bot.deriv.me', address: 'otra.com', sections: '#a/b', enabled: true })).toMatchObject({
       ok: false,
@@ -168,17 +170,67 @@ describe('saveSectionAddress («Guardar solo para #sección»)', () => {
     expect(back.ok && back.entries.map((item) => item.id)).toEqual(['general', 'n3']);
   });
 
-  it('si la base no es válida o ya es de otro sitio, no cambia nada', () => {
-    const other = entry('otro', 'https://otro.com/', 'https://tercera.com/');
+  it('si la base no es válida o esa sección ya es de otro sitio con esa dirección, no cambia nada', () => {
+    const other = entry('otro', 'https://otro.com/', 'https://tercera.com/', ['home']);
     const entries = [general, home, other];
     expect(saveSectionAddress(entries, { target: general.target, section: 'home', base: 'tercera.com' }, context('x'))).toMatchObject({
       ok: false,
-      errors: { address: 'address-in-use' },
+      errors: { sections: 'section-in-use' },
+      conflicts: { sections: { id: 'otro' } },
+    });
+    // Volver a la general tampoco: otra entrada muestra miweb.com#tienda con otro sitio.
+    const shop = entry('tienda', 'https://otrositio.com/', 'https://miweb.com/', ['tienda']);
+    expect(saveSectionAddress([general, shop], { target: general.target, section: 'tienda', base: 'miweb.com' }, context('x'))).toMatchObject({
+      ok: false,
+      errors: { sections: 'section-in-use' },
+      conflicts: { sections: { id: 'tienda' } },
     });
     expect(saveSectionAddress(entries, { target: general.target, section: 'home', base: 'tercera.com/#x' }, context('x'))).toMatchObject({
       ok: false,
       errors: { address: 'has-query' },
     });
+  });
+});
+
+describe('repetir la dirección real y la visible repartiendo las secciones', () => {
+  it('la misma dirección real y visible en varias entradas, cada una con sus secciones', () => {
+    const inicio = entry('inicio', 'https://bot.deriv.me/', 'https://miweb.com/', ['inicio']);
+    expect(validateCustomAddressInput({ target: 'bot.deriv.me', address: 'miweb.com', sections: '#catalogo', enabled: true }, [inicio])).toMatchObject({ ok: true });
+    expect(validateCustomAddressInput({ target: 'bot.deriv.me', address: 'miweb.com', sections: '#catalogo #inicio', enabled: true }, [inicio])).toMatchObject({
+      ok: false,
+      errors: { sections: 'section-in-use' },
+      conflicts: { sections: { id: 'inicio' } },
+    });
+  });
+
+  it('varias direcciones reales con la misma dirección visible: la sección decide el sitio', () => {
+    const a = entry('a', 'https://bot.deriv.me/', 'https://miweb.com/', ['inicio', 'catalogo']);
+    const b = entry('b', 'https://otrositio.com/', 'https://miweb.com/', ['home', 'usuario']);
+    expect(validateCustomAddressInput({ target: b.target, address: b.address, sections: '#home #usuario', enabled: true }, [a])).toMatchObject({ ok: true });
+    const entries = [a, b];
+    expect(shown('https://bot.deriv.me/#catalogo', entries)).toBe('https://miweb.com/#catalogo');
+    expect(shown('https://otrositio.com/#/usuario/3', entries)).toBe('https://miweb.com/#/usuario/3');
+    expect(shown('https://otrositio.com/#inicio', entries)).toBeNull();
+    const resolve = (text: string) => resolveCustomAddress(new URL(text), entries, false);
+    expect(resolve('https://miweb.com/#home')).toMatchObject({ entry: { id: 'b' }, url: 'https://otrositio.com/#home' });
+    expect(resolve('https://miweb.com/#inicio')).toMatchObject({ entry: { id: 'a' }, url: 'https://bot.deriv.me/#inicio' });
+    // Sin sección: la entrada más antigua, en su primera sección.
+    expect(resolve('https://miweb.com/')).toMatchObject({ entry: { id: 'a' }, url: 'https://bot.deriv.me/#inicio' });
+    expect(addressesStartingWith('miw', entries).map((item) => item.id)).toEqual(['a']);
+  });
+
+  it('con una general, la sección que reclama otro sitio se muestra con su dirección real', () => {
+    const shop = entry('tienda', 'https://otrositio.com/', 'https://miweb.com/', ['tienda']);
+    expect(validateCustomAddressInput({ target: shop.target, address: shop.address, sections: '#tienda', enabled: true }, [general])).toMatchObject({ ok: true });
+    const entries = [general, shop];
+    expect(shown('https://bot.deriv.me/#inicio', entries)).toBe('https://miweb.com/#inicio');
+    // miweb.com#tienda lleva a otrositio.com: bot.deriv.me#tienda no puede mostrarse así.
+    expect(shown('https://bot.deriv.me/#tienda', entries)).toBeNull();
+    expect(shown('https://otrositio.com/#tienda', entries)).toBe('https://miweb.com/#tienda');
+    const resolve = (text: string) => resolveCustomAddress(new URL(text), entries, false);
+    expect(resolve('https://miweb.com/#tienda')).toMatchObject({ url: 'https://otrositio.com/#tienda' });
+    expect(resolve('https://miweb.com/')).toMatchObject({ entry: { id: 'general' }, url: 'https://bot.deriv.me/' });
+    expect(addressesStartingWith('miweb', entries).map((item) => item.id)).toEqual(['general']);
   });
 });
 

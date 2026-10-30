@@ -70,6 +70,8 @@ const VECTOR_ENTRIES: CustomAddress[] = [
   entry('apagada', 'https://apagada.com/', 'https://desactivada.com/', false),
   // Otra dirección para unas secciones del mismo sitio que «deriv».
   entry('deriv-secciones', 'https://bot.deriv.me/', 'https://otrodominio.com/', true, ['home', 'usuario']),
+  // La misma dirección visible que «deriv» para otro sitio real, solo en #tienda.
+  entry('tienda', 'https://otrositio.com/', 'https://miweb.com/', true, ['tienda']),
 ];
 
 /* ------------------------- Edición de la base ------------------------- */
@@ -137,6 +139,8 @@ const INPUTS = [
   'otrodominio.com',
   'otrodominio.com/#usuario',
   'OTRODOMINIO.COM/panel#inicio',
+  'miweb.com/#tienda',
+  'miweb.com/catalogo#/tienda/7',
   'MIWEB.COM/Panel?x=1#a',
   'https://miweb.com/ruta',
   'http://miweb.com/',
@@ -210,6 +214,10 @@ const DISPLAY_URLS = [
   'https://bot.deriv.me/panel?x=1#/usuario/10',
   'https://bot.deriv.me/#!/home',
   'https://bot.deriv.me/#home-2',
+  // miweb.com#tienda es de otrositio.com: bot.deriv.me#tienda se muestra con su dirección real.
+  'https://otrositio.com/#tienda',
+  'https://otrositio.com/#inicio',
+  'https://bot.deriv.me/#tienda',
 ];
 
 /* ------------------------- Validación y conflictos ------------------------- */
@@ -240,6 +248,11 @@ const VALIDATION_CASES: Array<CustomAddressInput & { editingId?: string }> = [
   { target: 'bot.deriv.me', address: 'tercera.com', sections: '#a/b', enabled: true },
   { target: 'bot.deriv.me', address: 'tercera.com', sections: Array.from({ length: 21 }, (_, n) => `#s${n}`).join(' '), enabled: true },
   { target: 'bot.deriv.me', address: 'otrodominio.com', sections: '', enabled: true, editingId: 'deriv-secciones' },
+  // Repetir la dirección real y la visible repartiendo las secciones.
+  { target: 'bot.deriv.me', address: 'otrodominio.com', sections: '#perfil', enabled: true },
+  { target: 'nuevo3.com', address: 'miweb.com', sections: '#ofertas', enabled: true },
+  { target: 'nuevo3.com', address: 'miweb.com', sections: '#ofertas #tienda', enabled: true },
+  { target: 'nuevo3.com', address: 'miweb.com', enabled: true },
 ];
 
 /* ------------------------------ Secciones (#) ------------------------------ */
@@ -256,6 +269,8 @@ const SECTION_SAVES = [
   { section: 'perfil', base: 'desactivada.com', id: 's5' },
   { section: 'perfil', base: 'docs.miweb.org', id: 's6' },
   { section: 'perfil', base: 'tercera.com/#x', id: 's7' },
+  { section: 'tienda', base: 'miweb.com', id: 's8' },
+  { section: 'tienda', base: 'cuarta.com', id: 's9' },
 ];
 
 /** Reglas de alias guardadas por versiones anteriores (se convierten al leerlas). */
@@ -670,6 +685,8 @@ describe('datos compartidos con las apps móviles', () => {
             previewIncomplete: t.form.previewIncomplete,
             limitation: t.form.limitation,
             enabled: t.form.enabled,
+            duplicate: t.form.duplicate,
+            duplicateTitle: t.form.duplicateTitle,
             remove: t.form.remove,
             unsaved: t.form.unsaved,
             fixErrors: t.form.fixErrors,

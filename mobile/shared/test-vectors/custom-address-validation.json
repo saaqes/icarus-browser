@@ -52,6 +52,17 @@
       "enabled": true,
       "createdAt": "2026-01-01T00:00:00.000Z",
       "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "tienda",
+      "target": "https://otrositio.com/",
+      "address": "https://miweb.com/",
+      "sections": [
+        "tienda"
+      ],
+      "enabled": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
     }
   ],
   "cases": [
@@ -358,12 +369,14 @@
         "enabled": true
       },
       "editingId": null,
-      "ok": false,
-      "errors": {
-        "address": "address-in-use"
-      },
-      "conflicts": {
-        "address": "deriv"
+      "ok": true,
+      "value": {
+        "target": "https://bot.deriv.me/",
+        "address": "https://miweb.com/",
+        "sections": [
+          "perfil"
+        ],
+        "enabled": true
       }
     },
     {
@@ -408,6 +421,73 @@
       },
       "conflicts": {
         "target": "deriv"
+      }
+    },
+    {
+      "input": {
+        "target": "bot.deriv.me",
+        "address": "otrodominio.com",
+        "sections": "#perfil",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": true,
+      "value": {
+        "target": "https://bot.deriv.me/",
+        "address": "https://otrodominio.com/",
+        "sections": [
+          "perfil"
+        ],
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "nuevo3.com",
+        "address": "miweb.com",
+        "sections": "#ofertas",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": true,
+      "value": {
+        "target": "https://nuevo3.com/",
+        "address": "https://miweb.com/",
+        "sections": [
+          "ofertas"
+        ],
+        "enabled": true
+      }
+    },
+    {
+      "input": {
+        "target": "nuevo3.com",
+        "address": "miweb.com",
+        "sections": "#ofertas #tienda",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "sections": "section-in-use"
+      },
+      "conflicts": {
+        "sections": "tienda"
+      }
+    },
+    {
+      "input": {
+        "target": "nuevo3.com",
+        "address": "miweb.com",
+        "enabled": true
+      },
+      "editingId": null,
+      "ok": false,
+      "errors": {
+        "address": "address-in-use"
+      },
+      "conflicts": {
+        "address": "deriv"
       }
     }
   ],

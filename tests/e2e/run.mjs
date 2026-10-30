@@ -1128,6 +1128,39 @@ await step('36. Secciones: otro dominio para #home en el mismo sitio, en otra pe
   return 'seccion.com en #home · otraweb.com en #inicio · otra pestaña · tras reiniciar';
 });
 
+await step('37. Misma dirección para dos sitios reales repartiendo las secciones («Duplicar»)', async () => {
+  // 127.0.0.1 y localhost son dos sitios distintos para Chromium (otro origen).
+  const port = new URL(base).port;
+  const editor = await openAddressEditor();
+  await editor.getByRole('button', { name: 'Añadir dirección' }).click();
+  await editor.getByLabel('1. Destino real').fill(`${base}/`);
+  await editor.getByLabel('2. Dirección que se mostrará').fill('miweb3.com');
+  await editor.getByLabel('3. Secciones (opcional)').fill('#inicio');
+  await editor.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await win.getByText('Dirección miweb3.com guardada.').last().waitFor();
+  // Duplicar: mismo destino y misma dirección, sin secciones y con el foco en ellas.
+  await editor.getByRole('button', { name: 'Duplicar' }).click();
+  const sections = editor.getByLabel('3. Secciones (opcional)');
+  const shownField = await editor.getByLabel('2. Dirección que se mostrará').inputValue();
+  assert(shownField === 'http://miweb3.com/', `Duplicar no repitió la dirección (${shownField})`);
+  assert((await sections.inputValue()) === '', 'Duplicar no vació las secciones');
+  assert(await sections.evaluate((element) => element === document.activeElement), 'El foco no está en las secciones');
+  await editor.getByLabel('1. Destino real').fill(`http://localhost:${port}/`);
+  await sections.fill('#home');
+  await editor.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await eventually(async () => (await editor.getByText('Solo en #home', { exact: true }).count()) > 0, 'No se guardó la segunda entrada');
+  await editor.getByRole('button', { name: 'Cerrar' }).first().click();
+  // La misma dirección escrita abre el sitio real de su sección, y la barra la conserva.
+  await win.keyboard.press('Control+T');
+  await go('miweb3.com/app#home');
+  await eventually(async () => (await visibleUrl()) === `http://localhost:${port}/app#home`, 'miweb3.com/app#home no abrió localhost');
+  await expectShown('miweb3.com/app#home');
+  await go('miweb3.com/app#inicio');
+  await eventually(async () => (await visibleUrl()) === `${base}/app#inicio`, 'miweb3.com/app#inicio no abrió 127.0.0.1');
+  await expectShown('miweb3.com/app#inicio');
+  return 'miweb3.com#inicio → 127.0.0.1 · miweb3.com#home → localhost (duplicada)';
+});
+
 if (process.env.ICARUS_E2E_INTERNET === '1') {
   await step('Internet (A): https://bot.deriv.me/ con la dirección personalizada https://miweb.com/', async () => {
     await addCustomAddress('https://bot.deriv.me', 'https://miweb.com');

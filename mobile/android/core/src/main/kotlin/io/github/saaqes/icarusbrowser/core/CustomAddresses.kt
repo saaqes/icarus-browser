@@ -246,9 +246,18 @@ object CustomAddresses {
         val items = active(entries)
         for (item in items.filter { section != null && section in it.sections } + items.filter { it.sections.isEmpty() }) {
             val rest = remainderWithin(item.target, url) ?: continue
+            // Una general no muestra una sección que otra entrada reclama con la misma dirección.
+            if (item.sections.isEmpty() && section != null && items.any { it !== item && section in it.sections && overlap(it.address, item.address) }) continue
             return DisplayMatch(item.entry, urlWithin(item.address, rest, url))
         }
         return null
+    }
+
+    /** Para una dirección escrita: la entrada de su sección, después la general y después las demás. */
+    private fun rank(item: Parsed, section: String?): Int = when {
+        section != null && section in item.sections -> 0
+        item.sections.isEmpty() -> 1
+        else -> 2
     }
 
     /**
@@ -256,20 +265,29 @@ object CustomAddresses {
      * fragmento, la dirección de una entrada de secciones abre su primera sección.
      */
     fun resolve(url: WebUrl, entries: List<CustomAddress>, explicitProtocol: Boolean): Resolution? {
+        val section = sectionOf(hashOf(url))
         val best = active(entries)
             .mapNotNull { item -> remainderWithin(item.address, url, !explicitProtocol)?.let { item to it } }
-            .maxByOrNull { it.first.address.path.length } ?: return null
+            .sortedWith(compareBy<Pair<Parsed, String>> { rank(it.first, section) }.thenByDescending { it.first.address.path.length })
+            .firstOrNull() ?: return null
         val (item, rest) = best
         val first = item.sections.firstOrNull()
         val hash = if (first != null && hashOf(url).isEmpty()) "#" + WebUrl.percentEncode(first, emptySet()) else hashOf(url)
         return Resolution(item.entry, urlWithin(item.target, rest, url, hash), urlWithin(item.address, rest, url, hash))
     }
 
-    /** Entradas activas cuya dirección empieza por lo escrito (para sugerencias). */
+    /** Entradas activas cuya dirección empieza por lo escrito (para sugerencias); una dirección compartida, una vez (la general si la hay). */
     fun startingWith(text: String, entries: List<CustomAddress>): List<CustomAddress> {
         val needle = text.trim().lowercase().removePrefix("https://").removePrefix("http://").removePrefix("www.")
         if (needle.isEmpty()) return emptyList()
-        return active(entries).filter { it.address.label.startsWith(needle) || it.address.label.removePrefix("www.").startsWith(needle) }.map { it.entry }
+        val byLabel = LinkedHashMap<String, Parsed>()
+        for (item in active(entries)) {
+            val label = item.address.label
+            if (!label.startsWith(needle) && !label.removePrefix("www.").startsWith(needle)) continue
+            val current = byLabel[label]
+            if (current == null || rank(item, null) < rank(current, null)) byLabel[label] = item
+        }
+        return byLabel.values.map { it.entry }
     }
 
     /** Dirección para la barra: forma corta (sin foco, como Chrome) o completa. */
@@ -286,8 +304,8 @@ object CustomAddresses {
 
     /**
      * Primera entrada activa (distinta de `exceptId`) que choca con estas ubicaciones.
-     * Dos destinos que se solapan conviven si uno es general y el otro tiene secciones,
-     * o si las secciones de los dos son distintas.
+     * Dos entradas pueden compartir destino, dirección o los dos si se reparten las
+     * secciones: solo chocan si las dos son generales o si repiten una sección.
      */
     fun findConflicts(target: Location, address: Location, entries: List<CustomAddress>, exceptId: String?, sections: List<String> = emptyList()): Validation.Errors {
         val errors = LinkedHashMap<String, String>()
@@ -296,21 +314,23 @@ object CustomAddresses {
             if (!other.enabled || other.id == exceptId) continue
             val otherTarget = parseLocation(other.target) ?: continue
             val otherAddress = parseLocation(other.address) ?: continue
+            val general = sections.isEmpty() && other.sections.isEmpty()
             val sameTarget = overlap(target, otherTarget)
+            val sameAddress = overlap(address, otherAddress)
             if ("target" !in errors) {
                 when {
-                    sameTarget && sections.isEmpty() && other.sections.isEmpty() -> errors["target"] = "target-in-use"
+                    sameTarget && general -> errors["target"] = "target-in-use"
                     overlap(target, otherAddress) -> errors["target"] = "target-is-address"
                 }
                 if ("target" in errors) conflicts["target"] = other
             }
-            if ("sections" !in errors && sameTarget && sections.any { it in other.sections }) {
+            if ("sections" !in errors && (sameTarget || sameAddress) && sections.any { it in other.sections }) {
                 errors["sections"] = "section-in-use"
                 conflicts["sections"] = other
             }
             if ("address" !in errors) {
                 when {
-                    overlap(address, otherAddress) -> errors["address"] = "address-in-use"
+                    sameAddress && general -> errors["address"] = "address-in-use"
                     overlap(address, otherTarget) -> errors["address"] = "address-is-target"
                 }
                 if ("address" in errors) conflicts["address"] = other
@@ -371,7 +391,16 @@ object CustomAddresses {
             if (!ofTarget(entry) || section !in entry.sections) entry
             else (entry.sections - section).takeIf { it.isNotEmpty() }?.let { entry.copy(sections = it, updatedAt = now) }
         }
-        remaining.firstOrNull { ofTarget(it) && it.sections.isEmpty() && it.address == address }?.let { return SectionSave.Ok(remaining, it) }
+        remaining.firstOrNull { ofTarget(it) && it.sections.isEmpty() && it.address == address }?.let { general ->
+            // Si otra entrada ya reclama esa sección con la misma dirección, la general no la mostraría.
+            val generalAddress = parseLocation(general.address)
+            val claimed = remaining.firstOrNull { other ->
+                other.enabled && other.id != general.id && section in other.sections &&
+                    generalAddress != null && parseLocation(other.address)?.let { overlap(it, generalAddress) } == true
+            }
+            return if (claimed != null) SectionSave.Failure(Validation.Errors(mapOf("sections" to "section-in-use"), mapOf("sections" to claimed)))
+            else SectionSave.Ok(remaining, general)
+        }
         val sibling = remaining.firstOrNull { ofTarget(it) && it.sections.isNotEmpty() && it.address == address }
         if (sibling != null) {
             return when (val result = validate(sibling.target, address, true, remaining, sibling.id, formatSections(sibling.sections + section))) {

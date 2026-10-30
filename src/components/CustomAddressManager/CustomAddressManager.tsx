@@ -66,6 +66,7 @@ export function CustomAddressManager({ onClose, start }: { onClose: () => void; 
   const [conflicts, setConflicts] = useState<CustomAddressConflicts>({});
   const [deleting, setDeleting] = useState<CustomAddress | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [focusSections, setFocusSections] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const visible = useMemo(() => filterCustomAddresses(entries, query), [entries, query]);
@@ -232,6 +233,15 @@ export function CustomAddressManager({ onClose, start }: { onClose: () => void; 
               onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
               onSave={save}
               onCancel={() => guard(() => openEditor({ mode: 'closed' }))}
+              onDuplicate={() =>
+                guard(() => {
+                  // Mismo destino y misma dirección (las guardadas); solo cambian las secciones.
+                  if (!editing) return;
+                  openEditor({ mode: 'create' }, { target: editing.target, address: editing.address, sections: '', enabled: true });
+                  setFocusSections((count) => count + 1);
+                })
+              }
+              focusSections={focusSections}
             />
           )}
         </div>

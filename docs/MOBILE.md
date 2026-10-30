@@ -27,10 +27,10 @@ La comprobación forma parte de `npm run test`, así que CI falla si alguien cam
 
 | Vector | Qué fija |
 | --- | --- |
-| `resolve-input.json` | 56 textos de la barra de direcciones (con 6 direcciones personalizadas, una solo para `#home` y `#usuario`) → URL, dirección personalizada, búsqueda, página interna o bloqueo; y 24 búsquedas codificadas como `encodeURIComponent` |
-| `custom-address-display.json` | 27 URL reales → dirección que muestra la barra, en forma corta y completa (con secciones: `#inicio` → general, `#home` → la de la sección) |
-| `custom-address-validation.json` | 24 casos del editor (errores por campo, también de secciones, y entrada con la que choca) y 10 reglas de alias antiguas más una ya convertida → conversión y lista cargada (varias reglas idénticas, una por fragmento, quedan en una sola entrada) |
-| `custom-address-sections.json` | 13 fragmentos → sección; 8 textos del campo «Secciones» → secciones o error; 7 «Guardar solo para #sección» seguidos → entradas resultantes o error |
+| `resolve-input.json` | 58 textos de la barra de direcciones (con 7 direcciones personalizadas: una solo para `#home` y `#usuario`, y otra que comparte `miweb.com` con otro sitio en `#tienda`) → URL, dirección personalizada, búsqueda, página interna o bloqueo; y 24 búsquedas codificadas como `encodeURIComponent` |
+| `custom-address-display.json` | 30 URL reales → dirección que muestra la barra, en forma corta y completa (con secciones: `#inicio` → general, `#home` → la de la sección) |
+| `custom-address-validation.json` | 28 casos del editor (errores por campo, también de secciones, y entrada con la que choca) y 10 reglas de alias antiguas más una ya convertida → conversión y lista cargada (varias reglas idénticas, una por fragmento, quedan en una sola entrada) |
+| `custom-address-sections.json` | 13 fragmentos → sección; 8 textos del campo «Secciones» → secciones o error; 9 «Guardar solo para #sección» seguidos → entradas resultantes o error |
 | `address-rebase.json` | 14 direcciones mostradas (con o sin dirección personalizada) → base y sufijo; bases nuevas → URL o error; textos escritos → editar la base o navegar sin heredar la ruta |
 | `registrable-domain.json` | 16 hosts → dominio registrable (incluye comodines y excepciones de la PSL) |
 | `shield-match.json` | Una lista con todas las opciones admitidas → número de reglas, ignoradas y no válidas; y 28 solicitudes → bloqueada o no |
@@ -82,7 +82,7 @@ Las dos apps reproducen la barra de escritorio con la misma lógica (`CustomAddr
 - Configuración → Avanzado → «Personalizar direcciones URL»: lista, edición con vista previa, activar y eliminar; los conflictos se muestran en el campo nombrando la otra entrada. Configuración → Navegación → «Mostrar siempre las URL completas».
 - El perfil (`profile.json`, versión 2) guarda la lista en `customAddresses` y convierte al leerlas las reglas `aliasRules` de versiones anteriores.
 - **Editar la base** (`AddressRebase.kt` / `AddressRebase.swift`, equivalentes a `rebase.ts`): en Android, la primera sugerencia al tocar la barra es «Editar base»; el campo pasa a tener solo la base y el sufijo (`/#inicio`) queda fijo con una «×». En una página personalizada se elige entre guardar la base nueva en la entrada (persistente), guardarla solo para la sección de la página (`#home`) o ir a la nueva dirección. En iPhone está el núcleo (y sus pruebas), sin botón en la app.
-- **Direcciones por sección**: el editor de las dos apps tiene el campo «Secciones» (`#home, #usuario`) y la lista lo muestra («Solo en #home, #usuario»); la barra usa la entrada de la sección de la página antes que la general, como en escritorio (`custom-address-sections.json`).
+- **Direcciones por sección**: el editor de las dos apps tiene el campo «Secciones» (`#home, #usuario`) y la lista lo muestra («Solo en #home, #usuario»); la barra usa la entrada de la sección de la página antes que la general, como en escritorio (`custom-address-sections.json`). Como en escritorio, varias entradas pueden repetir el destino y la dirección repartiéndose las secciones, y el botón «Duplicar» del editor crea otra con el mismo destino y la misma dirección para editar solo sus secciones.
 
 ## Barra de Android (como Chrome para Android)
 

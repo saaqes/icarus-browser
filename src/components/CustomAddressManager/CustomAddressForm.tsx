@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useHistoryItems } from '../../hooks/useNative';
 import { useShortcuts } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
@@ -32,6 +32,10 @@ interface CustomAddressFormProps {
   onChange: (patch: Partial<CustomAddressInput>) => void;
   onSave: () => void;
   onCancel: () => void;
+  /** Crea otra entrada con el mismo destino y la misma dirección (solo al editar). */
+  onDuplicate?: () => void;
+  /** Cambia para llevar el foco al campo de las secciones (p. ej. tras duplicar). */
+  focusSections?: number;
 }
 
 interface DestinationOption {
@@ -80,10 +84,16 @@ export function CustomAddressForm({
   onChange,
   onSave,
   onCancel,
+  onDuplicate,
+  focusSections,
 }: CustomAddressFormProps) {
   const m = useMessages();
   const t = m.customAddresses.form;
   const options = useDestinationOptions(entries, editingId);
+  const sectionsRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focusSections) sectionsRef.current?.focus();
+  }, [focusSections]);
   const message = (field: 'target' | 'address' | 'sections') => {
     const code = errors[field];
     if (!code) return null;
@@ -173,6 +183,7 @@ export function CustomAddressForm({
         {(props) => (
           <input
             {...props}
+            ref={sectionsRef}
             className="input mono"
             value={draft.sections ?? ''}
             placeholder={t.sectionsPlaceholder}
@@ -211,6 +222,12 @@ export function CustomAddressForm({
       <Toggle label={t.enabled} checked={draft.enabled} onChange={(enabled) => onChange({ enabled })} />
 
       <div className="address-form__actions">
+        {mode === 'edit' && onDuplicate && (
+          <button type="button" className="btn btn--ghost address-form__duplicate" title={t.duplicateTitle} onClick={onDuplicate}>
+            <Icon name="copy" size={16} />
+            {t.duplicate}
+          </button>
+        )}
         <button type="button" className="btn btn--ghost" onClick={onCancel}>
           {m.common.cancel}
         </button>

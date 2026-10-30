@@ -5,11 +5,11 @@
  * Reglas para que mostrar y navegar sean siempre coherentes:
  * - La dirección usa el mismo protocolo que el destino: la barra nunca presenta
  *   como HTTPS una página HTTP (ni al revés).
- * - Entre las entradas activas, ningún destino se solapa con otra dirección y
- *   ninguna dirección se solapa con otra dirección ni con otro destino. Dos destinos
- *   que se solapan solo pueden convivir si uno es general y el otro está limitado a
- *   unas secciones, o si los dos tienen secciones distintas. Así cada URL real tiene
- *   como mucho una dirección visible y cada dirección escrita lleva a un único destino.
+ * - Entre las entradas activas, ningún destino se solapa con la dirección de otra
+ *   entrada (ni al revés). Dos entradas pueden compartir el destino, la dirección o los
+ *   dos si se reparten las secciones: solo chocan si las dos son generales (sin
+ *   secciones) o si repiten una sección. Así cada URL real tiene como mucho una
+ *   dirección visible y cada dirección escrita (con su sección) lleva a un único destino.
  * - La dirección no puede estar dentro de su propio destino (ni al revés).
  */
 
@@ -64,18 +64,20 @@ export function findConflicts(
     const parsed = locationsOf(other);
     if (!parsed) continue;
     const theirs = other.sections ?? [];
+    const general = mine.length === 0 && theirs.length === 0;
     const sameTarget = locationsOverlap(locations.target, parsed.target);
+    const sameAddress = locationsOverlap(locations.address, parsed.address);
     if (!errors.target) {
-      if (sameTarget && mine.length === 0 && theirs.length === 0) errors.target = 'target-in-use';
+      if (sameTarget && general) errors.target = 'target-in-use';
       else if (locationsOverlap(locations.target, parsed.address)) errors.target = 'target-is-address';
       if (errors.target) conflicts.target = other;
     }
-    if (!errors.sections && sameTarget && sectionsOverlap(mine, theirs)) {
+    if (!errors.sections && (sameTarget || sameAddress) && sectionsOverlap(mine, theirs)) {
       errors.sections = 'section-in-use';
       conflicts.sections = other;
     }
     if (!errors.address) {
-      if (locationsOverlap(locations.address, parsed.address)) errors.address = 'address-in-use';
+      if (sameAddress && general) errors.address = 'address-in-use';
       else if (locationsOverlap(locations.address, parsed.target)) errors.address = 'address-is-target';
       if (errors.address) conflicts.address = other;
     }
