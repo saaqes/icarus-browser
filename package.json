@@ -2,7 +2,7 @@
   "name": "icarus-browser",
   "productName": "ICARUS Browser",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "ICARUS Browser: navegador de escritorio con Chromium integrado, tres estilos visuales, alias de URL y bloqueo de anuncios ICARUS Shield.",
   "author": "saaqes",
   "homepage": "https://github.com/saaqes/icarus-browser",

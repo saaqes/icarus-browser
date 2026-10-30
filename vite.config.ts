@@ -50,5 +50,8 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}', 'electron/**/*.test.ts'],
     css: false,
     restoreMocks: true,
+    // Las pruebas que recorren toda la interfaz escribiendo con user-event tardan ~2 s en
+    // local, pero más del doble en los ejecutores de Windows de GitHub Actions.
+    testTimeout: 20_000,
   },
 });
