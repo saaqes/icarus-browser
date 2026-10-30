@@ -16,6 +16,30 @@
   margin-bottom: 4px;
 }
 
+/* Estilo Panorama (Edge): botón cuadrado de la esquina que abre la lista de pestañas. */
+.tabstrip > .menu-root {
+  flex: none;
+  align-self: center;
+}
+
+.tabstrip__tabmenu {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tab-fg);
+  transition: background var(--duration-fast);
+}
+
+.tabstrip__tabmenu:hover {
+  background: var(--tab-bg-hover);
+  color: var(--tab-fg-active);
+}
+
 .tabstrip__tabs {
   display: flex;
   align-items: flex-end;

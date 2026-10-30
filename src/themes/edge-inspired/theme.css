@@ -87,8 +87,16 @@
   margin-bottom: 0;
 }
 
+/* Barra compacta y pegada al contenido, como Edge: nada de altura de más. */
+.icarus-root[data-theme='edge-inspired'] .tabstrip {
+  height: 40px;
+}
+
 .icarus-root[data-theme='edge-inspired'] .toolbar {
   gap: var(--space-1);
+  min-height: 42px;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .icarus-root[data-theme='edge-inspired'] .toolbar__actions {

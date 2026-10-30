@@ -1,9 +1,11 @@
+import { useAppearance } from '../../hooks/useAppearance';
 import { useMessages } from '../../i18n';
 import type { PagePresentation } from '../../services/tabs/pages';
 import { getCurrentEntry } from '../../services/tabs/tabs';
 import { Favicon } from '../common/Favicon';
 import { Icon } from '../common/Icon';
 import { IcarusMark } from '../common/IcarusLogo';
+import { MenuButton, type MenuEntry } from '../common/Menu';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 import { shortAddress } from '../../services/custom-addresses/display';
 import './TabBar.css';
@@ -33,13 +35,36 @@ function TabIcon({ presentation, loading, favicon }: { presentation: PagePresent
 /** Barra superior de pestañas visuales. */
 export function TabBar() {
   const m = useMessages();
+  const { themeId } = useAppearance();
   const { session, describe, activateTab, closeTab, newTab, webState } = useBrowser();
+
+  // Como Microsoft Edge, el estilo Panorama no muestra la marca de la aplicación en la
+  // esquina: un botón cuadrado con un chevron abre la lista de pestañas abiertas.
+  const tabMenu: MenuEntry[] = [
+    ...session.tabs.map((tab) => {
+      const presentation = describe(getCurrentEntry(tab).page);
+      return {
+        id: tab.id,
+        label: presentation.title,
+        icon: (tab.id === session.activeTabId ? 'check' : undefined) as 'check' | undefined,
+        onSelect: () => activateTab(tab.id),
+      };
+    }),
+    { id: 'tabs-sep', separator: true },
+    { id: 'tabs-new', label: m.tabs.newTab, icon: 'plus', shortcut: 'Ctrl+T', onSelect: newTab },
+  ];
 
   return (
     <div className="tabstrip">
-      <div className="tabstrip__brand" aria-hidden="true">
-        <IcarusMark size={20} />
-      </div>
+      {themeId === 'edge-inspired' ? (
+        <MenuButton label={m.tabs.list} items={tabMenu} className="tabstrip__tabmenu" align="start">
+          <Icon name="chevronDown" size={16} />
+        </MenuButton>
+      ) : (
+        <div className="tabstrip__brand" aria-hidden="true">
+          <IcarusMark size={20} />
+        </div>
+      )}
       <div className="tabstrip__tabs" role="tablist" aria-label={m.tabs.list}>
         {session.tabs.map((tab) => {
           const presentation = describe(getCurrentEntry(tab).page);
