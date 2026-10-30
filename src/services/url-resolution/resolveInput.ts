@@ -1,6 +1,11 @@
 /**
- * Interpreta el texto de la barra de direcciones o del buscador: dirección web,
- * dirección personalizada, búsqueda, página interna o protocolo bloqueado.
+ * Interpreta el texto de la barra de direcciones: dirección web, dirección
+ * personalizada, página interna o protocolo bloqueado.
+ *
+ * ICARUS no tiene un buscador general: el texto que no es una dirección válida ni un
+ * alias se intenta como dominio (se añade `https://`) y, si no resuelve, el motor
+ * muestra su página de error real. Nunca se convierte en una búsqueda de Google u otro
+ * buscador.
  *
  * Las direcciones se aceptan tal como se escriben (`google.com`, `bot.deriv.me`,
  * `localhost:3000`, `https://ejemplo.com/ruta?x#y`): solo se añade `https://`
@@ -11,7 +16,6 @@ import type { CustomAddress } from '../../types/customAddress';
 import type { SearchProviderId } from '../../types/settings';
 import type { PageEntry } from '../../types/tabs';
 import { resolveCustomAddress } from '../custom-addresses/mapping';
-import { buildSearchUrl } from '../search/providers';
 import { INTERNAL_PROTOCOL, parseInternalUrl } from './internalPages';
 import { getProtocol, isDangerousProtocol, normalizeUserUrl, parseWebUrl, WEB_PROTOCOLS } from './urlUtils';
 
@@ -34,24 +38,21 @@ export function resolveInput(text: string, context: ResolveContext): InputResolu
   const value = text.trim();
   if (!value) return { kind: 'empty' };
 
-  const search = (): InputResolution => ({
-    kind: 'search',
-    query: value,
-    providerId: context.providerId,
-    url: buildSearchUrl(context.providerId, value),
-  });
-
   const web = (url: URL, explicitProtocol: boolean): InputResolution => {
     const custom = resolveCustomAddress(url, context.customAddresses, explicitProtocol);
     return custom ? { kind: 'custom', url: custom.url, address: custom.address, entry: custom.entry } : { kind: 'url', url: url.href };
   };
 
-  // Con espacios siempre es una búsqueda (p. ej. "cómo funciona javascript: ...").
-  if (/\s/.test(value)) return search();
+  // Sin buscador: lo que no es una dirección válida se intenta como dominio. El motor
+  // muestra su página de error real si no existe; nunca se busca en un buscador.
+  const asDomain = (): InputResolution => {
+    const parsed = parseWebUrl(/^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`);
+    return { kind: 'url', url: parsed ? parsed.href : `https://${encodeURIComponent(value)}/` };
+  };
 
   const protocol = getProtocol(value);
   const isHostWithPort = protocol !== null && /^[^:/]+:\d+(?:[/?#]|$)/.test(value);
-  if (protocol && !isHostWithPort) {
+  if (!/\s/.test(value) && protocol && !isHostWithPort) {
     if (protocol === INTERNAL_PROTOCOL) {
       const page = parseInternalUrl(value);
       return page ? { kind: 'internal', page } : { kind: 'internal-unknown', text: value };
@@ -59,12 +60,12 @@ export function resolveInput(text: string, context: ResolveContext): InputResolu
     if ((WEB_PROTOCOLS as readonly string[]).includes(protocol)) {
       const url = parseWebUrl(value);
       if (url && !url.username && !url.password) return web(url, true);
-      return search();
+      return asDomain();
     }
     return { kind: 'blocked', protocol, dangerous: isDangerousProtocol(protocol) };
   }
 
   const normalized = normalizeUserUrl(value);
   if (normalized.ok) return web(normalized.parsed, false);
-  return search();
+  return asDomain();
 }

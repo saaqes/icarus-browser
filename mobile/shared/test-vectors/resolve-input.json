@@ -158,33 +158,33 @@
     },
     {
       "input": "ejemplo.com:99999",
-      "kind": "search",
-      "url": "https://www.google.com/search?q=ejemplo.com%3A99999"
+      "kind": "url",
+      "url": "https://ejemplo.com%3A99999/"
     },
     {
       "input": "a.b",
-      "kind": "search",
-      "url": "https://www.google.com/search?q=a.b"
+      "kind": "url",
+      "url": "https://a.b/"
     },
     {
       "input": "hola",
-      "kind": "search",
-      "url": "https://www.google.com/search?q=hola"
+      "kind": "url",
+      "url": "https://hola/"
     },
     {
       "input": "hola mundo",
-      "kind": "search",
-      "url": "https://www.google.com/search?q=hola%20mundo"
+      "kind": "url",
+      "url": "https://hola%20mundo/"
     },
     {
       "input": "¿qué es ICARUS?",
-      "kind": "search",
-      "url": "https://www.google.com/search?q=%C2%BFqu%C3%A9%20es%20ICARUS%3F"
+      "kind": "url",
+      "url": "https://%C2%BFqu%C3%A9%20es%20ICARUS%3F/"
     },
     {
       "input": "cómo funciona javascript: en la web",
-      "kind": "search",
-      "url": "https://www.google.com/search?q=c%C3%B3mo%20funciona%20javascript%3A%20en%20la%20web"
+      "kind": "url",
+      "url": "https://c%C3%B3mo%20funciona%20javascript%3A%20en%20la%20web/"
     },
     {
       "input": "javascript:alert(1)",
@@ -230,8 +230,8 @@
     },
     {
       "input": "https://usuario:clave@ejemplo.com/",
-      "kind": "search",
-      "url": "https://www.google.com/search?q=https%3A%2F%2Fusuario%3Aclave%40ejemplo.com%2F"
+      "kind": "url",
+      "url": "https://usuario:clave@ejemplo.com/"
     },
     {
       "input": "bot.deriv.me",

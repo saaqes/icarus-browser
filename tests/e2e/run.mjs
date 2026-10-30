@@ -323,17 +323,14 @@ await step('2. Abrir una página dentro de la pestaña', async () => {
   return `${list.length} vista(s) web`;
 });
 
-await step('3. Buscar texto desde la barra', async () => {
-  await go('icarus prueba');
-  const value = await eventually(async () => {
-    const current = await addressBar().inputValue();
-    return current.startsWith('https://www.google.com/search?q=icarus') ? current : null;
-  }, 'La búsqueda no navegó al proveedor');
-  // Se espera a que el motor confirme la navegación (página cargada o página de error).
-  await eventually(async () => (await views()).some((view) => view.url?.startsWith('https://www.google.com/search?q=icarus')), 'El motor no navegó a la búsqueda', 30_000);
-  await eventually(async () => !(await win.locator('[role="tab"][aria-selected="true"] .tab__spinner').count()), 'La búsqueda no terminó de cargar', 30_000);
-  const blocked = await win.getByRole('heading', { name: 'No se puede acceder a este sitio' }).isVisible().catch(() => false);
-  return blocked ? `${value} (la red del entorno bloquea google.com: se mostró la página de error real)` : value;
+await step('3. Sin buscador: una palabra se intenta como dominio, nunca se busca', async () => {
+  await go('icaruslandia');
+  // La barra muestra el dominio intentado; ICARUS no abre ningún buscador.
+  await expectShown('icaruslandia', 'La palabra no se intentó como dominio');
+  await eventually(async () => (await views()).some((view) => view.url?.startsWith('https://icaruslandia')), 'El motor no intentó el dominio', 30_000);
+  const views_ = await views();
+  assert(!views_.some((view) => (view.url ?? '').includes('/search?q=')), 'Se activó un buscador general');
+  return 'icaruslandia → https://icaruslandia/ (dominio, no búsqueda)';
 });
 
 await step('4. Volver atrás tras la búsqueda', async () => {

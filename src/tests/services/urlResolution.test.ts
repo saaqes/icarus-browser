@@ -28,17 +28,15 @@ describe('resolveInput', () => {
     expect(resolveInput('192.168.1.1', context)).toEqual({ kind: 'url', url: 'http://192.168.1.1/' });
   });
 
-  it('convierte texto normal en una búsqueda con el proveedor elegido', () => {
-    expect(resolveInput('mitología griega', context)).toEqual({
-      kind: 'search',
-      query: 'mitología griega',
-      providerId: 'google',
-      url: 'https://www.google.com/search?q=mitolog%C3%ADa%20griega',
-    });
-    const bing = resolveInput('ícaro', { ...context, providerId: 'bing' });
-    expect(bing).toMatchObject({ kind: 'search', url: 'https://www.bing.com/search?q=%C3%ADcaro' });
-    expect(resolveInput('palabra', context)).toMatchObject({ kind: 'search' });
-    expect(resolveInput('usuario@example.com', context)).toMatchObject({ kind: 'search' });
+  it('sin buscador: el texto que no es dirección se intenta como dominio, nunca se busca', () => {
+    // Una sola palabra es un dominio de un nivel; el motor mostrará su error si no existe.
+    expect(resolveInput('palabra', context)).toEqual({ kind: 'url', url: 'https://palabra/' });
+    // Varias palabras no forman un host válido: se intenta igualmente (error real), sin buscar.
+    const frase = resolveInput('mitología griega', context);
+    expect(frase.kind).toBe('url');
+    expect(frase.kind === 'url' && frase.url.startsWith('https://')).toBe(true);
+    expect(resolveInput('mitología griega', context)).not.toMatchObject({ kind: 'search' });
+    expect(resolveInput('ícaro', context).kind).toBe('url');
   });
 
   it('bloquea protocolos peligrosos o no compatibles', () => {
@@ -46,8 +44,8 @@ describe('resolveInput', () => {
     expect(resolveInput('data:text/html,<b>x</b>', context)).toMatchObject({ kind: 'blocked', dangerous: true });
     expect(resolveInput('file:///etc/passwd', context)).toMatchObject({ kind: 'blocked', dangerous: true });
     expect(resolveInput('mailto:alguien@example.com', context)).toMatchObject({ kind: 'blocked', dangerous: false });
-    // Con espacios es texto de búsqueda, nunca código.
-    expect(resolveInput('javascript: tutorial', context)).toMatchObject({ kind: 'search' });
+    // Con espacios no es código ni búsqueda: se intenta como dominio (error real del motor).
+    expect(resolveInput('javascript: tutorial', context)).toMatchObject({ kind: 'url' });
   });
 
   it('resuelve páginas internas', () => {

@@ -583,14 +583,18 @@ public enum InputResolution: Equatable {
     }
 }
 
-/// Interpreta el texto de la barra: dirección web, dirección personalizada, búsqueda,
-/// página interna o protocolo bloqueado. Las direcciones se aceptan tal como se
-/// escriben; solo se añade el protocolo si falta.
+/// Interpreta el texto de la barra: dirección web, dirección personalizada, página
+/// interna o protocolo bloqueado. Equivale a src/services/url-resolution/resolveInput.ts.
+///
+/// ICARUS no tiene buscador general: lo que no es una dirección válida ni un alias se
+/// intenta como dominio (se añade `https://`) y el motor muestra su error real si no
+/// existe; nunca se convierte en una búsqueda.
 public enum InputResolver {
+    private static let scheme = Pattern("^[a-z][a-z0-9+.-]*://")
+
     public static func resolve(_ text: String, provider: SearchProvider, customAddresses: [CustomAddress]) -> InputResolution {
         let value = text.trimmed
         if value.isEmpty { return .empty }
-        let search = InputResolution.search(url: provider.searchURL(value), query: value, provider: provider)
 
         func web(_ url: WebURL, explicitProtocol: Bool) -> InputResolution {
             if let custom = CustomAddresses.resolve(url, customAddresses, explicitProtocol: explicitProtocol) {
@@ -599,25 +603,29 @@ public enum InputResolver {
             return .url(url.href)
         }
 
-        // Con espacios siempre es una búsqueda (p. ej. «cómo funciona javascript: …»).
-        if value.contains(where: { $0.isWhitespace }) { return search }
+        // Sin buscador: lo que no es dirección se intenta como dominio (error real del motor).
+        func asDomain() -> InputResolution {
+            let candidate = scheme.contains(value) ? value : "https://\(value)"
+            if let parsed = UrlUtils.parseWebURL(candidate) { return .url(parsed.href) }
+            return .url("https://\(UrlUtils.encodeURIComponent(value))/")
+        }
 
         let proto = UrlUtils.getProtocol(value)
         let isHostWithPort = proto != nil && UrlUtils.startsWithHostAndPort(value)
-        if let proto, !isHostWithPort {
+        if !value.contains(where: { $0.isWhitespace }), let proto, !isHostWithPort {
             if proto == InternalPage.protocolName {
                 return InternalPage.parse(value).map { .internal($0) } ?? .internalUnknown(value)
             }
             if UrlUtils.webProtocols.contains(proto) {
                 if let url = UrlUtils.parseWebURL(value), !url.hasCredentials { return web(url, explicitProtocol: true) }
-                return search
+                return asDomain()
             }
             return .blocked(protocol: proto, dangerous: UrlUtils.isDangerousProtocol(proto))
         }
 
         switch UrlUtils.normalizeUserURL(value) {
         case .ok(_, let parsed): return web(parsed, explicitProtocol: false)
-        case .failure: return search
+        case .failure: return asDomain()
         }
     }
 }

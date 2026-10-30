@@ -36,43 +36,50 @@ sealed interface InputResolution {
 }
 
 /**
- * Interpreta el texto de la barra de direcciones o del buscador: dirección web,
- * dirección personalizada, búsqueda, página interna o protocolo bloqueado.
- * Equivale a src/services/url-resolution/resolveInput.ts. Las direcciones se
- * aceptan tal como se escriben; solo se añade el protocolo si falta.
+ * Interpreta el texto de la barra de direcciones: dirección web, dirección
+ * personalizada, página interna o protocolo bloqueado. Equivale a
+ * src/services/url-resolution/resolveInput.ts.
+ *
+ * ICARUS no tiene buscador general: lo que no es una dirección válida ni un alias se
+ * intenta como dominio (se añade `https://`) y el motor muestra su error real si no
+ * existe; nunca se convierte en una búsqueda.
  */
 object InputResolver {
+    private val SCHEME = Regex("^[a-z][a-z0-9+.-]*://", RegexOption.IGNORE_CASE)
+
     fun resolve(text: String, provider: SearchProvider, customAddresses: List<CustomAddress>): InputResolution {
         val value = text.trim()
         if (value.isEmpty()) return InputResolution.Empty
-
-        val search = { InputResolution.Search(provider.searchUrl(value), value, provider) }
 
         val web = { url: WebUrl, explicitProtocol: Boolean ->
             CustomAddresses.resolve(url, customAddresses, explicitProtocol)
                 ?.let { InputResolution.Custom(it.url, it.address, it.entry) } ?: InputResolution.Url(url.href)
         }
 
-        // Con espacios siempre es una búsqueda (p. ej. «cómo funciona javascript: …»).
-        if (value.any { it.isWhitespace() }) return search()
+        // Sin buscador: lo que no es dirección se intenta como dominio (error real del motor).
+        val asDomain = {
+            val candidate = if (SCHEME.containsMatchIn(value)) value else "https://$value"
+            val parsed = UrlUtils.parseWebUrl(candidate)
+            InputResolution.Url(parsed?.href ?: "https://${UrlUtils.encodeUriComponent(value)}/")
+        }
 
         val protocol = UrlUtils.getProtocol(value)
         val isHostWithPort = protocol != null && UrlUtils.startsWithHostAndPort(value)
-        if (protocol != null && !isHostWithPort) {
+        if (!value.any { it.isWhitespace() } && protocol != null && !isHostWithPort) {
             if (protocol == InternalPage.PROTOCOL) {
                 return InternalPage.parse(value)?.let { InputResolution.Internal(it) } ?: InputResolution.InternalUnknown(value)
             }
             if (protocol in UrlUtils.WEB_PROTOCOLS) {
                 val url = UrlUtils.parseWebUrl(value)
                 if (url != null && !url.hasCredentials) return web(url, true)
-                return search()
+                return asDomain()
             }
             return InputResolution.Blocked(protocol, UrlUtils.isDangerousProtocol(protocol))
         }
 
         return when (val normalized = UrlUtils.normalizeUserUrl(value)) {
             is UrlUtils.Normalized.Ok -> web(normalized.parsed, false)
-            is UrlUtils.Normalized.Failure -> search()
+            is UrlUtils.Normalized.Failure -> asDomain()
         }
     }
 }

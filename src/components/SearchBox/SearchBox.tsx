@@ -1,23 +1,21 @@
 import { useId, useState } from 'react';
 import { useServices } from '../../app/ServicesContext';
-import { useSettings } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
-import { getSearchProvider, SEARCH_PROVIDERS } from '../../services/search/providers';
-import { updateGeneral } from '../../services/settings/settings';
-import type { SearchProviderId } from '../../types/settings';
 import { useBrowser } from '../BrowserShell/BrowserContext';
 import { Icon } from '../common/Icon';
 import './SearchBox.css';
 
 export type SearchBoxVariant = 'pill' | 'panel' | 'glass';
 
-/** Buscador de la página de inicio. Acepta búsquedas y direcciones, igual que la barra superior. */
+/**
+ * Barra de direcciones de la página de inicio. ICARUS no tiene un buscador general:
+ * acepta direcciones web y alias, igual que la barra superior, y nunca convierte el
+ * texto en una búsqueda.
+ */
 export function SearchBox({ variant }: { variant: SearchBoxVariant }) {
   const m = useMessages();
-  const [settings, updateSettings] = useSettings();
   const { navigateInput } = useBrowser();
   const [value, setValue] = useState('');
-  const provider = getSearchProvider(settings.general.searchProvider);
   const noteId = useId();
   const { native } = useServices();
 
@@ -31,13 +29,13 @@ export function SearchBox({ variant }: { variant: SearchBoxVariant }) {
           if (navigateInput(value)) setValue('');
         }}
       >
-        <Icon name="search" size={20} className="searchbox__icon" />
+        <Icon name="globe" size={20} className="searchbox__icon" />
         <input
           className="searchbox__input"
           type="text"
           aria-label={m.search.label}
           aria-describedby={noteId}
-          placeholder={m.search.placeholder(provider.name)}
+          placeholder={m.search.placeholder}
           value={value}
           spellCheck={false}
           autoComplete="off"
@@ -48,30 +46,14 @@ export function SearchBox({ variant }: { variant: SearchBoxVariant }) {
             <Icon name="close" size={14} />
           </button>
         )}
-        <label className="searchbox__provider">
-          <span className="visually-hidden">{m.search.provider}</span>
-          <select
-            value={provider.id}
-            onChange={(event) =>
-              updateSettings((current) => updateGeneral(current, { searchProvider: event.target.value as SearchProviderId }))
-            }
-          >
-            {Object.values(SEARCH_PROVIDERS).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-          <Icon name="chevronDown" size={14} />
-        </label>
         {variant === 'panel' && (
           <button type="submit" className="searchbox__submit" aria-label={m.search.submit}>
-            <Icon name="search" size={18} />
+            <Icon name="chevronRight" size={18} />
           </button>
         )}
       </form>
       <p id={noteId} className="searchbox__note">
-        <Icon name={native ? 'search' : 'external'} size={12} />
+        <Icon name={native ? 'globe' : 'external'} size={12} />
         {native ? m.search.desktopNote : m.search.externalNote}
       </p>
     </div>

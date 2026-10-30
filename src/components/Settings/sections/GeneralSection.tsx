@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { useServices } from '../../../app/ServicesContext';
 import { useSettings } from '../../../hooks/useStores';
 import { useMessages } from '../../../i18n';
-import { SEARCH_PROVIDERS } from '../../../services/search/providers';
 import { setTheme, updateGeneral } from '../../../services/settings/settings';
 import { normalizeUserUrl } from '../../../services/url-resolution/urlUtils';
-import { LANGUAGE_CODES, THEME_IDS, type LanguageCode, type SearchProviderId, type StartupBehavior, type ThemeId } from '../../../types/settings';
+import { LANGUAGE_CODES, THEME_IDS, type LanguageCode, type StartupBehavior, type ThemeId } from '../../../types/settings';
 import { useBrowser } from '../../BrowserShell/BrowserContext';
 import { Field, RadioList, Toggle } from '../../common/Controls';
 import { Icon } from '../../common/Icon';
@@ -40,23 +39,6 @@ export function GeneralSection() {
 
   return (
     <>
-      <SettingsCard title={t.searchEngine} description={t.searchEngineHint}>
-        <label className="select-row">
-          <span className="visually-hidden">{t.searchEngine}</span>
-          <select
-            className="select"
-            value={general.searchProvider}
-            onChange={(event) => updateSettings((current) => updateGeneral(current, { searchProvider: event.target.value as SearchProviderId }))}
-          >
-            {Object.values(SEARCH_PROVIDERS).map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </SettingsCard>
-
       <SettingsCard title={t.startup} description={native ? t.startupHintDesktop : t.startupHint}>
         <RadioList<StartupBehavior>
           label={t.startup}

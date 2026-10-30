@@ -149,8 +149,9 @@ class BrowserSmokeTest {
             assertEquals(page, onMain(scenario) { it.currentTab!!.url })
             onMain(scenario) { it.submitAddress("file:///etc/hosts") }
             assertEquals(page, onMain(scenario) { it.currentTab!!.url })
-            onMain(scenario) { it.submitAddress("hola mundo") }
-            assertEquals("https://www.google.com/search?q=hola%20mundo", onMain(scenario) { it.currentTab!!.url })
+            // Sin buscador: una palabra se intenta como dominio (el motor mostrará su error), nunca se busca.
+            onMain(scenario) { it.submitAddress("tienda") }
+            waitFor(scenario, "la palabra se intenta como dominio") { it.currentTab?.url?.startsWith("https://tienda") == true }
 
             // 4. Certificado no válido (solo con Internet): se cancela, nunca se continúa.
             if (InstrumentationRegistry.getArguments().getString("internet") == "1") {

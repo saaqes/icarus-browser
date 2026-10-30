@@ -221,13 +221,11 @@ export const es = {
     },
   },
   search: {
-    label: 'Buscar en la web',
-    placeholder: (provider: string) => `Buscar con ${provider} o escribir una dirección`,
-    provider: 'Proveedor de búsqueda',
-    providerChanged: (provider: string) => `Proveedor de búsqueda: ${provider}`,
-    submit: 'Buscar',
-    externalNote: 'Los resultados se abren en el navegador del sistema.',
-    desktopNote: 'Los resultados se abren en esta pestaña de ICARUS.',
+    label: 'Introducir una dirección web',
+    placeholder: 'Escribe una dirección web (ejemplo.com)',
+    submit: 'Ir',
+    externalNote: 'La dirección se abre en el navegador del sistema.',
+    desktopNote: 'La dirección se abre en esta pestaña de ICARUS.',
   },
   navigationNotices: {
     blocked: (protocol: string) => `ICARUS no abre direcciones «${protocol}» por seguridad.`,

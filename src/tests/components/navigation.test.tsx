@@ -12,15 +12,14 @@ async function typeAddress(user: ReturnType<typeof renderApp>['user'], text: str
 }
 
 describe('barra de direcciones y navegación', () => {
-  it('busca texto con el proveedor elegido y deja claro que se abre fuera', async () => {
+  it('sin buscador: el texto que no es dirección se intenta como dominio, no se busca', async () => {
     const { user, open } = renderApp();
-    await typeAddress(user, 'vuelo de ícaro');
-    expect(screen.getByRole('option', { name: /Buscar en Google · se abre en el navegador externo/ })).toBeInTheDocument();
-    await user.keyboard('{Enter}');
-
-    expect(open).toHaveBeenCalledWith('https://www.google.com/search?q=vuelo%20de%20%C3%ADcaro', '_blank', 'noopener,noreferrer');
-    expect(await screen.findByRole('heading', { name: 'Página abierta fuera de ICARUS' })).toBeInTheDocument();
-    expect(screen.getByText(/no dentro de esta pestaña/)).toBeInTheDocument();
+    // Una sola palabra se trata como dominio (el motor mostraría su error si no existe),
+    // nunca como una búsqueda de Google/Bing.
+    await typeAddress(user, 'icaruslandia{Enter}');
+    expect(open).toHaveBeenLastCalledWith('https://icaruslandia/', '_blank', 'noopener,noreferrer');
+    const url = String(open.mock.calls.at(-1)?.[0] ?? '');
+    expect(url).not.toContain('/search?q=');
   });
 
   it('reconoce direcciones web', async () => {
@@ -30,15 +29,11 @@ describe('barra de direcciones y navegación', () => {
     expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('example.com');
   });
 
-  it('cambia el proveedor desde el buscador de inicio y lo conserva', async () => {
-    const { user, open, storage, unmount } = renderApp();
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Proveedor de búsqueda' }), 'bing');
-    await user.type(screen.getByRole('textbox', { name: 'Buscar en la web' }), 'ícaro{Enter}');
-    expect(open).toHaveBeenCalledWith('https://www.bing.com/search?q=%C3%ADcaro', '_blank', 'noopener,noreferrer');
-    unmount();
-
-    renderApp({ storage });
-    expect(screen.getByRole('combobox', { name: 'Proveedor de búsqueda' })).toHaveValue('bing');
+  it('el buscador de la página de inicio abre direcciones y no ofrece proveedor de búsqueda', async () => {
+    const { user, open } = renderApp();
+    await user.type(screen.getByRole('textbox', { name: 'Introducir una dirección web' }), 'ejemplo.com{Enter}');
+    expect(open).toHaveBeenCalledWith('https://ejemplo.com/', '_blank', 'noopener,noreferrer');
+    expect(screen.queryByRole('combobox', { name: 'Proveedor de búsqueda' })).toBeNull();
   });
 
   it('bloquea protocolos peligrosos', async () => {
