@@ -9,11 +9,12 @@ firmado** (`icarus-update.json`), publicado junto a cada versión en GitHub Rele
 
 | Instalación | Qué hace ICARUS | ¿Pide confirmación? |
 | --- | --- | --- |
-| **Windows**, instalada con el instalador (`ICARUS-Browser-Setup-X.exe`) | Descarga el instalador nuevo, comprueba firma del manifiesto, SHA-256 y tamaño, y lo ejecuta en silencio sobre la versión actual (`/S --updated`). Un proceso auxiliar espera al instalador y vuelve a abrir ICARUS con las pestañas que tenías. | Solo pulsar «Actualizar ahora» (o «Instalar al cerrar ICARUS»). |
+| **Windows**, instalada con el instalador (`ICARUS-Browser-Setup-X.exe`) | Descarga el instalador nuevo, comprueba firma del manifiesto, SHA-256 y tamaño, y un proceso auxiliar copia la instalación actual, ejecuta el instalador en silencio sobre ella (`/S --updated`), comprueba que quedó la versión nueva y vuelve a abrir ICARUS con las pestañas que tenías. **Si el instalador falla o deja la instalación a medias, restaura la copia** y ICARUS vuelve a abrirse en la versión anterior. | Solo pulsar «Actualizar y reiniciar» (o nada, con «Actualizar automáticamente»). |
 | **Windows**, versión portátil (`.zip`) | Descarga y verifica el `.zip` nuevo y lo muestra en su carpeta: hay que descomprimirlo en lugar de la carpeta actual. | Sí: lo colocas tú. |
 | **macOS**, app en una carpeta con permiso de escritura (p. ej. *Aplicaciones*) | Descarga el `.zip` de la app, comprueba firma del manifiesto, SHA-256, identificador, versión y firma de código, y al cerrarse sustituye la app (con vuelta atrás si algo falla) y la vuelve a abrir. | Pulsar «Actualizar ahora». Sin Developer ID, además, macOS pide una vez tras cada actualización permiso para usar la clave del llavero (ver abajo). |
 | **macOS**, app sin permiso de escritura, abierta desde el `.dmg` o «trasladada» por Gatekeeper | Descarga y verifica el `.dmg` y lo abre: hay que arrastrar la app a *Aplicaciones*. | Sí: la colocas tú. |
-| **Linux** (carpeta `linux-unpacked`, no se publica paquete) | Avisa y abre la página de la versión. | Sí: manual. |
+| **Linux**, AppImage (`ICARUS-Browser-X-linux-x64.AppImage`) en una carpeta con permiso de escritura | Descarga el AppImage nuevo, comprueba firma del manifiesto, SHA-256 y que es un AppImage, lo deja junto al actual y, al cerrarse ICARUS, lo pone en su lugar con un `rename` (atómico: nunca queda a medias). Lo abre y espera a que confirme que arrancó; **si no arranca en 90 s, restaura el anterior** y lo abre. | Solo pulsar «Actualizar y reiniciar». |
+| **Linux**, otra instalación (carpeta suelta, AppImage sin permiso de escritura) | Avisa y abre la página de la versión. | Sí: manual. |
 | **Android**, APK instalado a mano | Descarga el APK, comprueba firma del manifiesto, SHA-256, tamaño, que es ICARUS, la versión anunciada, que es posterior y que está firmado con **el mismo certificado** que la app instalada. Después lo entrega al instalador de Android. | Sí, siempre: Android pide permiso una vez para «instalar apps desde ICARUS» y confirmación en cada actualización. Nunca se instala en silencio. |
 | **Android**, instalado desde Google Play | No descarga nada: las actualizaciones llegan por Google Play. | — |
 | **iPhone/iPad** | Comprueba el manifiesto firmado y **avisa**. iOS no permite que una app se instale a sí misma: con App Store o TestFlight abre su ficha; en una copia instalada a mano abre la página de la versión y explica cómo volver a firmar el `.ipa`. Nunca descarga ni instala un `.ipa`. | Sí: por el canal oficial. |
@@ -35,6 +36,17 @@ carpeta temporal `updates/` (se borra tras actualizar), la clave
 `icarus/updates.json` en Android y `icarus.updates.*` en las preferencias de iOS.
 
 ## En la interfaz
+
+**Configuración → Acerca de ICARUS → Actualizaciones** (escritorio): nombre (ICARUS Browser),
+versión instalada, última versión disponible, estado, fecha de la última comprobación,
+«Buscar actualizaciones», «Descargar actualización», «Actualizar y reiniciar» y la opción
+**«Actualizar automáticamente»** (descarga y verifica sola cada versión nueva y la instala al
+cerrar ICARUS, como Chrome y Edge; sin ella, ICARUS solo avisa). Estados: «Tu navegador está
+actualizado», «Nueva actualización disponible», «Descargando actualización» (con
+porcentaje), «Verificando archivos», «Preparando instalación», «Actualización lista para
+instalar», «Reinicio necesario», «Actualización completada» y «Error al actualizar» (con
+el motivo: sin conexión, error del servidor, firma o huella incorrectas, descarga
+interrumpida, sin espacio, instalación fallida…).
 
 **Configuración → Actualizaciones** (escritorio, Android e iPhone): versión instalada,
 canal (estable o vista previa), última comprobación, «Buscar actualizaciones»,
@@ -107,6 +119,7 @@ error.
     { "platform": "macos", "arch": "x64", "kind": "zip", "file": "ICARUS-Browser-0.3.0-mac-x64.zip", "size": 0, "sha256": "…" },
     { "platform": "macos", "arch": "arm64", "kind": "dmg", "file": "ICARUS-Browser-0.3.0-mac-arm64.dmg", "size": 0, "sha256": "…" },
     { "platform": "macos", "arch": "x64", "kind": "dmg", "file": "ICARUS-Browser-0.3.0-mac-x64.dmg", "size": 0, "sha256": "…" },
+    { "platform": "linux", "arch": "x64", "kind": "appimage", "file": "ICARUS-Browser-0.3.0-linux-x64.AppImage", "size": 0, "sha256": "…" },
     { "platform": "android", "arch": "universal", "kind": "apk", "file": "ICARUS-Browser-0.3.0-android.apk", "size": 0, "sha256": "…", "versionCode": 30099 },
     { "platform": "ios", "arch": "universal", "kind": "ipa", "file": "ICARUS-Browser-0.3.0-ios-sin-firmar.ipa", "size": 0, "sha256": "…" }
   ]
@@ -119,6 +132,9 @@ implementaciones deciden igual):
 
 - `version`: `X.Y.Z` (estable) o `X.Y.Z-preview.N` (preliminar, N de 1 a 98); `channel`
   coincide con ella y `tag` es `v` + versión.
+- Los paquetes de una plataforma, arquitectura o tipo que la versión instalada no conoce se
+  ignoran (el manifiesto sigue firmado entero): así, añadir un tipo de paquete nuevo no deja
+  sin actualizaciones a las instalaciones existentes.
 - Cada paquete: plataforma, arquitectura y tipo conocidos, nombre `ICARUS-Browser-…`
   con la versión y la extensión de su tipo, tamaño entre 1 B y 1 GB, SHA-256 en
   minúsculas y, solo en Android, `versionCode`. No se repite plataforma/arquitectura/tipo.
@@ -153,9 +169,58 @@ desincroniza. CI comprueba además dentro de cada paquete la versión, el commit
 clave (`scripts/release/check-build.mjs`), el `versionCode` del APK (`aapt`) y el
 `Info.plist` de iOS.
 
-## Publicar una versión
+## Publicación automática
 
-Subir commits a una rama **nunca** publica nada. Solo publica una etiqueta de versión:
+Cada commit subido pasa por los cinco flujos (CI con Linux y el AppImage, Windows, macOS,
+Android e iPhone). Cuando terminan **todos** bien, `.github/workflows/draft.yml` reúne sus
+paquetes ya probados (sin volver a compilar) y decide con `scripts/release/auto-plan.mjs`:
+
+- **Se publica** la versión si el commit es de la rama principal, la versión de
+  `package.json` es nueva (no existe su etiqueta y es posterior a todas las publicadas) y
+  están la clave pública y el secreto de firma. Se genera, firma y verifica el manifiesto,
+  se crea la versión como borrador, se comprueban todos los archivos y se publica (estable
+  `X.Y.Z` → «latest»; `X.Y.Z-preview.N` → preliminar). Por último se descargan sin
+  credenciales el manifiesto y cada paquete y se comparan con lo firmado; si algo no
+  coincide, la versión vuelve a ser un borrador. Las instalaciones la ven en la siguiente
+  comprobación.
+- **Si no**, se crea un borrador privado `vX.Y.Z-auto.<commit>` sin manifiesto.
+- **Si falla cualquier prueba, no se publica ni se crea nada.**
+
+Así, publicar es subir la versión en el mismo commit (o en uno posterior) y empujarlo:
+
+```bash
+npm version patch --no-git-tag-version   # 0.2.1 → 0.2.2 (o minor, o 0.3.0-preview.1)
+node scripts/release/version.mjs sync    # misma versión en iPhone
+git commit -am "Versión 0.2.2" && git push
+```
+
+Las notas de la versión salen de `docs/release-notes/X.Y.Z.md` o, si no existe, del mensaje
+del commit. Un commit que no cambia la versión nunca publica nada. Para aprobar cada
+publicación a mano: Settings → Environments → `release` → *Required reviewers*.
+
+## Primera versión actualizable
+
+Las copias instaladas hasta ahora se compilaron sin clave pública, así que no buscan
+actualizaciones. Una sola vez:
+
+1. **Crear la clave** de firma: con la página «Clave de actualizaciones de ICARUS» (la
+   genera WebCrypto en tu navegador y no la envía a ningún sitio) o con
+   `node scripts/release/generate-update-key.mjs`.
+2. **Guardar la privada** como secreto `ICARUS_UPDATE_SIGNING_KEY` (Settings → Secrets and
+   variables → Actions).
+3. **Añadir la pública** al repositorio (`build/update-public-key.pem` y
+   `mobile/ios/App/Resources/update-public-key.pem`) y subir la versión (por ejemplo, a
+   0.2.1) en el mismo commit. Cuando pasen los cinco flujos, se publica v0.2.1.
+4. **Instalar v0.2.1 una vez** sobre la versión actual con
+   `ICARUS-Browser-Setup-0.2.1.exe` (Windows: no hace falta desinstalar; el instalador
+   sustituye la aplicación y conserva %APPDATA%\ICARUS Browser), el `.dmg` (macOS) o el
+   AppImage (Linux).
+5. Desde ahí, cada versión publicada se instala desde Configuración → Acerca de ICARUS →
+   Actualizaciones, sin descargar nada a mano.
+
+## Publicar una versión con una etiqueta
+
+También se puede publicar con una etiqueta (vuelve a compilar y probar todo):
 
 ```bash
 npm version 0.3.0              # cambia package.json, sincroniza iPhone, hace commit y etiqueta v0.3.0
@@ -168,10 +233,9 @@ git push && git push origin v0.3.0
   `npm version 0.3.0-preview.1`.
 - Lanzar **Publicación** a mano en Actions → **borrador** privado sin manifiesto, para
   revisar los paquetes; nunca llega a nadie.
-- Cada commit subido cuyas compilaciones terminan bien → **borrador automático**
-  `vX.Y.Z-auto.<commit>` (`.github/workflows/draft.yml`) con los paquetes ya probados de
-  ese commit, sin volver a compilar. Tampoco lleva manifiesto ni llega a nadie; se
-  conservan los 5 más recientes.
+- Cada commit subido cuyas compilaciones terminan bien → versión publicada si sube la
+  versión (ver «Publicación automática»); si no, **borrador automático**
+  `vX.Y.Z-auto.<commit>` sin manifiesto (se conservan los 5 más recientes).
 
 `.github/workflows/release.yml`:
 
@@ -201,7 +265,7 @@ trabajo de publicación).
 | Secreto (Settings → Secrets and variables → Actions) | Para qué | ¿Obligatorio para publicar? |
 | --- | --- | --- |
 | `ICARUS_UPDATE_SIGNING_KEY` | Clave privada ECDSA P-256 (PEM) que firma el manifiesto | **Sí** |
-| `ICARUS_KEYSTORE_BASE64`, `ICARUS_KEYSTORE_PASSWORD`, `ICARUS_KEY_ALIAS`, `ICARUS_KEY_PASSWORD` | Almacén de claves del APK. Android solo instala una actualización firmada con el mismo certificado, así que debe ser siempre el mismo | **Sí** |
+| `ICARUS_KEYSTORE_BASE64`, `ICARUS_KEYSTORE_PASSWORD`, `ICARUS_KEY_ALIAS`, `ICARUS_KEY_PASSWORD` | Almacén de claves del APK. Android solo instala una actualización firmada con el mismo certificado, así que debe ser siempre el mismo | No: sin ellos se publica igualmente, pero el APK se adjunta sin entrar en el manifiesto (no se ofrece como actualización) |
 
 Crear la clave de actualizaciones (una sola vez; guarda una copia de la privada fuera
 de línea: si se pierde, las instalaciones existentes no aceptarán otra clave y habría
@@ -290,6 +354,17 @@ ICARUS_UPDATE_FEED=http://127.0.0.1:8080 ICARUS_UPDATE_PUBLIC_KEY_FILE=prueba.pu
 `ICARUS_UPDATE_PUBLIC_KEY_FILE` solo se tiene en cuenta con él: no sirven para apuntar
 una instalación a otro servidor de Internet.
 
+En Linux, con el AppImage de la versión actual y el de la siguiente (en una carpeta con su
+manifiesto firmado con una clave de prueba), la prueba completa con los casos de fallo:
+
+```bash
+npx electron-builder --linux AppImage --x64 --publish never        # versión actual y, tras npm pkg set version=…, la siguiente
+node scripts/release/make-manifest.mjs --dir feed --version 0.2.1 --commit $(git rev-parse HEAD) --select linux/x64/appimage
+node scripts/release/sign-manifest.mjs --dir feed --key-file prueba.key --public-key prueba.pub
+APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a node tests/e2e/update-linux.mjs --app ICARUS-Browser-0.2.0-linux-x64.AppImage \
+  --feed feed --public-key prueba.pub --private-key prueba.key --from 0.2.0 --to 0.2.1
+```
+
 Pruebas automáticas:
 
 ```bash
@@ -298,9 +373,24 @@ cd mobile/android && ./gradlew -p core test                  # núcleo de Androi
 cd mobile/ios && swift test                                  # núcleo de iPhone (en un Mac)
 ```
 
+## Pruebas reales de actualización
+
+| Prueba | Qué hace | Dónde |
+| --- | --- | --- |
+| `tests/e2e/update-linux.mjs` | AppImage real de la versión actual → la siguiente, servida en 127.0.0.1 con la estructura de GitHub y un manifiesto firmado con una clave de prueba. Casos: sin versiones nuevas (404), ya actualizado, sin conexión, error de descarga (HTTP 500), SHA-256 distinto del firmado (se borra y no se instala), paquete dañado que no arranca (se restaura el anterior y no se reintenta solo), descarga interrumpida a la mitad (se reanuda con `Range`), actualización real con reinicio, datos intactos (almacenamiento, preferencias, historial) y sin bucles | Linux, en local y en cada commit (CI) |
+| `tests/e2e/update-packaged.mjs` | Instalador NSIS real (Windows) o app en una carpeta escribible (macOS) de la versión actual → la siguiente: aviso, «Actualizar y reiniciar», cierre, sustitución, reapertura con las pestañas, versión nueva, datos intactos, sin bucles | Windows y macOS (CI) |
+| `… --expect-failure` | Windows: un instalador de prueba borra `app.asar` y termina con error; el proceso auxiliar restaura la copia, ICARUS se reabre en la versión anterior con los datos intactos y no reintenta esa versión solo | Windows (CI) |
+
 ## Limitaciones conocidas
 
-- Linux: no se publica paquete, así que solo se avisa.
+- Linux: se actualiza solo el AppImage en una carpeta con permiso de escritura (por
+  ejemplo, `~/Aplicaciones`); en `/opt` u otras carpetas de root, ICARUS solo avisa. En
+  Ubuntu 24.04 o posterior, AppArmor restringe los espacios de nombres sin privilegios que
+  usa el sandbox de Chromium dentro de un AppImage: hace falta un perfil de AppArmor para
+  ICARUS (o `sysctl kernel.apparmor_restrict_unprivileged_userns=0`). Nunca se arranca con
+  `--no-sandbox`.
+- macOS: si la app nueva no arranca, no se restaura sola (sí se restaura si falla la
+  sustitución de la app); se puede volver a instalar desde el `.dmg`.
 - Android: la instalación final siempre requiere la confirmación del usuario en el
   instalador de Android (es una protección del sistema). La prueba de CI comprueba el
   aviso, la descarga verificada y el rechazo de un APK que no corresponde, pero no pulsa

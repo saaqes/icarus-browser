@@ -106,6 +106,7 @@ const api: IcarusNativeApi = {
     install: (when) => send('icarus:updates:install', when),
     postpone: () => send('icarus:updates:postpone'),
     setChannel: (channel) => send('icarus:updates:channel', channel),
+    setAutoUpdate: (value) => send('icarus:updates:auto', value === true),
     acknowledge: () => send('icarus:updates:acknowledge'),
     reveal: () => send('icarus:updates:reveal'),
     readyToRestart: () => send('icarus:updates:restart-ready'),

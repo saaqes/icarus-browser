@@ -233,14 +233,84 @@ describe('servicio de actualizaciones', () => {
   });
 
   it('las preferencias guardadas se sanean sin perder el canal', () => {
-    expect(sanitizeUpdates({ channel: 'preview', postponedVersion: '0.2.2', failedVersion: 'x', pending: { from: '1' } })).toEqual({
+    expect(sanitizeUpdates({ channel: 'preview', autoUpdate: 'sí', latestVersion: 'x', postponedVersion: '0.2.2', failedVersion: 'x', pending: { from: '1' } })).toEqual({
       channel: 'preview',
+      autoUpdate: false,
       lastCheckedAt: null,
+      latestVersion: null,
       postponedVersion: '0.2.2',
       failedVersion: null,
       pending: null,
     });
     expect(sanitizeUpdates('basura').channel).toBe('stable');
+  });
+
+  it('«Última versión disponible» se recuerda aunque ya esté actualizado', async () => {
+    publish('0.2.1');
+    const { service, dataDir } = setup();
+    expect((await service.check()).latestVersion).toBe('0.2.1');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(setup({ dataDir }).service.getState().latestVersion).toBe('0.2.1');
+  });
+
+  it('pasa por «Verificando» y «Preparando» antes de quedar lista', async () => {
+    publish('0.2.2');
+    const { service, states } = setup();
+    await service.check();
+    service.download(false);
+    await until(service, 'ready');
+    const order = states.map((state) => state.status).filter((status, index, all) => status !== all[index - 1]);
+    expect(order.slice(order.indexOf('downloading'))).toEqual(['downloading', 'verifying', 'preparing', 'ready']);
+  });
+
+  it('«Actualizar automáticamente» descarga y verifica sola e instala al cerrar, sin reiniciar', async () => {
+    publish('0.2.2');
+    const { service, installer, quit, dataDir } = setup();
+    service.setAutoUpdate(true);
+    await until(service, 'ready');
+    for (let i = 0; i < 100 && !service.getState().installOnQuit; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(service.getState()).toMatchObject({ autoUpdate: true, installOnQuit: true, status: 'ready' });
+    expect(installer.launches).toHaveLength(0);
+    expect(quit).not.toHaveBeenCalled();
+    service.onQuit();
+    expect(installer.launches).toEqual([{ prepared: expect.stringContaining('ICARUS-Browser-Setup-0.2.2.exe'), relaunch: false }]);
+    // La opción se conserva al reiniciar.
+    expect(setup({ dataDir, version: '0.2.2' }).service.getState().autoUpdate).toBe(true);
+  });
+
+  it('«Actualizar automáticamente» no vuelve a instalar sola una versión que ya falló', async () => {
+    publish('0.2.2');
+    const dataDir = mkdtempSync(join(tmpdir(), 'icarus-updates-'));
+    writeFileSync(join(dataDir, 'updates.json'), JSON.stringify({ version: 1, data: { autoUpdate: true, failedVersion: '0.2.2' } }));
+    const { service } = setup({ dataDir });
+    await service.check();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(service.getState()).toMatchObject({ status: 'available', failedVersion: '0.2.2' });
+  });
+
+  it('al arrancar la versión nueva confirma al proceso auxiliar y borra la copia anterior', async () => {
+    publish('0.2.2');
+    const dataDir = mkdtempSync(join(tmpdir(), 'icarus-updates-'));
+    const confirmFile = join(dataDir, 'updates-confirmed');
+    writeFileSync(join(dataDir, 'updates.json'), JSON.stringify({ version: 1, data: { pending: { from: '0.2.1', to: '0.2.2', at: '2026-10-30T10:00:00Z', manual: false } } }));
+    const cleanup = vi.fn();
+    const service = new UpdateService({
+      dataDir,
+      currentVersion: '0.2.2',
+      plan: WINDOWS_PLAN,
+      publicKey: PUBLIC_KEY,
+      isPackaged: true,
+      fetch: nodeFetch,
+      source: loopbackSource(base)!,
+      installer: { prepare: async (file) => file, launch: () => undefined, reveal: () => undefined, cleanup },
+      emit: () => undefined,
+      requestRestart: () => undefined,
+      quit: () => undefined,
+      confirmFile,
+    });
+    expect(service.getState().justUpdated).toEqual({ from: '0.2.1', to: '0.2.2' });
+    expect(readFileSync(confirmFile, 'utf8').trim()).toBe('0.2.2');
+    expect(cleanup).toHaveBeenCalledOnce();
   });
 
   it('no toca los datos del usuario', async () => {
@@ -283,7 +353,16 @@ describe('plan de instalación', () => {
     expect(planInstall({ platform: 'darwin', arch: 'x64', execPath: exe, isWritable: () => true, runningUnderArm64Translation: true }).target.arch).toBe('arm64');
   });
 
-  it('Linux: no hay paquete publicado, solo aviso', () => {
+  it('Linux: el AppImage se actualiza solo; otras instalaciones solo reciben el aviso', () => {
     expect(planInstall({ platform: 'linux', arch: 'x64', execPath: '/opt/icarus/icarus-browser' })).toMatchObject({ mode: 'manual-release', target: { kinds: [] } });
+    const appImage = '/home/ana/Aplicaciones/ICARUS-Browser.AppImage';
+    expect(planInstall({ platform: 'linux', arch: 'x64', execPath: '/tmp/.mount_x/icarus-browser', appImage, exists: () => true, isWritable: () => true })).toMatchObject({
+      mode: 'automatic',
+      appImagePath: appImage,
+      target: { platform: 'linux', arch: 'x64', kinds: ['appimage'] },
+    });
+    // Sin permiso de escritura (p. ej. /opt de root) o con otro nombre: solo aviso.
+    expect(planInstall({ platform: 'linux', arch: 'x64', execPath: '/x', appImage, exists: () => true, isWritable: () => false }).mode).toBe('manual-release');
+    expect(planInstall({ platform: 'linux', arch: 'x64', execPath: '/x', appImage: '/home/ana/icarus', exists: () => true, isWritable: () => true }).mode).toBe('manual-release');
   });
 });

@@ -62,7 +62,7 @@ export function sha256File(path) {
   });
 }
 
-export const PLATFORMS = ['windows', 'macos', 'android', 'ios'];
+export const PLATFORMS = ['windows', 'macos', 'linux', 'android', 'ios'];
 
 /**
  * Paquetes de cada versión, con los nombres que generan electron-builder y los
@@ -78,6 +78,8 @@ export function expectedAssets(version) {
     { platform: 'macos', arch: 'x64', kind: 'zip', file: `ICARUS-Browser-${version}-mac-x64.zip` },
     { platform: 'macos', arch: 'arm64', kind: 'dmg', file: `ICARUS-Browser-${version}-mac-arm64.dmg` },
     { platform: 'macos', arch: 'x64', kind: 'dmg', file: `ICARUS-Browser-${version}-mac-x64.dmg` },
+    // Linux: AppImage, que ICARUS sustituye él mismo al actualizarse.
+    { platform: 'linux', arch: 'x64', kind: 'appimage', file: `ICARUS-Browser-${version}-linux-x64.AppImage` },
     { platform: 'android', arch: 'universal', kind: 'apk', file: `ICARUS-Browser-${version}-android.apk`, versionCode: androidVersionCode(parsed) },
     // Solo para que la app de iPhone sepa que hay versión nueva: nunca se instala desde aquí.
     { platform: 'ios', arch: 'universal', kind: 'ipa', file: `ICARUS-Browser-${version}-ios-sin-firmar.ipa` },

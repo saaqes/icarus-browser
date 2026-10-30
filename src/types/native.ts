@@ -202,18 +202,24 @@ export type UpdateChannel = 'stable' | 'preview';
 /**
  * Cómo se aplica una actualización en esta instalación:
  * - automatic: ICARUS la descarga, la verifica, la instala y se reinicia (instalador
- *   NSIS en Windows; sustitución de la app en macOS cuando su carpeta es escribible).
+ *   NSIS en Windows; sustitución de la app en macOS cuando su carpeta es escribible;
+ *   sustitución del AppImage en Linux).
  * - manual-dmg / manual-portable: se descarga y verifica, pero el usuario la coloca
  *   (macOS sin permisos sobre la app, versión portátil de Windows).
- * - manual-release: solo se avisa y se abre la página de la versión (Linux).
+ * - manual-release: solo se avisa y se abre la página de la versión (Linux sin AppImage).
  * - unsupported: compilación de desarrollo o sin clave para verificar actualizaciones.
  */
 export type UpdateInstallMode = 'automatic' | 'manual-dmg' | 'manual-portable' | 'manual-release' | 'unsupported';
 
-export type UpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'verifying' | 'ready' | 'installing' | 'error';
+/**
+ * Estado del actualizador. `preparing`: comprobaciones del sistema y preparación de
+ * lo que se instalará; `ready` con `installOnQuit`: reinicio necesario.
+ */
+export type UpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'verifying' | 'preparing' | 'ready' | 'installing' | 'error';
 
 export type UpdateErrorCode =
   | 'network'
+  | 'server'
   | 'rate-limited'
   | 'not-found'
   | 'signature'
@@ -240,6 +246,10 @@ export interface UpdateInfo {
 export interface UpdateState {
   currentVersion: string;
   channel: UpdateChannel;
+  /** «Actualizar automáticamente»: descarga y verifica sola y se instala al cerrar ICARUS. */
+  autoUpdate: boolean;
+  /** Versión más reciente publicada en el canal (de la última comprobación). */
+  latestVersion: string | null;
   mode: UpdateInstallMode;
   /** Por qué no hay actualizaciones integradas (modo unsupported). */
   unsupportedReason: 'development' | 'no-key' | null;
@@ -373,6 +383,8 @@ export interface IcarusNativeApi {
     install(when: 'now' | 'on-quit'): void;
     postpone(): void;
     setChannel(channel: UpdateChannel): void;
+    /** «Actualizar automáticamente» (descarga sola e instala al cerrar ICARUS). */
+    setAutoUpdate(value: boolean): void;
     /** Oculta la confirmación «ICARUS se ha actualizado». */
     acknowledge(): void;
     /** Vuelve a mostrar el paquete descargado (modos manuales). */

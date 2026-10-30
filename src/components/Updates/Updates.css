@@ -154,3 +154,43 @@
 .update-btn__progress {
   font-variant-numeric: tabular-nums;
 }
+
+/* Ficha de la instalación (Acerca de ICARUS y Actualizaciones). */
+.update-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.update-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-facts dt {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--fg-3);
+}
+
+.update-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.about-updates {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.about-updates > .link-btn {
+  align-self: flex-start;
+}

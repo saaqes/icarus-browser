@@ -139,6 +139,18 @@ jobs:
           printf 'Versión de prueba %s.\n- Generada por CI para probar la actualización.\n' "$NEXT" > "$RUNNER_TEMP/notas.md"
           node scripts/release/make-manifest.mjs --dir release --version "$NEXT" --commit "$GITHUB_SHA" --select windows/x64/nsis --notes-file "$RUNNER_TEMP/notas.md"
           node scripts/release/sign-manifest.mjs --dir release --key-file "$RUNNER_TEMP/prueba.key" --public-key "$RUNNER_TEMP/prueba.pub"
+      - name: Instalador de prueba que falla a medias (para comprobar la recuperación)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force feed-falla | Out-Null
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          & $csc /nologo /target:winexe "/out:feed-falla\ICARUS-Browser-Setup-$env:NEXT.exe" tests\e2e\fixtures\instalador-que-falla.cs
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el instalador de prueba' }
+      - name: Manifiesto del instalador que falla, firmado con la clave de prueba
+        shell: bash
+        run: |
+          node scripts/release/make-manifest.mjs --dir feed-falla --version "$NEXT" --commit "$GITHUB_SHA" --select windows/x64/nsis
+          node scripts/release/sign-manifest.mjs --dir feed-falla --key-file "$RUNNER_TEMP/prueba.key" --public-key "$RUNNER_TEMP/prueba.pub"
       - name: Instalar la versión actual con su instalador
         shell: pwsh
         run: |
@@ -148,6 +160,9 @@ jobs:
           $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Depth 2 -Filter 'ICARUS Browser.exe' | Select-Object -First 1
           if (-not $exe) { throw 'No se instaló ICARUS Browser.exe' }
           "INSTALLED=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Actualización fallida y recuperación (el instalador deja la instalación a medias)
+        shell: bash
+        run: node tests/e2e/update-packaged.mjs --app "$INSTALLED" --feed feed-falla --public-key "$RUNNER_TEMP/prueba.pub" --from "$CURRENT" --to "$NEXT" --expect-failure
       - name: Actualizar desde el navegador y comprobar versión, datos y reinicio
         shell: bash
         run: node tests/e2e/update-packaged.mjs --app "$INSTALLED" --feed release --public-key "$RUNNER_TEMP/prueba.pub" --from "$CURRENT" --to "$NEXT"

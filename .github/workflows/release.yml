@@ -41,6 +41,7 @@ jobs:
       mode: ${{ steps.plan.outputs.mode }}
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
+      android: ${{ steps.plan.outputs.android }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -85,6 +86,7 @@ jobs:
       MODE: ${{ needs.plan.outputs.mode }}
       VERSION: ${{ needs.plan.outputs.version }}
       TAG: ${{ needs.plan.outputs.tag }}
+      ANDROID: ${{ needs.plan.outputs.android }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
@@ -126,6 +128,7 @@ jobs:
             echo "| --- | --- | --- |"
             echo "| Windows 10/11 x64 | \`ICARUS-Browser-Setup-$VERSION.exe\` (instalador) o \`ICARUS-Browser-$VERSION-win-x64.zip\` (portátil) | Instalador: se actualiza desde el navegador. Portátil: descarga y verifica, y la colocas tú. Sin firma de código: SmartScreen avisa al instalar. |"
             echo "| macOS (Apple Silicon / Intel) | \`ICARUS-Browser-$VERSION-mac-arm64.dmg\` / \`ICARUS-Browser-$VERSION-mac-x64.dmg\` | Se actualiza desde el navegador si está en una carpeta con permiso de escritura (p. ej. Aplicaciones). Firma ad hoc, sin notarizar. |"
+            echo "| Linux x64 | \`ICARUS-Browser-$VERSION-linux-x64.AppImage\` | Se actualiza desde el navegador (sustituye el AppImage). |"
             echo "| Android 10 o posterior | \`ICARUS-Browser-$VERSION-android.apk\` | El navegador descarga y verifica el APK; Android pide confirmación para instalarlo. |"
             echo "| iPhone/iPad (iOS 16+) | \`ICARUS-Browser-$VERSION-ios-sin-firmar.ipa\` | Sin firmar (hay que firmarlo con tu Apple ID). La app avisa de versiones nuevas; iOS no permite instalarlas desde la propia app. |"
             echo "| Simulador de iOS | \`ICARUS-Browser-$VERSION-ios-simulador.zip\` | Para probar en Xcode. |"
@@ -135,7 +138,10 @@ jobs:
           cat body.md
 
       - name: Generar el manifiesto de actualización
-        run: node scripts/release/make-manifest.mjs --dir release --version "$VERSION" --commit "$GITHUB_SHA" --notes-file changes.md
+        run: |
+          platforms=windows,macos,linux,ios
+          [ "$ANDROID" = include ] && platforms="$platforms,android"
+          node scripts/release/make-manifest.mjs --dir release --version "$VERSION" --commit "$GITHUB_SHA" --notes-file changes.md --platforms "$platforms"
 
       - name: Firmar y verificar el manifiesto
         env:

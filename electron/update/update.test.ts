@@ -124,7 +124,11 @@ describe('manifiesto', () => {
     expect(asset({ file: 'ICARUS-Browser-Setup-0.2.2.dmg' })).toMatchObject({ ok: false, error: 'assets', detail: 'file' });
     expect(asset({ sha256: 'B'.repeat(64) })).toMatchObject({ ok: false, error: 'assets', detail: 'sha256' });
     expect(asset({ size: 0 })).toMatchObject({ ok: false, error: 'assets', detail: 'size' });
-    expect(asset({ url: 'https://evil.example/x.exe', platform: 'beos' })).toMatchObject({ ok: false, error: 'assets', detail: 'platform' });
+    expect(asset({ platform: 7 })).toMatchObject({ ok: false, error: 'assets', detail: 'asset' });
+    // Plataformas o tipos que esta versión no conoce: se ignoran, y nunca se usa una URL del manifiesto.
+    const future = parseManifest(JSON.stringify({ ...manifest('0.2.2'), assets: [...manifest('0.2.2').assets, { ...manifest('0.2.2').assets[0], url: 'https://evil.example/x.exe', platform: 'beos' }] }));
+    expect(future.ok && future.manifest.assets.map((item) => item.platform)).not.toContain('beos');
+    expect(future.ok && JSON.stringify(future.manifest)).not.toContain('evil.example');
     const twice = manifest('0.2.2').assets[0]!;
     expect(bad({ assets: [twice, twice] })).toMatchObject({ ok: false, error: 'assets', detail: 'duplicate' });
   });

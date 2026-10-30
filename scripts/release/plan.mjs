@@ -5,11 +5,12 @@
  * - Etiqueta vX.Y.Z → «stable»; vX.Y.Z-preview.N → «preview». La etiqueta debe
  *   coincidir con package.json, la versión no puede estar ya publicada ni ser
  *   anterior o igual a otra publicada, y deben existir la clave pública del
- *   repositorio y los secretos de firma (manifiesto y APK de Android).
+ *   repositorio y el secreto de firma del manifiesto. Sin el almacén de claves de
+ *   Android se publica igualmente, pero el APK no entra en el manifiesto.
  * - Lanzamiento manual → «draft»: un borrador privado que nunca llega a los usuarios.
  *
- * Lee las variables de GitHub Actions y escribe mode, version, tag y channel en
- * GITHUB_OUTPUT. Para probarlo en local: GITHUB_EVENT_NAME=push GITHUB_REF_TYPE=tag
+ * Lee las variables de GitHub Actions y escribe mode, version, tag, channel y android
+ * (include | omit) en GITHUB_OUTPUT. Para probarlo en local: GITHUB_EVENT_NAME=push GITHUB_REF_TYPE=tag
  * GITHUB_REF_NAME=v0.3.0 node scripts/release/plan.mjs
  */
 
@@ -42,8 +43,10 @@ if (env.GITHUB_EVENT_NAME === 'push' && env.GITHUB_REF_TYPE === 'tag') {
 const missing = [];
 if (!repositoryPublicKey()) missing.push('build/update-public-key.pem (node scripts/release/generate-update-key.mjs)');
 if (env.HAS_SIGNING_KEY !== 'true') missing.push('el secreto ICARUS_UPDATE_SIGNING_KEY');
-// Android solo acepta una actualización firmada con el mismo certificado que la app instalada.
-if (env.HAS_KEYSTORE !== 'true') missing.push('los secretos ICARUS_KEYSTORE_BASE64, ICARUS_KEYSTORE_PASSWORD, ICARUS_KEY_ALIAS e ICARUS_KEY_PASSWORD');
+// Android solo acepta una actualización firmada con el mismo certificado que la app instalada:
+// sin almacén de claves fijo, el APK se adjunta pero no se ofrece como actualización.
+const android = env.HAS_KEYSTORE === 'true' ? 'include' : 'omit';
+if (android === 'omit') warn('Faltan los secretos del almacén de claves de Android: el APK no entrará en el manifiesto (ver docs/UPDATES.md).');
 if (missing.length) {
   const text = `Falta ${missing.join('; ')}. Ver docs/UPDATES.md.`;
   if (mode === 'draft') warn(`${text} El borrador se creará igualmente, pero no sirve para publicar.`);
@@ -69,5 +72,5 @@ if (mode !== 'draft') {
 
 console.log(`Publicación: ${mode} · ${tag} · versión ${version} (versionCode ${info.versionCode})`);
 if (env.GITHUB_OUTPUT) {
-  appendFileSync(env.GITHUB_OUTPUT, `mode=${mode}\nversion=${version}\ntag=${tag}\nchannel=${info.channel}\n`);
+  appendFileSync(env.GITHUB_OUTPUT, `mode=${mode}\nversion=${version}\ntag=${tag}\nchannel=${info.channel}\nandroid=${android}\n`);
 }

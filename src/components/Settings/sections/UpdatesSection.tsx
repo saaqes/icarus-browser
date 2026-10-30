@@ -1,11 +1,12 @@
 import { useNative, useUpdateState } from '../../../hooks/useNative';
+import { useBrowser } from '../../BrowserShell/BrowserContext';
 import { useMessages } from '../../../i18n';
 import { formatBytes } from '../../../services/format';
 import type { UpdateState } from '../../../types/native';
 import { IcarusMark } from '../../common/IcarusLogo';
 import { Icon } from '../../common/Icon';
-import { RadioList } from '../../common/Controls';
-import { isUpdateInProgress, KeychainNotice, UpdateButtons, UpdateStatus, useUpdateActions, type UpdateActions } from '../../Updates/UpdateControls';
+import { RadioList, Toggle } from '../../common/Controls';
+import { isUpdateInProgress, KeychainNotice, UpdateButtons, UpdateFacts, UpdateStatus, useUpdateActions, type UpdateActions } from '../../Updates/UpdateControls';
 import { SettingsCard } from '../SettingsPage';
 
 export function UpdatesSection() {
@@ -34,7 +35,9 @@ export function UpdatesView({ state, platform, actions }: { state: UpdateState; 
     state.mode === 'automatic'
       ? platform === 'darwin'
         ? t.how.automaticMac
-        : t.how.automaticWindows
+        : platform === 'linux'
+          ? t.how.automaticLinux
+          : t.how.automaticWindows
       : state.mode === 'manual-portable'
         ? t.how.manualPortable
         : state.mode === 'manual-dmg'
@@ -74,9 +77,11 @@ export function UpdatesView({ state, platform, actions }: { state: UpdateState; 
             </button>
           )}
         </div>
+        {supported && <UpdateFacts state={state} />}
         {supported && <UpdateStatus state={state} />}
         {supported && <KeychainNotice state={state} />}
         {supported && (!available || isUpdateInProgress(state)) && <UpdateButtons state={state} actions={actions} />}
+        {supported && <AutoUpdateToggle state={state} actions={actions} />}
       </SettingsCard>
 
       {supported && available && (
@@ -116,5 +121,61 @@ export function UpdatesView({ state, platform, actions }: { state: UpdateState; 
         <p className="field-hint">{t.dataKept}</p>
       </SettingsCard>
     </>
+  );
+}
+
+/** «Actualizar automáticamente»: descarga y verifica sola y se instala al cerrar ICARUS. */
+export function AutoUpdateToggle({ state, actions }: { state: UpdateState; actions: UpdateActions }) {
+  const t = useMessages().updates;
+  return (
+    <Toggle
+      label={t.autoUpdate}
+      description={state.mode === 'automatic' ? t.autoUpdateHint : `${t.autoUpdateHint} ${t.autoUpdateManual}`}
+      checked={state.autoUpdate}
+      onChange={actions.setAutoUpdate}
+    />
+  );
+}
+
+/**
+ * Configuración → Acerca de ICARUS → Actualizaciones: lo esencial para actualizar con
+ * un clic (como «Acerca de» en Chrome y Edge). El canal, las notas y cómo se instalan
+ * están en la sección Actualizaciones.
+ */
+export function AboutUpdatesCard() {
+  const native = useNative();
+  const state = useUpdateState();
+  const actions = useUpdateActions();
+  const m = useMessages();
+  const t = m.updates;
+  const { setSettingsSection } = useBrowser();
+  if (!native || !state || !actions) return null;
+  const supported = state.mode !== 'unsupported';
+  const locked = isUpdateInProgress(state) || state.status === 'checking';
+  return (
+    <SettingsCard title={t.title}>
+      <div className="about-updates" data-testid="about-updates">
+        <UpdateFacts state={state} />
+        {supported ? (
+          <>
+            <UpdateStatus state={state} />
+            <KeychainNotice state={state} />
+            <div className="manager-actions">
+              <button type="button" className="btn btn--ghost" disabled={locked} onClick={actions.check}>
+                <Icon name="reload" size={16} />
+                {t.check}
+              </button>
+            </div>
+            <UpdateButtons state={state} actions={actions} />
+            <AutoUpdateToggle state={state} actions={actions} />
+          </>
+        ) : (
+          <p className="field-hint">{state.unsupportedReason === 'no-key' ? t.how.noKey : t.how.development}</p>
+        )}
+        <button type="button" className="link-btn" onClick={() => setSettingsSection('updates')}>
+          {t.moreOptions}
+        </button>
+      </div>
+    </SettingsCard>
   );
 }

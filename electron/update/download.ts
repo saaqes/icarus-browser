@@ -17,7 +17,7 @@ import { dirname } from 'node:path';
 import { DOWNLOAD_STALL_TIMEOUT_MS } from './config';
 import { fetchAllowed, UpdateHttpError, type FetchLike, type UpdateSource } from './source';
 
-export type DownloadError = 'network' | 'interrupted' | 'hash-mismatch' | 'size-mismatch' | 'disk-space' | 'forbidden-host' | 'not-found' | 'write';
+export type DownloadError = 'network' | 'server' | 'interrupted' | 'hash-mismatch' | 'size-mismatch' | 'disk-space' | 'forbidden-host' | 'not-found' | 'write';
 
 export class UpdateDownloadError extends Error {
   constructor(
@@ -171,7 +171,8 @@ async function receive(
     offset = 0;
   } else {
     await response.body?.cancel().catch(() => undefined);
-    throw new UpdateDownloadError('network', `HTTP ${response.status}`);
+    // El servidor respondió, pero con un error (5xx u otro inesperado): no es un problema de conexión.
+    throw new UpdateDownloadError(response.status >= 500 ? 'server' : 'network', `HTTP ${response.status}`);
   }
 
   const declared = Number(response.headers.get('content-length'));

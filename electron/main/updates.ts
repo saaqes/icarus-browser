@@ -1,8 +1,9 @@
 /**
  * Servicio de actualizaciones de la aplicación de escritorio.
  *
- * - Comprueba al arrancar y cada 6 horas (sin descargar nada hasta que el usuario
- *   pulsa «Actualizar ahora»).
+ * - Comprueba al arrancar y cada 6 horas. Sin «Actualizar automáticamente» no se
+ *   descarga nada hasta que el usuario pulsa «Actualizar ahora»; con ella, la versión
+ *   nueva se descarga y verifica sola y se instala al cerrar ICARUS.
  * - Solo acepta manifiestos firmados con la clave de ICARUS y paquetes cuyo SHA-256
  *   coincide; nunca ofrece una versión igual o anterior a la instalada.
  * - Antes de instalar deja un marcador en updates.json. Al arrancar, si la versión
@@ -12,8 +13,8 @@
  *   descargas, que se borra después de actualizar.
  */
 
-import { rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { UpdateChannel, UpdateErrorCode, UpdateInfo, UpdateState } from '../../src/types/native';
 import { CHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS } from '../update/config';
 import { fetchSignedManifest, type CheckError } from '../update/checker';
@@ -27,7 +28,11 @@ import { isRecord } from './validate';
 
 interface StoredUpdates {
   channel: UpdateChannel;
+  /** Descargar e instalar solas las versiones nuevas (al cerrar ICARUS). */
+  autoUpdate: boolean;
   lastCheckedAt: string | null;
+  /** Versión más reciente publicada en el canal, vista en la última comprobación. */
+  latestVersion: string | null;
   postponedVersion: string | null;
   failedVersion: string | null;
   /**
@@ -38,7 +43,7 @@ interface StoredUpdates {
 }
 
 function defaults(): StoredUpdates {
-  return { channel: 'stable', lastCheckedAt: null, postponedVersion: null, failedVersion: null, pending: null };
+  return { channel: 'stable', autoUpdate: false, lastCheckedAt: null, latestVersion: null, postponedVersion: null, failedVersion: null, pending: null };
 }
 
 const optionalVersion = (value: unknown) => (typeof value === 'string' && parseVersion(value) ? value : null);
@@ -48,7 +53,9 @@ export function sanitizeUpdates(raw: unknown): StoredUpdates {
   const pending = isRecord(root.pending) ? root.pending : null;
   return {
     channel: root.channel === 'preview' ? 'preview' : 'stable',
+    autoUpdate: root.autoUpdate === true,
     lastCheckedAt: typeof root.lastCheckedAt === 'string' && !Number.isNaN(Date.parse(root.lastCheckedAt)) ? root.lastCheckedAt : null,
+    latestVersion: optionalVersion(root.latestVersion),
     postponedVersion: optionalVersion(root.postponedVersion),
     failedVersion: optionalVersion(root.failedVersion),
     pending:
@@ -66,6 +73,8 @@ export interface UpdateInstaller {
   launch(prepared: string, relaunch: boolean, version: string): void;
   /** Muestra el paquete al usuario (modos manuales). */
   reveal(file: string): void;
+  /** La versión nueva ya arrancó: borra lo que se guardó para volver atrás. */
+  cleanup?(): void;
 }
 
 export interface UpdateServiceOptions {
@@ -84,6 +93,11 @@ export interface UpdateServiceOptions {
   /** Espera máxima a esa respuesta. */
   restartTimeoutMs?: number;
   quit: () => void;
+  /**
+   * Archivo que la versión nueva escribe al arrancar bien, para el proceso auxiliar
+   * que espera esa confirmación antes de dar la actualización por buena (Linux).
+   */
+  confirmFile?: string;
   headers?: Record<string, string>;
   firstCheckDelayMs?: number;
   /** Límites de tiempo de la comprobación y de la descarga (pruebas). */
@@ -121,6 +135,8 @@ export class UpdateService {
     this.state = {
       currentVersion: options.currentVersion,
       channel: stored.channel,
+      autoUpdate: stored.autoUpdate,
+      latestVersion: stored.latestVersion,
       mode: supported ? options.plan.mode : 'unsupported',
       unsupportedReason: supported ? null : !options.isPackaged ? 'development' : 'no-key',
       status: 'idle',
@@ -147,13 +163,31 @@ export class UpdateService {
       this.state.justUpdated = { from, to };
       this.state.failedVersion = null;
       this.state.postponedVersion = null;
+      this.confirmStarted(to);
       this.removeDownloads();
+      try {
+        this.options.installer.cleanup?.();
+      } catch {
+        // La copia anterior se volverá a intentar borrar en la próxima actualización.
+      }
     } else if (from === this.options.currentVersion) {
       this.state.failedVersion = to;
       this.state.error = { code: 'install-failed', detail: to };
       this.state.status = 'error';
     }
     this.save({ pending: null, failedVersion: this.state.failedVersion, postponedVersion: this.state.postponedVersion }, true);
+  }
+
+  /** Avisa al proceso auxiliar (si espera) de que la versión nueva arrancó. */
+  private confirmStarted(version: string): void {
+    const file = this.options.confirmFile;
+    if (!file) return;
+    try {
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, `${version}\n`);
+    } catch {
+      // Sin confirmación, el proceso auxiliar restaurará la versión anterior: se informa al arrancar.
+    }
   }
 
   private save(patch: Partial<StoredUpdates>, immediately = false): void {
@@ -192,13 +226,36 @@ export class UpdateService {
 
   setChannel(channel: UpdateChannel): void {
     // No se cambia de canal con una descarga o instalación en marcha.
-    if (channel === this.state.channel || this.busy || ['downloading', 'verifying', 'ready', 'installing'].includes(this.state.status)) return;
+    if (channel === this.state.channel || this.busy || ['downloading', 'verifying', 'preparing', 'ready', 'installing'].includes(this.state.status)) return;
     this.save({ channel }, true);
     // Al cambiar de canal se olvida lo encontrado en el anterior.
     this.manifest = null;
     this.asset = null;
     this.update({ channel, available: null, status: 'idle', error: null });
     void this.check(true);
+  }
+
+  /** «Actualizar automáticamente»: descarga, verifica e instala al cerrar ICARUS. */
+  setAutoUpdate(value: boolean): void {
+    if (value === this.state.autoUpdate) return;
+    this.save({ autoUpdate: value }, true);
+    this.update({ autoUpdate: value });
+    if (value) {
+      if (this.state.status === 'available') this.autoDownload();
+      else if (this.state.status === 'ready' && this.state.mode === 'automatic') void this.install('on-quit');
+      else void this.check(false);
+    } else if (this.state.installOnQuit) {
+      this.update({ installOnQuit: false });
+    }
+  }
+
+  /** Con «Actualizar automáticamente», la versión encontrada se descarga sola y se instala al cerrar. */
+  private autoDownload(): void {
+    const version = this.state.available?.version;
+    if (!this.state.autoUpdate || this.state.mode !== 'automatic' || !this.asset || !version) return;
+    // Una versión cuya instalación ya falló no se vuelve a instalar sola (sin bucles).
+    if (version === this.state.failedVersion) return;
+    this.download(false, true);
   }
 
   postpone(): void {
@@ -225,7 +282,7 @@ export class UpdateService {
   async check(manual = true): Promise<UpdateState> {
     if (!this.supported) return this.getState();
     // Durante una descarga o con la actualización lista no se vuelve a comprobar.
-    if (this.busy || ['downloading', 'verifying', 'ready', 'installing'].includes(this.state.status)) return this.getState();
+    if (this.busy || ['downloading', 'verifying', 'preparing', 'ready', 'installing'].includes(this.state.status)) return this.getState();
     this.update({ status: 'checking', error: manual ? null : this.state.error });
     const task = this.runCheck(manual);
     this.busy = task;
@@ -234,6 +291,8 @@ export class UpdateService {
     } finally {
       this.busy = null;
     }
+    // Con «Actualizar automáticamente», lo encontrado se descarga ya (fuera de la comprobación).
+    if (this.state.status === 'available') this.autoDownload();
     return this.getState();
   }
 
@@ -269,20 +328,33 @@ export class UpdateService {
       return;
     }
     const decision = evaluateManifest(result, current, this.state.channel, this.options.plan.target);
+    this.save({ latestVersion: result.manifest.version });
     if (decision.status === 'available') {
       this.manifest = result.manifest;
       this.asset = decision.asset;
-      this.update({ status: 'available', lastCheckedAt: checkedAt, available: this.info(result.manifest, decision.asset), error: null });
+      this.update({
+        status: 'available',
+        lastCheckedAt: checkedAt,
+        latestVersion: result.manifest.version,
+        available: this.info(result.manifest, decision.asset),
+        error: null,
+      });
       return;
     }
     this.manifest = null;
     this.asset = null;
     if (decision.status === 'rejected' && decision.reason === 'no-asset') {
-      this.update({ status: 'error', lastCheckedAt: checkedAt, available: null, error: { code: 'no-asset', detail: result.manifest.version } });
+      this.update({
+        status: 'error',
+        lastCheckedAt: checkedAt,
+        latestVersion: result.manifest.version,
+        available: null,
+        error: { code: 'no-asset', detail: result.manifest.version },
+      });
       return;
     }
     // Igual, anterior o de otro canal: no hay nada que instalar.
-    this.update({ status: 'up-to-date', lastCheckedAt: checkedAt, available: null, error: null });
+    this.update({ status: 'up-to-date', lastCheckedAt: checkedAt, latestVersion: result.manifest.version, available: null, error: null });
   }
 
   private info(manifest: UpdateManifest, asset: UpdateAsset | null): UpdateInfo {
@@ -308,23 +380,26 @@ export class UpdateService {
     }
   }
 
-  /** Descarga y verifica el paquete; con `install`, instala al terminar. */
-  download(install: boolean): void {
-    if (this.busy || !this.manifest || this.state.status === 'downloading' || this.state.status === 'verifying') return;
+  /**
+   * Descarga y verifica el paquete; con `install`, instala al terminar. `auto`: la
+   * pidió «Actualizar automáticamente» (se instalará al cerrar ICARUS).
+   */
+  download(install: boolean, auto = false): void {
+    if (this.busy || !this.manifest || ['downloading', 'verifying', 'preparing'].includes(this.state.status)) return;
     const manifest = this.manifest;
     const asset = this.asset;
     if (this.state.mode === 'manual-release' || !asset) {
       // Sin paquete para esta plataforma: la interfaz abre la página de la versión.
       return;
     }
-    const task = this.runDownload(manifest, asset, install);
+    const task = this.runDownload(manifest, asset, install, auto);
     this.busy = task;
     void task.finally(() => {
       this.busy = null;
     });
   }
 
-  private async runDownload(manifest: UpdateManifest, asset: UpdateAsset, install: boolean): Promise<void> {
+  private async runDownload(manifest: UpdateManifest, asset: UpdateAsset, install: boolean, auto: boolean): Promise<void> {
     const destination = join(this.downloadsDir, manifest.version, asset.file);
     this.abort = new AbortController();
     this.update({ status: 'downloading', progress: { received: 0, total: asset.size }, error: null, installOnQuit: false, manualFile: null });
@@ -365,6 +440,8 @@ export class UpdateService {
       // Se vuelve a comprobar el archivo completo justo antes de usarlo.
       if ((await sha256OfFile(destination)) !== asset.sha256) throw new UpdateDownloadError('hash-mismatch', 'El archivo cambió tras descargarse');
       if (this.state.mode === 'automatic') {
+        // Comprobaciones del sistema y preparación de lo que se instalará.
+        this.update({ status: 'preparing' });
         this.prepared = await this.options.installer.prepare(destination, asset, manifest);
       } else {
         this.prepared = destination;
@@ -385,6 +462,7 @@ export class UpdateService {
     }
     this.update({ status: 'ready' });
     if (install) await this.install('now');
+    else if (auto || this.state.autoUpdate) await this.install('on-quit');
   }
 
   private downloadError(error: UpdateDownloadError): UpdateErrorCode {
@@ -392,6 +470,7 @@ export class UpdateService {
       case 'hash-mismatch':
       case 'size-mismatch':
       case 'interrupted':
+      case 'server':
       case 'disk-space':
       case 'write':
         return error.code;

@@ -24,6 +24,8 @@ function state(patch: Partial<UpdateState> = {}): UpdateState {
   return {
     currentVersion: '0.2.0',
     channel: 'stable',
+    autoUpdate: false,
+    latestVersion: null,
     mode: 'automatic',
     unsupportedReason: null,
     status: 'idle',
@@ -49,6 +51,7 @@ function actions() {
     install: vi.fn<UpdateActions['install']>(),
     postpone: vi.fn<UpdateActions['postpone']>(),
     setChannel: vi.fn<UpdateActions['setChannel']>(),
+    setAutoUpdate: vi.fn<UpdateActions['setAutoUpdate']>(),
     acknowledge: vi.fn<UpdateActions['acknowledge']>(),
     reveal: vi.fn<UpdateActions['reveal']>(),
     openRelease: vi.fn<UpdateActions['openRelease']>(),
@@ -67,22 +70,29 @@ describe('Configuración → Actualizaciones', () => {
     const { spies, user } = show(state({ status: 'up-to-date', lastCheckedAt: '2026-10-25T08:00:00.000Z' }));
     expect(screen.getByText('ICARUS Browser 0.2.0')).toBeInTheDocument();
     expect(screen.getByText(/Canal estable · Última comprobación:/)).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('ICARUS está actualizado.');
-    expect(screen.queryByRole('button', { name: /Actualizar ahora/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Tu navegador está actualizado.');
+    // Ficha de la instalación, como pide «Acerca de ICARUS → Actualizaciones».
+    expect(screen.getByTestId('update-installed')).toHaveTextContent('0.2.0');
+    expect(screen.getByTestId('update-summary')).toHaveTextContent('Tu navegador está actualizado.');
+    expect(screen.queryByRole('button', { name: /Actualizar y reiniciar/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Buscar actualizaciones' }));
     expect(spies.check).toHaveBeenCalledOnce();
   });
 
   it('ofrece la versión nueva con sus notas como texto y permite posponerla', async () => {
     const { spies, user } = show(state({ status: 'available', available: NEXT }));
-    expect(screen.getByRole('status')).toHaveTextContent('Hay una versión nueva: 0.3.0.');
+    expect(screen.getByRole('status')).toHaveTextContent('Nueva actualización disponible: versión 0.3.0.');
+    expect(screen.getByTestId('update-latest')).toHaveTextContent('0.3.0');
     const card = screen.getByRole('heading', { name: 'Novedades de la versión 0.3.0' }).closest('section')!;
     // Las notas no se interpretan como HTML.
     expect(within(card).getByText(/<script>alert\(1\)<\/script>/)).toBeInTheDocument();
     expect(card.querySelector('script')).toBeNull();
     expect(within(card).getByText(/Tamaño de la descarga: 90 MB/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Actualizar ahora' }));
+    await user.click(screen.getByRole('button', { name: 'Actualizar y reiniciar' }));
     expect(spies.download).toHaveBeenCalledWith(true);
+    // También se puede solo descargar y verificar, e instalar después.
+    await user.click(screen.getByRole('button', { name: 'Descargar actualización' }));
+    expect(spies.download).toHaveBeenLastCalledWith(false);
     await user.click(screen.getByRole('button', { name: 'Recordármelo más tarde' }));
     expect(spies.postpone).toHaveBeenCalledOnce();
     await user.click(screen.getByRole('button', { name: 'Página de la versión' }));
@@ -106,7 +116,7 @@ describe('Configuración → Actualizaciones', () => {
     show(state({ status: 'available', available: NEXT, postponedVersion: '0.3.0' }));
     expect(screen.queryByRole('button', { name: 'Recordármelo más tarde' })).not.toBeInTheDocument();
     expect(screen.getByText(/No se volverá a avisar de esta versión/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Actualizar ahora' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Actualizar y reiniciar' })).toBeEnabled();
   });
 
   it('muestra el progreso de la descarga y bloquea la búsqueda y el cambio de canal', async () => {
@@ -121,8 +131,8 @@ describe('Configuración → Actualizaciones', () => {
 
   it('con el paquete verificado permite instalar y reiniciar o hacerlo al cerrar', async () => {
     const { spies, user } = show(state({ status: 'ready', available: NEXT }));
-    expect(screen.getByRole('status')).toHaveTextContent('La versión 0.3.0 está descargada y verificada.');
-    await user.click(screen.getByRole('button', { name: 'Instalar y reiniciar' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Actualización lista para instalar: versión 0.3.0, descargada y verificada.');
+    await user.click(screen.getByRole('button', { name: 'Actualizar y reiniciar' }));
     expect(spies.install).toHaveBeenLastCalledWith('now');
     await user.click(screen.getByRole('button', { name: 'Instalar al cerrar ICARUS' }));
     expect(spies.install).toHaveBeenLastCalledWith('on-quit');
@@ -130,7 +140,7 @@ describe('Configuración → Actualizaciones', () => {
 
   it('confirma que se instalará al cerrar', () => {
     show(state({ status: 'ready', available: NEXT, installOnQuit: true }));
-    expect(screen.getByRole('status')).toHaveTextContent('La versión 0.3.0 se instalará al cerrar ICARUS.');
+    expect(screen.getByRole('status')).toHaveTextContent('Reinicio necesario: la versión 0.3.0 se instalará al cerrar ICARUS');
     expect(screen.queryByRole('button', { name: 'Instalar al cerrar ICARUS' })).not.toBeInTheDocument();
   });
 
@@ -149,14 +159,14 @@ describe('Configuración → Actualizaciones', () => {
     );
     expect(screen.getByText(/arrastra ICARUS Browser a Aplicaciones/)).toBeInTheDocument();
     expect(screen.getByText(/updates\/0\.3\.0\/ICARUS-Browser-0\.3\.0-arm64\.dmg/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Instalar y reiniciar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actualizar y reiniciar' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Mostrar el paquete' }));
     expect(spies.reveal).toHaveBeenCalledOnce();
   });
 
   it('Linux: solo avisa y abre la página de la versión', async () => {
     const { spies, user } = show(state({ mode: 'manual-release', status: 'available', available: { ...NEXT, file: null, size: null } }), 'linux');
-    expect(screen.queryByRole('button', { name: 'Actualizar ahora' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actualizar y reiniciar' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Ver la versión' }));
     expect(spies.openRelease).toHaveBeenCalledWith(NEXT.releasePage);
   });
@@ -182,7 +192,8 @@ describe('Configuración → Actualizaciones', () => {
 
   it('confirma la versión instalada después de actualizar', async () => {
     const { spies, user } = show(state({ currentVersion: '0.3.0', status: 'idle', justUpdated: { from: '0.2.0', to: '0.3.0' } }));
-    expect(screen.getByText('ICARUS se ha actualizado de la versión 0.2.0 a la 0.3.0.')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Actualización completada: ICARUS se ha actualizado de la versión 0.2.0 a la 0.3.0.');
+    expect(screen.getByTestId('update-summary')).toHaveTextContent('Actualización completada');
     expect(screen.getByText('ICARUS Browser 0.3.0')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Entendido' }));
     expect(spies.acknowledge).toHaveBeenCalledOnce();
@@ -193,6 +204,24 @@ describe('Configuración → Actualizaciones', () => {
     expect(screen.getByRole('radio', { name: /Estable/ })).toBeChecked();
     await user.click(screen.getByRole('radio', { name: /Vista previa/ }));
     expect(spies.setChannel).toHaveBeenCalledWith('preview');
+  });
+
+  it('«Actualizar automáticamente» se activa y se desactiva', async () => {
+    const { spies, user } = show(state({ status: 'up-to-date' }));
+    const toggle = screen.getByRole('switch', { name: /Actualizar automáticamente/ });
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    expect(spies.setAutoUpdate).toHaveBeenCalledWith(true);
+    cleanup();
+    const second = show(state({ status: 'up-to-date', autoUpdate: true }));
+    await second.user.click(screen.getByRole('switch', { name: /Actualizar automáticamente/ }));
+    expect(second.spies.setAutoUpdate).toHaveBeenCalledWith(false);
+  });
+
+  it('preparando la instalación: sin botones hasta terminar', () => {
+    show(state({ status: 'preparing', available: NEXT }));
+    expect(screen.getByRole('status')).toHaveTextContent('Preparando instalación…');
+    expect(screen.queryByRole('button', { name: /Actualizar y reiniciar/ })).not.toBeInTheDocument();
   });
 
   it('en una compilación de desarrollo no busca actualizaciones', () => {

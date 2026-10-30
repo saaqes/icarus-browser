@@ -81,8 +81,8 @@ object UpdateManifests {
 
     private val PLATFORMS = setOf("windows", "macos", "linux", "android", "ios")
     private val ARCHES = setOf("x64", "arm64", "universal")
-    private val EXTENSIONS = mapOf("nsis" to "exe", "zip" to "zip", "dmg" to "dmg", "apk" to "apk", "ipa" to "ipa")
-    private val FILE_NAME = Regex("^ICARUS-Browser-[A-Za-z0-9._-]{1,80}\\.(exe|zip|dmg|apk|ipa)$")
+    private val EXTENSIONS = mapOf("nsis" to "exe", "zip" to "zip", "dmg" to "dmg", "appimage" to "AppImage", "apk" to "apk", "ipa" to "ipa")
+    private val FILE_NAME = Regex("^ICARUS-Browser-[A-Za-z0-9._-]{1,80}\\.(exe|zip|dmg|AppImage|apk|ipa)$")
     private val SHA256 = Regex("^[0-9a-f]{64}$")
     private val COMMIT = Regex("^[0-9a-f]{40}$")
     private val ISO_DATE = Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$")
@@ -94,13 +94,18 @@ object UpdateManifests {
         else -> null
     }
 
-    private fun readAsset(raw: Any?, version: String): Any {
+    /**
+     * Devuelve el paquete, el motivo si no es válido o null si es de una plataforma,
+     * arquitectura o tipo que esta versión no conoce: esos se ignoran, para que un tipo
+     * de paquete nuevo no deje sin actualizaciones a las instalaciones existentes.
+     */
+    private fun readAsset(raw: Any?, version: String): Any? {
         val item = raw as? JSONObject ?: return "asset"
-        val platform = item.opt("platform") as? String
-        if (platform !in PLATFORMS) return "platform"
-        if (item.opt("arch") as? String !in ARCHES) return "arch"
-        val kind = item.opt("kind") as? String
-        val extension = EXTENSIONS[kind] ?: return "kind"
+        val platform = item.opt("platform") as? String ?: return "asset"
+        val arch = item.opt("arch") as? String ?: return "asset"
+        val kind = item.opt("kind") as? String ?: return "asset"
+        if (platform !in PLATFORMS || arch !in ARCHES || kind !in EXTENSIONS) return null
+        val extension = EXTENSIONS.getValue(kind)
         val file = item.opt("file") as? String
         if (file == null || !FILE_NAME.matches(file) || file.contains("..")) return "file"
         // El nombre debe corresponder a la versión y al tipo de paquete.
@@ -117,7 +122,7 @@ object UpdateManifests {
         } else if (item.has("versionCode")) {
             return "versionCode"
         }
-        return UpdateAsset(platform!!, item.getString("arch"), kind!!, file, size, sha256, versionCode)
+        return UpdateAsset(platform, arch, kind, file, size, sha256, versionCode)
     }
 
     /** Valida un manifiesto ya leído como texto (los bytes firmados). */
@@ -152,7 +157,7 @@ object UpdateManifests {
         val assets = ArrayList<UpdateAsset>()
         val keys = HashSet<String>()
         for (index in 0 until list.length()) {
-            val asset = readAsset(list.opt(index), versionText!!)
+            val asset = readAsset(list.opt(index), versionText!!) ?: continue
             if (asset !is UpdateAsset) return ManifestResult.Invalid("assets", asset as String)
             if (!keys.add("${asset.platform}/${asset.arch}/${asset.kind}")) return ManifestResult.Invalid("assets", "duplicate")
             assets.add(asset)

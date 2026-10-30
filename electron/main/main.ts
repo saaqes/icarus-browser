@@ -25,7 +25,17 @@ import { ZoomStore } from './zoom';
 import { registerUiScheme, serveUi, UI_ENTRY, UI_ORIGIN } from './uiProtocol';
 import { UiStorage } from './uiStorage';
 import { electronFetch } from './updateFetch';
-import { launchMacSwap, launchWindowsInstaller, macNeedsKeychainApproval, planInstall, stageMacUpdate, verifyWindowsInstaller } from './updateInstall';
+import {
+  launchAppImageSwap,
+  launchMacSwap,
+  launchWindowsInstaller,
+  macNeedsKeychainApproval,
+  planInstall,
+  removeAppImageBackup,
+  stageAppImage,
+  stageMacUpdate,
+  verifyWindowsInstaller,
+} from './updateInstall';
 import { UpdateService, type UpdateInstaller } from './updates';
 import { readBuildInfo, updateConfig } from './updateSetup';
 import { createMainWindow } from './window';
@@ -285,7 +295,10 @@ function createUpdateService(dataDir: string, emit: (event: NativeEvent) => void
     arch: process.arch,
     execPath: process.execPath,
     runningUnderArm64Translation: app.runningUnderARM64Translation,
+    appImage: process.env.APPIMAGE,
   });
+  // La versión nueva lo escribe al arrancar: el proceso auxiliar de Linux lo espera antes de dar la actualización por buena.
+  const confirmFile = join(dataDir, 'updates-confirmed');
   const installer: UpdateInstaller =
     process.platform === 'win32'
       ? {
@@ -303,7 +316,14 @@ function createUpdateService(dataDir: string, emit: (event: NativeEvent) => void
             // El .dmg verificado se abre para que el usuario arrastre la app a Aplicaciones.
             reveal: (file) => void shell.openPath(file),
           }
-        : { prepare: async (file) => file, launch: () => undefined, reveal: (file) => shell.showItemInFolder(file) };
+        : plan.appImagePath
+          ? {
+              prepare: async (file) => stageAppImage(file, plan.appImagePath!),
+              launch: (prepared, relaunch) => launchAppImageSwap(join(dataDir, 'updates'), plan.appImagePath!, prepared, relaunch, confirmFile),
+              reveal: (file) => shell.showItemInFolder(file),
+              cleanup: () => removeAppImageBackup(plan.appImagePath!),
+            }
+          : { prepare: async (file) => file, launch: () => undefined, reveal: (file) => shell.showItemInFolder(file) };
 
   const service = new UpdateService({
     dataDir,
@@ -318,6 +338,7 @@ function createUpdateService(dataDir: string, emit: (event: NativeEvent) => void
     // La interfaz guarda la sesión antes de reiniciar (responde por IPC, como mucho 2 s).
     requestRestart: () => emit({ type: 'update-restart' }),
     quit: () => app.quit(),
+    confirmFile,
     headers: { 'User-Agent': `ICARUS-Browser/${app.getVersion()} (${process.platform}; ${process.arch})` },
     firstCheckDelayMs: config.firstCheckDelayMs,
   });

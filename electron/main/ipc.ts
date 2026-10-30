@@ -182,6 +182,7 @@ export function registerIpc(context: IpcContext): void {
   on('icarus:updates:install', (when) => void context.updates.install(assertOneOf(when, INSTALL_WHEN, 'when')));
   on('icarus:updates:postpone', () => context.updates.postpone());
   on('icarus:updates:channel', (channel) => context.updates.setChannel(assertOneOf(channel, UPDATE_CHANNELS, 'channel')));
+  on('icarus:updates:auto', (value) => context.updates.setAutoUpdate(assertBoolean(value, 'value')));
   on('icarus:updates:acknowledge', () => context.updates.acknowledge());
   on('icarus:updates:reveal', () => context.updates.reveal());
   on('icarus:updates:restart-ready', () => context.updates.readyToRestart());

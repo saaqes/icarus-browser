@@ -8,15 +8,20 @@
  * 2. Arranca la versión instalada con una carpeta de datos temporal, abre dos
  *    páginas en dos pestañas y guarda datos (almacenamiento de la interfaz,
  *    preferencias e historial).
- * 3. Pulsa el aviso «Actualizar» de la barra y «Actualizar ahora», como un
+ * 3. Pulsa el aviso «Actualizar» de la barra y «Actualizar y reiniciar», como un
  *    usuario. Comprueba que ICARUS guarda las pestañas, se cierra solo, que el
  *    paquete sustituye a la versión instalada y que ICARUS se vuelve a abrir.
  * 4. Vuelve a arrancarlo: versión nueva, los mismos datos, la instalación
  *    confirmada sin errores y la versión nueva no se vuelve a ofrecer (sin bucles).
  *
+ * Con --expect-failure (Windows), el paquete servido es un instalador de prueba que
+ * deja la instalación a medias (borra app.asar) y termina con error: se comprueba
+ * que el proceso auxiliar restaura la versión instalada, que ICARUS se vuelve a
+ * abrir en ella con los datos intactos y que no reintenta esa versión solo.
+ *
  * Uso:
  *   node tests/e2e/update-packaged.mjs --app EJECUTABLE_INSTALADO --feed CARPETA_VERSION_NUEVA \
- *     --public-key CLAVE_DE_PRUEBA.pem --from 0.2.0 --to 0.2.1
+ *     --public-key CLAVE_DE_PRUEBA.pem --from 0.2.0 --to 0.2.1 [--expect-failure]
  *
  * La carpeta del paquete nuevo se genera con scripts/release/make-manifest.mjs y
  * sign-manifest.mjs (ver .github/workflows/windows.yml y macos.yml).
@@ -41,8 +46,10 @@ const { values } = parseArgs({
     'public-key': { type: 'string' },
     from: { type: 'string' },
     to: { type: 'string' },
+    'expect-failure': { type: 'boolean', default: false },
   },
 });
+const expectFailure = values['expect-failure'];
 for (const name of ['app', 'feed', 'public-key', 'from', 'to']) {
   if (!values[name]) {
     console.error(`Falta --${name}`);
@@ -298,7 +305,7 @@ try {
   }, 'El historial no registró las dos páginas');
   console.log('  ✓ Dos pestañas, historial, preferencias y almacenamiento de la interfaz con datos');
 
-  /* 2. Aviso de la versión nueva y «Actualizar ahora». */
+  /* 2. Aviso de la versión nueva y «Actualizar y reiniciar». */
   const available = await eventually(async () => {
     const state = await ui.evaluate('window.icarusNative.updates.getState()');
     if (state.status === 'error') throw new Error(`Error del actualizador: ${JSON.stringify(state.error)}`);
@@ -315,8 +322,8 @@ try {
     );
     console.log('  ✓ El aviso explica el permiso del llavero que pedirá macOS (firma ad hoc)');
   }
-  await eventually(() => clickButton(ui, '.update-popover', 'Actualizar ahora'), 'No apareció «Actualizar ahora»');
-  console.log(`  ✓ Aviso de la versión ${to} y «Actualizar ahora» pulsado`);
+  await eventually(() => clickButton(ui, '.update-popover', 'Actualizar y reiniciar'), 'No apareció «Actualizar y reiniciar»');
+  console.log(`  ✓ Aviso de la versión ${to} y «Actualizar y reiniciar» pulsado`);
 
   const code = await Promise.race([first.exited, sleep(240_000).then(() => 'timeout')]);
   assert(code !== 'timeout', 'ICARUS no se cerró para instalar la actualización');
@@ -332,95 +339,116 @@ try {
   }
   assert(pending === undefined || pending === null || (pending.from === from && pending.to === to && pending.manual === false), `Marca de instalación inesperada: ${JSON.stringify(pending)}`);
 
-  /* 3. Instalación y reinicio automático. */
-  await eventually(() => builtVersion() === to, `La versión instalada no cambió a ${to}`, 300_000);
-  if (isWindows) {
-    await eventually(() => {
-      const list = spawnSync('tasklist', ['/FI', `IMAGENAME eq ICARUS-Browser-Setup-${to}.exe`, '/NH'], { encoding: 'utf8' }).stdout ?? '';
-      return !list.includes('ICARUS-Browser-Setup');
-    }, 'El instalador no terminó', 300_000);
+  if (expectFailure) {
+    /* 3. El instalador falla a medias: el proceso auxiliar restaura la versión instalada. */
+    const log = join(dataDir, 'updates', 'reinicio.log');
+    await eventually(() => existsSync(log) && /version anterior restaurada/.test(readFileSync(log, 'utf8')), 'El proceso auxiliar no restauró la versión anterior', 600_000);
+    assert(builtVersion() === from, `Tras el fallo, la versión instalada es ${builtVersion()}`);
+    console.log(`  ✓ El instalador falló a medias y se restauró la copia de ${from}`);
+    const reopened = await eventually(() => icarusProcesses()[0] ?? null, 'ICARUS no se volvió a abrir tras el fallo', 120_000);
+    await sleep(8000);
+    console.log(`  ✓ ICARUS se volvió a abrir en la versión ${from} (cerrado con: ${await closeGracefully(reopened.pid)})`);
+    const restored = await launch('Versión restaurada');
+    runs.push(restored);
+    assert((await restored.ui.evaluate('window.icarusNative.appVersion')) === from, 'Tras el fallo no se ejecuta la versión anterior');
+    const after = await restored.ui.evaluate('window.icarusNative.updates.getState()');
+    assert(after.failedVersion === to && !readJson('updates.json')?.pending, `Estado tras el fallo: ${JSON.stringify(after)}`);
+    const snapshot = await restored.ui.evaluate('window.icarusNative.storage.snapshot');
+    assert(snapshot['icarus.e2eUpdateMarker'] === 'conservado', 'Se perdió el almacenamiento de la interfaz');
+    const history = (await restored.ui.evaluate('window.icarusNative.history.list()')).map((item) => item.url);
+    assert(history.includes(pageOne) && history.includes(pageTwo), 'Se perdió el historial');
+    console.log(`  ✓ Datos intactos y la versión ${to} queda marcada como fallida (no se reintenta sola)`);
   } else {
-    assert(!existsSync(`${bundle}.icarus-anterior`), 'Quedó la copia de la versión anterior');
-    const plist = execFileSync('/usr/bin/plutil', ['-extract', 'CFBundleShortVersionString', 'raw', join(bundle, 'Contents', 'Info.plist')], { encoding: 'utf8' }).trim();
-    assert(plist === to, `Info.plist dice ${plist}`);
-    execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle]);
+    /* 3. Instalación y reinicio automático. */
+    await eventually(() => builtVersion() === to, `La versión instalada no cambió a ${to}`, 300_000);
+    if (isWindows) {
+      await eventually(() => {
+        const list = spawnSync('tasklist', ['/FI', `IMAGENAME eq ICARUS-Browser-Setup-${to}.exe`, '/NH'], { encoding: 'utf8' }).stdout ?? '';
+        return !list.includes('ICARUS-Browser-Setup');
+      }, 'El instalador no terminó', 300_000);
+    } else {
+      assert(!existsSync(`${bundle}.icarus-anterior`), 'Quedó la copia de la versión anterior');
+      const plist = execFileSync('/usr/bin/plutil', ['-extract', 'CFBundleShortVersionString', 'raw', join(bundle, 'Contents', 'Info.plist')], { encoding: 'utf8' }).trim();
+      assert(plist === to, `Info.plist dice ${plist}`);
+      execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle]);
+    }
+    console.log(`  ✓ El paquete sustituyó a la versión instalada (${to})`);
+
+    const relaunched = await eventually(() => icarusProcesses()[0] ?? null, 'ICARUS no se volvió a abrir tras instalar', 90_000);
+    console.log(`  ✓ ICARUS se volvió a abrir solo (pid ${relaunched.pid}${relaunched.command.includes('--updated') ? ', con --updated' : ''})`);
+    const requestsBefore = requests.length;
+    await sleep(8000);
+    // Con firma ad hoc cada compilación tiene otra identidad: macOS pide permiso para leer la
+    // clave «ICARUS Browser Safe Storage» del llavero (cifrado de cookies) y, mientras no se
+    // responde, Chromium no envía peticiones. Se registra lo que ocurre (sin responder al aviso).
+    if (!isWindows) {
+      const agent = spawnSync('/bin/ps', ['-axo', 'pid=,command='], { encoding: 'utf8' }).stdout.split('\n').some((line) => /\/SecurityAgent(\s|$)/.test(line.trim()));
+      console.log(`  · Instancia reabierta: ${requests.length - requestsBefore} peticiones en 8 s; aviso del llavero (SecurityAgent) ${agent ? 'abierto' : 'no visible'}`);
+    }
+    console.log(`  · ICARUS reabierto cerrado con: ${await closeGracefully(relaunched.pid)}`);
+    const resolvedByRelaunch = !readJson('updates.json')?.pending;
+
+    /* 4. Versión nueva: datos conservados y sin bucles. */
+    // En macOS nadie puede responder en CI al aviso del llavero (ver arriba): esta instancia usa
+    // el llavero de prueba de Chromium (--use-mock-keychain, como Playwright). Solo afecta a la
+    // clave de cifrado de las cookies; los datos que se comprueban no dependen de ella.
+    const second = await launch('Versión nueva', isWindows ? [] : ['--use-mock-keychain']);
+    runs.push(second);
+    const next = second.ui;
+    assert((await next.evaluate('window.icarusNative.appVersion')) === to, 'La interfaz no es la versión nueva');
+    const state = await next.evaluate('window.icarusNative.updates.getState()');
+    assert(state.currentVersion === to && state.failedVersion === null && state.error === null, `Estado tras actualizar: ${JSON.stringify(state)}`);
+    if (resolvedByRelaunch) {
+      // El ICARUS reabierto por el instalador ya confirmó la instalación (y reabrió las pestañas).
+      assert(readJson('ui-storage.json')?.['icarus.updateRestartSession'] === undefined, 'La sesión del reinicio no se usó');
+      console.log('  ✓ La instancia reabierta confirmó la instalación y usó las pestañas guardadas');
+    } else {
+      assert(state.justUpdated?.from === from && state.justUpdated?.to === to, `Sin confirmación de la actualización: ${JSON.stringify(state.justUpdated)}`);
+      const titles = await tabTitles(next);
+      assert(titles.length === 2 && titles.some((title) => title.includes('Página uno')) && titles.some((title) => title.includes('Página dos')), `Pestañas tras actualizar: ${JSON.stringify(titles)}`);
+      console.log('  ✓ Se reabrieron las dos pestañas');
+      await navigate(next, 'icarus://configuracion/actualizaciones');
+      await eventually(
+        () => next.evaluate(`document.body.innerText.includes(${JSON.stringify(`ICARUS se ha actualizado de la versión ${from} a la ${to}.`)})`),
+        'Configuración → Actualizaciones no confirma la versión instalada',
+      );
+      console.log(`  ✓ Configuración confirma «actualizado de la versión ${from} a la ${to}»`);
+    }
+    assert(!existsSync(join(dataDir, 'updates')), 'No se borró la carpeta de descargas de actualizaciones');
+
+    const snapshot = await next.evaluate('window.icarusNative.storage.snapshot');
+    assert(snapshot['icarus.e2eUpdateMarker'] === 'conservado', 'Se perdió el almacenamiento de la interfaz');
+    const after = await next.evaluate('window.icarusNative.preferences.get()');
+    assert(after.downloads.askWhereToSave === askWhereToSave, 'Se perdieron las preferencias');
+    const history = (await next.evaluate('window.icarusNative.history.list()')).map((item) => item.url);
+    assert(history.includes(pageOne) && history.includes(pageTwo), 'Se perdió el historial');
+    console.log('  ✓ Almacenamiento, preferencias e historial conservados');
+
+    // La comprobación automática al arrancar puede estar en curso: se espera a que termine
+    // (una conexión colgada se corta a los 30 s, CHECK_TIMEOUT_MS).
+    const recheck = await eventually(async () => {
+      const result = await next.evaluate('window.icarusNative.updates.check()');
+      return result.status === 'checking' ? null : result;
+    }, 'La comprobación tras actualizar no terminó', 90_000).catch(async (error) => {
+      await diagnoseNetwork(second);
+      throw error;
+    });
+    if (recheck.status !== 'up-to-date') await diagnoseNetwork(second);
+    assert(recheck.status === 'up-to-date', `Tras actualizar se ofrece otra vez o falla la comprobación: ${recheck.status} ${JSON.stringify(recheck.error)}`);
+    await sleep(5000);
+    assert(second.exitCode === undefined, 'ICARUS se cerró solo después de actualizar (posible bucle)');
+    assert(!(await next.evaluate(`Boolean(document.querySelector('.update-btn'))`)), 'El aviso de actualización sigue en la barra');
+    console.log('  ✓ La versión nueva no vuelve a ofrecerse ni a instalarse (sin bucles)');
+    const downloads = requests.filter((line) => line.includes(`/releases/download/v${to}/`));
+    console.log(`  · Descargas servidas: ${downloads.join(', ')}`);
   }
-  console.log(`  ✓ El paquete sustituyó a la versión instalada (${to})`);
-
-  const relaunched = await eventually(() => icarusProcesses()[0] ?? null, 'ICARUS no se volvió a abrir tras instalar', 90_000);
-  console.log(`  ✓ ICARUS se volvió a abrir solo (pid ${relaunched.pid}${relaunched.command.includes('--updated') ? ', con --updated' : ''})`);
-  const requestsBefore = requests.length;
-  await sleep(8000);
-  // Con firma ad hoc cada compilación tiene otra identidad: macOS pide permiso para leer la
-  // clave «ICARUS Browser Safe Storage» del llavero (cifrado de cookies) y, mientras no se
-  // responde, Chromium no envía peticiones. Se registra lo que ocurre (sin responder al aviso).
-  if (!isWindows) {
-    const agent = spawnSync('/bin/ps', ['-axo', 'pid=,command='], { encoding: 'utf8' }).stdout.split('\n').some((line) => /\/SecurityAgent(\s|$)/.test(line.trim()));
-    console.log(`  · Instancia reabierta: ${requests.length - requestsBefore} peticiones en 8 s; aviso del llavero (SecurityAgent) ${agent ? 'abierto' : 'no visible'}`);
-  }
-  console.log(`  · ICARUS reabierto cerrado con: ${await closeGracefully(relaunched.pid)}`);
-  const resolvedByRelaunch = !readJson('updates.json')?.pending;
-
-  /* 4. Versión nueva: datos conservados y sin bucles. */
-  // En macOS nadie puede responder en CI al aviso del llavero (ver arriba): esta instancia usa
-  // el llavero de prueba de Chromium (--use-mock-keychain, como Playwright). Solo afecta a la
-  // clave de cifrado de las cookies; los datos que se comprueban no dependen de ella.
-  const second = await launch('Versión nueva', isWindows ? [] : ['--use-mock-keychain']);
-  runs.push(second);
-  const next = second.ui;
-  assert((await next.evaluate('window.icarusNative.appVersion')) === to, 'La interfaz no es la versión nueva');
-  const state = await next.evaluate('window.icarusNative.updates.getState()');
-  assert(state.currentVersion === to && state.failedVersion === null && state.error === null, `Estado tras actualizar: ${JSON.stringify(state)}`);
-  if (resolvedByRelaunch) {
-    // El ICARUS reabierto por el instalador ya confirmó la instalación (y reabrió las pestañas).
-    assert(readJson('ui-storage.json')?.['icarus.updateRestartSession'] === undefined, 'La sesión del reinicio no se usó');
-    console.log('  ✓ La instancia reabierta confirmó la instalación y usó las pestañas guardadas');
-  } else {
-    assert(state.justUpdated?.from === from && state.justUpdated?.to === to, `Sin confirmación de la actualización: ${JSON.stringify(state.justUpdated)}`);
-    const titles = await tabTitles(next);
-    assert(titles.length === 2 && titles.some((title) => title.includes('Página uno')) && titles.some((title) => title.includes('Página dos')), `Pestañas tras actualizar: ${JSON.stringify(titles)}`);
-    console.log('  ✓ Se reabrieron las dos pestañas');
-    await navigate(next, 'icarus://configuracion/actualizaciones');
-    await eventually(
-      () => next.evaluate(`document.body.innerText.includes(${JSON.stringify(`ICARUS se ha actualizado de la versión ${from} a la ${to}.`)})`),
-      'Configuración → Actualizaciones no confirma la versión instalada',
-    );
-    console.log(`  ✓ Configuración confirma «actualizado de la versión ${from} a la ${to}»`);
-  }
-  assert(!existsSync(join(dataDir, 'updates')), 'No se borró la carpeta de descargas de actualizaciones');
-
-  const snapshot = await next.evaluate('window.icarusNative.storage.snapshot');
-  assert(snapshot['icarus.e2eUpdateMarker'] === 'conservado', 'Se perdió el almacenamiento de la interfaz');
-  const after = await next.evaluate('window.icarusNative.preferences.get()');
-  assert(after.downloads.askWhereToSave === askWhereToSave, 'Se perdieron las preferencias');
-  const history = (await next.evaluate('window.icarusNative.history.list()')).map((item) => item.url);
-  assert(history.includes(pageOne) && history.includes(pageTwo), 'Se perdió el historial');
-  console.log('  ✓ Almacenamiento, preferencias e historial conservados');
-
-  // La comprobación automática al arrancar puede estar en curso: se espera a que termine
-  // (una conexión colgada se corta a los 30 s, CHECK_TIMEOUT_MS).
-  const recheck = await eventually(async () => {
-    const result = await next.evaluate('window.icarusNative.updates.check()');
-    return result.status === 'checking' ? null : result;
-  }, 'La comprobación tras actualizar no terminó', 90_000).catch(async (error) => {
-    await diagnoseNetwork(second);
-    throw error;
-  });
-  if (recheck.status !== 'up-to-date') await diagnoseNetwork(second);
-  assert(recheck.status === 'up-to-date', `Tras actualizar se ofrece otra vez o falla la comprobación: ${recheck.status} ${JSON.stringify(recheck.error)}`);
-  await sleep(5000);
-  assert(second.exitCode === undefined, 'ICARUS se cerró solo después de actualizar (posible bucle)');
-  assert(!(await next.evaluate(`Boolean(document.querySelector('.update-btn'))`)), 'El aviso de actualización sigue en la barra');
-  console.log('  ✓ La versión nueva no vuelve a ofrecerse ni a instalarse (sin bucles)');
-  const downloads = requests.filter((line) => line.includes(`/releases/download/v${to}/`));
-  console.log(`  · Descargas servidas: ${downloads.join(', ')}`);
 } catch (error) {
   failed = true;
   console.error(`  ✗ ${error.stack ?? error.message}`);
   for (const run of runs) console.error(`\n--- Salida de «${run.label}» (últimos 5000 caracteres) ---\n${run.output.slice(-5000)}`);
   console.error(`\n--- Peticiones al servidor de prueba ---\n${requests.join('\n')}`);
   console.error(`\n--- updates.json ---\n${JSON.stringify(readJson('updates.json'))}`);
-  for (const name of ['reinicio.log', 'reiniciar.cmd']) {
+  for (const name of ['reinicio.log', 'actualizar.cmd']) {
     const path = join(dataDir, 'updates', name);
     if (existsSync(path)) console.error(`\n--- updates/${name} ---\n${readFileSync(path, 'utf8')}`);
   }

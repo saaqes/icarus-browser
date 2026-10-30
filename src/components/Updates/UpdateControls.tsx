@@ -21,6 +21,7 @@ export interface UpdateActions {
   install(when: 'now' | 'on-quit'): void;
   postpone(): void;
   setChannel(channel: UpdateChannel): void;
+  setAutoUpdate(value: boolean): void;
   acknowledge(): void;
   /** Vuelve a mostrar el paquete descargado (modos manuales). */
   reveal(): void;
@@ -40,6 +41,7 @@ export function useUpdateActions(): UpdateActions | null {
             install: (when) => native.updates.install(when),
             postpone: () => native.updates.postpone(),
             setChannel: (channel) => native.updates.setChannel(channel),
+            setAutoUpdate: (value) => native.updates.setAutoUpdate(value),
             acknowledge: () => native.updates.acknowledge(),
             reveal: () => native.updates.reveal(),
             openRelease: (url) => openUrl(url, { newTab: true }),
@@ -49,7 +51,7 @@ export function useUpdateActions(): UpdateActions | null {
   );
 }
 
-const IN_PROGRESS: ReadonlyArray<UpdateState['status']> = ['downloading', 'verifying', 'ready', 'installing'];
+const IN_PROGRESS: ReadonlyArray<UpdateState['status']> = ['downloading', 'verifying', 'preparing', 'ready', 'installing'];
 
 /** Hay una descarga o instalación en marcha (no se busca ni se cambia de canal). */
 export function isUpdateInProgress(state: UpdateState): boolean {
@@ -76,6 +78,8 @@ function statusLine(state: UpdateState, m: ReturnType<typeof useMessages>): { ic
       return { icon: 'download', text: t.status.downloading(version), tone: 'info' };
     case 'verifying':
       return { icon: 'shield', text: t.status.verifying, tone: 'info' };
+    case 'preparing':
+      return { icon: 'upgrade', text: t.status.preparing, tone: 'info' };
     case 'ready':
       if (state.mode !== 'automatic') return { icon: 'check', text: t.status.readyManual(version), tone: 'success' };
       return { icon: 'check', text: state.installOnQuit ? t.status.readyOnQuit(version) : t.status.ready(version), tone: 'success' };
@@ -104,7 +108,7 @@ export function UpdateStatus({ state }: { state: UpdateState }) {
         <Icon name={line.icon} size={16} />
         <span>{line.text}</span>
       </p>
-      {(state.status === 'downloading' || state.status === 'verifying' || state.status === 'installing') && (
+      {(state.status === 'downloading' || state.status === 'verifying' || state.status === 'preparing' || state.status === 'installing') && (
         <div
           className="update-status__bar"
           role="progressbar"
@@ -121,6 +125,48 @@ export function UpdateStatus({ state }: { state: UpdateState }) {
       )}
       {state.status === 'ready' && state.manualFile && <p className="update-status__meta mono selectable">{state.manualFile}</p>}
     </div>
+  );
+}
+
+/** Texto corto del estado, como en «Acerca de» de Chrome y Edge. */
+export function statusSummary(state: UpdateState, m: ReturnType<typeof useMessages>): string {
+  if (state.justUpdated && (state.status === 'idle' || state.status === 'up-to-date')) return m.updates.justUpdated(state.justUpdated.from, state.justUpdated.to);
+  if (state.status === 'idle') return m.updates.status.idle;
+  if (state.status === 'error') return m.updates.status.error;
+  return statusLine(state, m)?.text ?? m.updates.status.idle;
+}
+
+/** Ficha de la instalación: nombre, versión instalada, última disponible, estado y última comprobación. */
+export function UpdateFacts({ state }: { state: UpdateState }) {
+  const m = useMessages();
+  const t = m.updates;
+  const latest = state.available?.version ?? state.latestVersion;
+  const checked = state.lastCheckedAt
+    ? new Date(state.lastCheckedAt).toLocaleString(m.locale, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : t.never;
+  return (
+    <dl className="update-facts" data-testid="update-facts">
+      <div>
+        <dt>{t.name}</dt>
+        <dd>{t.productName}</dd>
+      </div>
+      <div>
+        <dt>{t.installedLabel}</dt>
+        <dd data-testid="update-installed">{state.currentVersion}</dd>
+      </div>
+      <div>
+        <dt>{t.latestLabel}</dt>
+        <dd data-testid="update-latest">{latest ?? t.unknown}</dd>
+      </div>
+      <div>
+        <dt>{t.statusLabel}</dt>
+        <dd data-testid="update-summary">{statusSummary(state, m)}</dd>
+      </div>
+      <div>
+        <dt>{t.lastCheckLabel}</dt>
+        <dd>{checked}</dd>
+      </div>
+    </dl>
   );
 }
 
@@ -178,7 +224,7 @@ export function UpdateButtons({ state, actions, compact = false }: { state: Upda
       </div>
     );
   }
-  if (state.status === 'verifying' || state.status === 'installing' || state.status === 'checking') return null;
+  if (state.status === 'verifying' || state.status === 'preparing' || state.status === 'installing' || state.status === 'checking') return null;
 
   if (!available) {
     // Error al buscar o tras una instalación fallida: se vuelve a buscar.
@@ -212,9 +258,18 @@ export function UpdateButtons({ state, actions, compact = false }: { state: Upda
       </button>
     );
   }
+  // Instalación automática: también se puede descargar y verificar ahora e instalar después.
+  const downloadOnly =
+    state.mode === 'automatic' && available.file && !retry ? (
+      <button type="button" className={`btn btn--ghost${size}`} onClick={() => actions.download(false)}>
+        <Icon name="download" size={16} />
+        {t.downloadUpdate}
+      </button>
+    ) : null;
   return (
     <div className="manager-actions">
       {primary}
+      {downloadOnly}
       {!postponed && !retry && (
         <button type="button" className={`btn btn--subtle${size}`} onClick={actions.postpone}>
           {t.later}

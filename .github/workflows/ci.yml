@@ -59,3 +59,72 @@ jobs:
           sudo chown root:root release/linux-unpacked/chrome-sandbox
           sudo chmod 4755 release/linux-unpacked/chrome-sandbox
           xvfb-run -a -s "-screen 0 1440x900x24" npm run test:smoke
+
+  appimage:
+    name: AppImage y actualización real (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Preparar la pantalla virtual y el sandbox de Chromium del AppImage
+        # Un AppImage no puede usar el sandbox setuid de Chromium (se monta sin setuid): usa el
+        # de espacios de nombres, que Ubuntu 24.04 restringe con AppArmor. Se permite en el
+        # ejecutor; el sandbox sigue activo (nunca se usa --no-sandbox). Sin FUSE en el
+        # ejecutor, el AppImage se extrae en /tmp (APPIMAGE_EXTRACT_AND_RUN).
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - run: npm run build
+      - name: AppImage de esta versión
+        run: |
+          npx electron-builder --linux AppImage --x64 --publish never
+          node scripts/release/check-build.mjs release/linux-unpacked/resources/app.asar
+          version=$(node -p "require('./package.json').version")
+          cd release
+          sha256sum "ICARUS-Browser-$version-linux-x64.AppImage" > SHA256SUMS-linux.txt
+          cat SHA256SUMS-linux.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: icarus-browser-linux
+          path: |
+            release/ICARUS-Browser-*-linux-x64.AppImage
+            release/SHA256SUMS-linux.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Compilar la versión siguiente
+        run: |
+          current=$(node -p "require('./package.json').version")
+          # La siguiente versión de parche (0.2.0 → 0.2.1; 0.3.0-preview.1 → 0.3.1).
+          next=$(node -p "const [a, b, c] = process.argv[1].split('-')[0].split('.').map(Number); [a, b, c + 1].join('.')" "$current")
+          echo "CURRENT=$current" >> "$GITHUB_ENV"
+          echo "NEXT=$next" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/actual" "$RUNNER_TEMP/feed"
+          mv "release/ICARUS-Browser-$current-linux-x64.AppImage" "$RUNNER_TEMP/actual/"
+          npm pkg set version="$next"
+          npm run build
+          npx electron-builder --linux AppImage --x64 --publish never
+          mv "release/ICARUS-Browser-$next-linux-x64.AppImage" "$RUNNER_TEMP/feed/"
+      - name: Manifiesto de la versión siguiente, firmado con una clave de prueba
+        run: |
+          node -e "
+            const { generateKeyPairSync } = require('node:crypto');
+            const { writeFileSync } = require('node:fs');
+            const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+            writeFileSync(process.env.RUNNER_TEMP + '/prueba.key', privateKey.export({ type: 'pkcs8', format: 'pem' }));
+            writeFileSync(process.env.RUNNER_TEMP + '/prueba.pub', publicKey.export({ type: 'spki', format: 'pem' }));
+          "
+          node scripts/release/make-manifest.mjs --dir "$RUNNER_TEMP/feed" --version "$NEXT" --commit "$GITHUB_SHA" --select linux/x64/appimage
+          node scripts/release/sign-manifest.mjs --dir "$RUNNER_TEMP/feed" --key-file "$RUNNER_TEMP/prueba.key" --public-key "$RUNNER_TEMP/prueba.pub"
+      - name: Actualización real desde el navegador, con los casos de fallo
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: >-
+          xvfb-run -a -s "-screen 0 1440x900x24" node tests/e2e/update-linux.mjs
+          --app "$RUNNER_TEMP/actual/ICARUS-Browser-$CURRENT-linux-x64.AppImage" --feed "$RUNNER_TEMP/feed"
+          --public-key "$RUNNER_TEMP/prueba.pub" --private-key "$RUNNER_TEMP/prueba.key" --from "$CURRENT" --to "$NEXT"

@@ -1,6 +1,7 @@
 # Empaquetado de ICARUS Browser con electron-builder.
 # Windows: instalador NSIS (.exe) y paquete portátil (.zip), ambos x64.
 # macOS: imagen de disco (.dmg) y .zip para Apple Silicon (arm64) e Intel (x64).
+# Linux: AppImage x64.
 appId: io.github.saaqes.icarusbrowser
 productName: ICARUS Browser
 copyright: Copyright © 2026 ICARUS Browser
@@ -37,10 +38,13 @@ nsis:
   # Los datos del usuario (%APPDATA%\ICARUS Browser) se conservan al actualizar y al desinstalar.
   deleteAppDataOnUninstall: false
   artifactName: ICARUS-Browser-Setup-${version}.${ext}
+# Linux: AppImage (un solo archivo que ICARUS sustituye al actualizarse) y la carpeta
+# sin empaquetar para la prueba de humo de CI.
 linux:
-  target: [dir]
+  target: [AppImage]
   icon: build/icon.png
   category: Network
+  artifactName: ICARUS-Browser-${version}-linux-x64.${ext}
 mac:
   target:
     - target: dmg

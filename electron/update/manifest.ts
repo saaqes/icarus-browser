@@ -14,7 +14,7 @@ import { compareVersions, parseVersion, type Version } from './version';
 export type UpdateChannel = 'stable' | 'preview';
 export type AssetPlatform = 'windows' | 'macos' | 'linux' | 'android' | 'ios';
 export type AssetArch = 'x64' | 'arm64' | 'universal';
-export type AssetKind = 'nsis' | 'zip' | 'dmg' | 'apk' | 'ipa';
+export type AssetKind = 'nsis' | 'zip' | 'dmg' | 'appimage' | 'apk' | 'ipa';
 
 export interface UpdateAsset {
   platform: AssetPlatform;
@@ -55,8 +55,8 @@ export type ManifestResult = { ok: true; manifest: UpdateManifest; version: Vers
 
 const PLATFORMS: readonly AssetPlatform[] = ['windows', 'macos', 'linux', 'android', 'ios'];
 const ARCHES: readonly AssetArch[] = ['x64', 'arm64', 'universal'];
-const EXTENSIONS: Record<AssetKind, string> = { nsis: 'exe', zip: 'zip', dmg: 'dmg', apk: 'apk', ipa: 'ipa' };
-const FILE_NAME = /^ICARUS-Browser-[A-Za-z0-9._-]{1,80}\.(exe|zip|dmg|apk|ipa)$/;
+const EXTENSIONS: Record<AssetKind, string> = { nsis: 'exe', zip: 'zip', dmg: 'dmg', appimage: 'AppImage', apk: 'apk', ipa: 'ipa' };
+const FILE_NAME = /^ICARUS-Browser-[A-Za-z0-9._-]{1,80}\.(exe|zip|dmg|AppImage|apk|ipa)$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
@@ -65,12 +65,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function readAsset(raw: unknown, version: string): UpdateAsset | string {
+/**
+ * Lee un paquete. Devuelve el motivo si no es válido, o null si es de una
+ * plataforma, arquitectura o tipo que esta versión no conoce: esos se ignoran, para
+ * que añadir un tipo de paquete en el futuro no deje sin actualizaciones a las
+ * instalaciones existentes (el manifiesto sigue estando firmado entero).
+ */
+function readAsset(raw: unknown, version: string): UpdateAsset | string | null {
   if (!isRecord(raw)) return 'asset';
   const { platform, arch, kind, file, size, sha256, versionCode } = raw;
-  if (!PLATFORMS.includes(platform as AssetPlatform)) return 'platform';
-  if (!ARCHES.includes(arch as AssetArch)) return 'arch';
-  if (typeof kind !== 'string' || !(kind in EXTENSIONS)) return 'kind';
+  if (typeof platform !== 'string' || typeof arch !== 'string' || typeof kind !== 'string') return 'asset';
+  if (!PLATFORMS.includes(platform as AssetPlatform) || !ARCHES.includes(arch as AssetArch) || !Object.hasOwn(EXTENSIONS, kind)) return null;
   if (typeof file !== 'string' || !FILE_NAME.test(file) || file.includes('..')) return 'file';
   // El nombre debe corresponder a la versión y al tipo de paquete.
   if (!file.includes(version) || !file.endsWith(`.${EXTENSIONS[kind as AssetKind]}`)) return 'file';
@@ -113,6 +118,7 @@ export function parseManifest(text: string): ManifestResult {
   const keys = new Set<string>();
   for (const item of raw.assets) {
     const asset = readAsset(item, versionText);
+    if (asset === null) continue;
     if (typeof asset === 'string') return { ok: false, error: 'assets', detail: asset };
     const key = `${asset.platform}/${asset.arch}/${asset.kind}`;
     if (keys.has(key)) return { ok: false, error: 'assets', detail: 'duplicate' };
@@ -136,7 +142,7 @@ export function parseManifest(text: string): ManifestResult {
   };
 }
 
-/** Qué paquete necesita esta instalación. `kinds` vacío: solo se avisa (iOS, Linux). */
+/** Qué paquete necesita esta instalación. `kinds` vacío: solo se avisa (iOS, Linux sin AppImage). */
 export interface UpdateTarget {
   platform: AssetPlatform;
   arch: AssetArch;

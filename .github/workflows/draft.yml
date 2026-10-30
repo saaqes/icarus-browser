@@ -1,17 +1,22 @@
-# Borrador automático de cada actualización.
+# Publicación automática (y borrador automático) de cada commit.
 #
-# Cuando terminan bien todas las compilaciones de un commit subido (CI, Windows, macOS,
-# Android e iPhone), reúne sus paquetes ya probados en un borrador de Releases
-# (`vX.Y.Z-auto.<commit>`), sin volver a compilar nada.
+# Cuando terminan bien los cinco flujos de un commit subido (CI, Windows, macOS,
+# Android e iPhone), reúne sus paquetes ya probados, sin volver a compilar nada, y:
 #
-# - Un borrador solo lo ven quienes pueden editar el repositorio: nunca llega a los
-#   usuarios. No lleva manifiesto de actualización, así que la app no lo ofrecería
-#   aunque alguien lo publicara a mano. Publicar una versión sigue siendo solo con una
-#   etiqueta (release.yml, docs/UPDATES.md).
-# - Solo commits subidos al repositorio (nunca paquetes de pull requests de otros).
-# - Se conservan los 5 borradores automáticos más recientes; los borradores creados a
-#   mano y las versiones publicadas no se tocan.
-name: Borrador automático
+# - PUBLICA la versión (estable o preliminar) con su manifiesto firmado si el commit es
+#   de la rama principal, la versión de package.json es nueva (no existe su etiqueta y
+#   es posterior a todas las publicadas) y están la clave pública y el secreto de firma
+#   (scripts/release/auto-plan.mjs). Las instalaciones la reciben desde Configuración →
+#   Acerca de ICARUS → Actualizaciones. Un commit que no sube la versión nunca publica.
+# - Si no, crea un BORRADOR privado `vX.Y.Z-auto.<commit>` sin manifiesto: solo lo ven
+#   quienes pueden editar el repositorio y la app nunca lo ofrece.
+#
+# Nunca se publica nada si falla alguna prueba. Solo commits subidos al repositorio
+# (nunca paquetes de pull requests de otros). Se conservan los 5 borradores automáticos
+# más recientes; los borradores creados a mano y las versiones publicadas no se tocan.
+# La publicación usa el entorno «release»: en Settings → Environments se le pueden
+# añadir revisores obligatorios para aprobar cada versión antes de publicarla.
+name: Publicación automática
 
 on:
   workflow_run:
@@ -24,20 +29,25 @@ permissions:
   actions: read
 
 concurrency:
-  group: borrador-${{ github.event.workflow_run.head_sha }}
+  group: publicacion-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: false
 
 jobs:
-  draft:
-    name: Reunir los paquetes en un borrador
+  collect:
+    name: Reunir los paquetes probados y decidir
     if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      ready: ${{ steps.runs.outputs.ready }}
+      publish: ${{ steps.plan.outputs.publish }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      android: ${{ steps.plan.outputs.android }}
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       SHA: ${{ github.event.workflow_run.head_sha }}
-      KEEP: 5
     steps:
       - name: ¿Han terminado bien todas las plataformas?
         id: runs
@@ -53,17 +63,16 @@ jobs:
             echo "$name: $status $conclusion"
             if [ "$status" != completed ]; then ready=false; continue; fi
             if [ "$conclusion" != success ]; then
-              echo "::notice::$name terminó con «$conclusion»: no se crea el borrador de $SHA."
+              echo "::notice::$name terminó con «$conclusion»: no se publica ni se crea el borrador de $SHA."
               ready=false
               continue
             fi
-            # La CI de Linux no genera paquetes: basta con que termine bien.
-            if [ "$name" != CI ]; then ids+=("$(jq -r '.id' <<<"$run")"); fi
+            ids+=("$(jq -r '.id' <<<"$run")")
           done
-          # Ya hay un borrador de este commit (automático o creado a mano): no se repite.
-          existing=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq "[.[] | select(.draft and .target_commitish == \"$SHA\")] | .[0].tag_name // empty")
+          # Ya hay una versión o un borrador de este commit: no se repite.
+          existing=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq "[.[] | select(.target_commitish == \"$SHA\")] | .[0].tag_name // empty")
           if [ -n "$existing" ]; then
-            echo "::notice::El commit $SHA ya tiene el borrador $existing."
+            echo "::notice::El commit $SHA ya tiene $existing."
             ready=false
           fi
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
@@ -73,6 +82,14 @@ jobs:
         if: steps.runs.outputs.ready == 'true'
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v4
+        if: steps.runs.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Herramientas de publicación (validación compilada de la app)
+        if: steps.runs.outputs.ready == 'true'
+        run: npm ci && npm run build:electron
 
       - name: Descargar y comprobar los paquetes
         if: steps.runs.outputs.ready == 'true'
@@ -80,31 +97,170 @@ jobs:
           IDS: ${{ steps.runs.outputs.ids }}
         run: |
           mkdir -p downloads release
-          for id in $IDS; do gh run download "$id" --pattern 'icarus-browser-*' --dir "downloads/$id"; done
+          for id in $IDS; do gh run download "$id" --pattern 'icarus-browser-*' --dir "downloads/$id" || true; done
           find downloads -type f -exec mv -t release {} +
           cd release
           ls -l
           for sums in SHA256SUMS*.txt; do sha256sum -c "$sums"; done
           version=$(node -p "require('../package.json').version")
-          for file in "ICARUS-Browser-Setup-$version.exe" "ICARUS-Browser-$version-mac-arm64.dmg" "ICARUS-Browser-$version-android.apk" "ICARUS-Browser-$version-ios-sin-firmar.ipa"; do
+          for file in "ICARUS-Browser-Setup-$version.exe" "ICARUS-Browser-$version-mac-arm64.dmg" "ICARUS-Browser-$version-linux-x64.AppImage" "ICARUS-Browser-$version-android.apk" "ICARUS-Browser-$version-ios-sin-firmar.ipa"; do
             [ -f "$file" ] || { echo "::error::Falta $file entre los paquetes."; exit 1; }
           done
-          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: ¿Se publica una versión?
+        id: plan
+        if: steps.runs.outputs.ready == 'true'
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          HAS_SIGNING_KEY: ${{ secrets.ICARUS_UPDATE_SIGNING_KEY != '' }}
+          HAS_KEYSTORE: ${{ secrets.ICARUS_KEYSTORE_BASE64 != '' && secrets.ICARUS_KEYSTORE_PASSWORD != '' && secrets.ICARUS_KEY_ALIAS != '' && secrets.ICARUS_KEY_PASSWORD != '' }}
+        run: node scripts/release/auto-plan.mjs
+
+      - name: Guardar los paquetes para el paso siguiente
+        if: steps.runs.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: paquetes-probados
+          path: release/
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    name: Publicar la versión (manifiesto firmado)
+    needs: collect
+    if: needs.collect.outputs.ready == 'true' && (needs.collect.outputs.publish == 'stable' || needs.collect.outputs.publish == 'preview')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: release
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      MODE: ${{ needs.collect.outputs.publish }}
+      VERSION: ${{ needs.collect.outputs.version }}
+      TAG: ${{ needs.collect.outputs.tag }}
+      ANDROID: ${{ needs.collect.outputs.android }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci && npm run build:electron
+      - uses: actions/download-artifact@v4
+        with:
+          name: paquetes-probados
+          path: release
+
+      - name: Notas de la versión
+        run: |
+          # Novedades: docs/release-notes/VERSIÓN.md o, si no existe, el mensaje del commit.
+          if [ -f "docs/release-notes/$VERSION.md" ]; then cp "docs/release-notes/$VERSION.md" changes.md; else git log -1 --format='%s%n%n%b' "$SHA" | sed -e '/^Co-Authored-By:/d' -e '/^Claude-Session:/d' > changes.md; fi
+          {
+            cat changes.md
+            echo
+            echo "Publicada automáticamente tras superar los cinco flujos de pruebas (commit $SHA)."
+            echo
+            echo "| Plataforma | Archivo | Actualizaciones |"
+            echo "| --- | --- | --- |"
+            echo "| Windows 10/11 x64 | \`ICARUS-Browser-Setup-$VERSION.exe\` (instalador) o \`ICARUS-Browser-$VERSION-win-x64.zip\` (portátil) | Instalador: se actualiza desde el navegador, sin desinstalar. |"
+            echo "| macOS (Apple Silicon / Intel) | \`ICARUS-Browser-$VERSION-mac-arm64.dmg\` / \`ICARUS-Browser-$VERSION-mac-x64.dmg\` | Se actualiza desde el navegador si está en una carpeta con permiso de escritura (p. ej. Aplicaciones). |"
+            echo "| Linux x64 | \`ICARUS-Browser-$VERSION-linux-x64.AppImage\` | Se actualiza desde el navegador (sustituye el AppImage). |"
+            if [ "$ANDROID" = include ]; then
+              echo "| Android 10 o posterior | \`ICARUS-Browser-$VERSION-android.apk\` | El navegador descarga y verifica el APK; Android pide confirmación para instalarlo. |"
+            else
+              echo "| Android 10 o posterior | \`ICARUS-Browser-$VERSION-android.apk\` | Instalación manual: aún no hay almacén de claves fijo, así que este APK no se ofrece como actualización. |"
+            fi
+            echo "| iPhone/iPad (iOS 16+) | \`ICARUS-Browser-$VERSION-ios-sin-firmar.ipa\` | Sin firmar. La app avisa de versiones nuevas; iOS no permite instalarlas desde la propia app. |"
+            echo
+            echo "Las sumas SHA-256 están en \`SHA256SUMS*.txt\`; \`icarus-update.json\` y su firma \`icarus-update.json.sig\` son el manifiesto que verifican las actualizaciones."
+          } > body.md
+          cat body.md
+
+      - name: Generar, firmar y verificar el manifiesto
+        env:
+          ICARUS_UPDATE_SIGNING_KEY: ${{ secrets.ICARUS_UPDATE_SIGNING_KEY }}
+        run: |
+          platforms=windows,macos,linux,ios
+          [ "$ANDROID" = include ] && platforms="$platforms,android"
+          node scripts/release/make-manifest.mjs --dir release --version "$VERSION" --commit "$SHA" --notes-file changes.md --platforms "$platforms"
+          node scripts/release/sign-manifest.mjs --dir release
+          node scripts/release/verify-release.mjs --dir release --version "$VERSION" --commit "$SHA"
+
+      - name: Crear la versión como borrador, comprobar los archivos y publicarla
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "::error::Ya existe $TAG: no se publica dos veces."; exit 1; fi
+          files=(release/ICARUS-Browser-* release/SHA256SUMS*.txt release/icarus-update.json release/icarus-update.json.sig)
+          args=(--draft --target "$SHA" --title "ICARUS Browser $VERSION" --notes-file body.md)
+          if [ "$MODE" = preview ]; then args+=(--prerelease); fi
+          if ! gh release create "$TAG" "${files[@]}" "${args[@]}"; then
+            echo "::error::GitHub no dejó crear la versión $TAG (si durante esta ejecución se subió un commit que cambia .github/workflows, el siguiente commit la publicará)."
+            exit 1
+          fi
+          # Todos los archivos subidos y con su tamaño, antes de que nadie pueda verlos.
+          gh release view "$TAG" --json assets --jq '.assets[] | "\(.name) \(.size)"' | sort > uploaded.txt
+          for file in "${files[@]}"; do printf '%s %s\n' "$(basename "$file")" "$(stat -c %s "$file")"; done | sort > expected.txt
+          diff expected.txt uploaded.txt || { echo "::error::Los archivos subidos no coinciden con los paquetes."; gh release delete "$TAG" --yes --cleanup-tag; exit 1; }
+          if [ "$MODE" = stable ]; then
+            gh release edit "$TAG" --draft=false --latest
+          else
+            gh release edit "$TAG" --draft=false --prerelease --latest=false
+          fi
+          echo "Publicada $TAG ($MODE)."
+
+      - name: Comprobar la versión publicada (sin credenciales, como la app)
+        run: |
+          latest=()
+          if [ "$MODE" = stable ]; then latest=(--latest); fi
+          if ! node scripts/release/verify-release.mjs --dir release --remote "https://github.com/$GH_REPO" "${latest[@]}"; then
+            # Si lo publicado no es lo firmado, se vuelve a ocultar para que no se instale.
+            gh release edit "$TAG" --draft=true
+            echo "::error::La versión publicada no superó la comprobación y se ha vuelto a convertir en borrador."
+            exit 1
+          fi
+          {
+            echo "### Publicada $TAG"
+            gh release view "$TAG" --json url --jq .url
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  draft:
+    name: Crear el borrador automático
+    needs: collect
+    if: needs.collect.outputs.ready == 'true' && needs.collect.outputs.publish == 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      VERSION: ${{ needs.collect.outputs.version }}
+      KEEP: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: paquetes-probados
+          path: release
 
       - name: Crear el borrador
-        if: steps.runs.outputs.ready == 'true'
         run: |
           short=${SHA:0:7}
           tag="v$VERSION-auto.$short"
           {
             echo "Borrador automático del commit \`$short\`: $(git log -1 --format=%s "$SHA")"
             echo
-            echo "Paquetes compilados y probados por GitHub Actions para ese commit (Windows, macOS, Android e iPhone). Solo lo ven quienes pueden editar el repositorio; no lleva manifiesto de actualización, así que la app no lo ofrece. Estas copias no se actualizan solas: para eso hay que publicar una versión con etiqueta (docs/UPDATES.md)."
+            echo "Paquetes compilados y probados por GitHub Actions para ese commit (Windows, macOS, Linux, Android e iPhone). Solo lo ven quienes pueden editar el repositorio; no lleva manifiesto de actualización, así que la app no lo ofrece. Para que las instalaciones se actualicen solas hay que publicar una versión: sube la versión de package.json (docs/UPDATES.md)."
             echo
             echo "| Plataforma | Archivo |"
             echo "| --- | --- |"
             echo "| Windows 10/11 x64 | \`ICARUS-Browser-Setup-$VERSION.exe\` (instalador) o \`ICARUS-Browser-$VERSION-win-x64.zip\` (portátil). Sin firma de código: SmartScreen avisa al instalar. |"
             echo "| macOS | \`ICARUS-Browser-$VERSION-mac-arm64.dmg\` (Apple Silicon) o \`ICARUS-Browser-$VERSION-mac-x64.dmg\` (Intel). Firma ad hoc: la primera vez, clic derecho → Abrir. |"
+            echo "| Linux x64 | \`ICARUS-Browser-$VERSION-linux-x64.AppImage\` |"
             echo "| Android 10 o posterior | \`ICARUS-Browser-$VERSION-android.apk\` |"
             echo "| iPhone/iPad (iOS 16+) | \`ICARUS-Browser-$VERSION-ios-sin-firmar.ipa\` (hay que firmarlo con tu Apple ID) o \`ICARUS-Browser-$VERSION-ios-simulador.zip\` (simulador de Xcode). |"
             echo
@@ -112,7 +268,7 @@ jobs:
           } > body.md
           files=(release/ICARUS-Browser-* release/SHA256SUMS*.txt)
           if ! gh release create "$tag" "${files[@]}" --draft --prerelease --target "$SHA" \
-              --title "ICARUS Browser $VERSION · $short (borrador automático, Windows, macOS, Android, iPhone)" --notes-file body.md; then
+              --title "ICARUS Browser $VERSION · $short (borrador automático, Windows, macOS, Linux, Android, iPhone)" --notes-file body.md; then
             # El token del flujo no puede crear una versión en un commit cuyos archivos de
             # .github/workflows difieren de los de la rama (si se subió otro que los cambia).
             echo "::error::GitHub no dejó crear el borrador de $short; el commit siguiente tendrá el suyo."
@@ -125,7 +281,6 @@ jobs:
           echo "$(gh release view "$tag" --json url --jq .url)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Conservar solo los borradores automáticos más recientes
-        if: steps.runs.outputs.ready == 'true'
         run: |
           gh api "repos/$GH_REPO/releases?per_page=100" \
             --jq "[.[] | select(.draft and (.tag_name | test(\"-auto[.]\")))] | sort_by(.created_at) | reverse | .[$KEEP:] | .[].tag_name" |

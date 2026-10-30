@@ -65,13 +65,14 @@ function assets(version: string, platforms: AssetPlatform[]) {
     { platform: 'macos', arch: 'arm64', kind: 'zip', file: `ICARUS-Browser-${version}-mac-arm64.zip` },
     { platform: 'macos', arch: 'x64', kind: 'zip', file: `ICARUS-Browser-${version}-mac-x64.zip` },
     { platform: 'macos', arch: 'arm64', kind: 'dmg', file: `ICARUS-Browser-${version}-mac-arm64.dmg` },
+    { platform: 'linux', arch: 'x64', kind: 'appimage', file: `ICARUS-Browser-${version}-linux-x64.AppImage` },
     { platform: 'android', arch: 'universal', kind: 'apk', file: `ICARUS-Browser-${version}-android.apk`, versionCode: code },
     { platform: 'ios', arch: 'universal', kind: 'ipa', file: `ICARUS-Browser-${version}-ios-sin-firmar.ipa` },
   ];
   return all.filter((item) => platforms.includes(item.platform as AssetPlatform)).map((item, index) => ({ ...item, size: 1_000_000 + index, sha256: fakeHash(item.file) }));
 }
 
-function manifest(version: string, platforms: AssetPlatform[] = ['windows', 'macos', 'android', 'ios'], patch: Record<string, unknown> = {}) {
+function manifest(version: string, platforms: AssetPlatform[] = ['windows', 'macos', 'linux', 'android', 'ios'], patch: Record<string, unknown> = {}) {
   const parsed = parseVersion(version);
   return {
     schema: 1,
@@ -94,6 +95,8 @@ const ANDROID = { platform: 'android', arch: 'universal', kinds: ['apk'] } as co
 const IOS = { platform: 'ios', arch: 'universal', kinds: [] } as const;
 const WINDOWS = { platform: 'windows', arch: 'x64', kinds: ['nsis'] } as const;
 const MAC = { platform: 'macos', arch: 'arm64', kinds: ['zip'] } as const;
+const LINUX = { platform: 'linux', arch: 'x64', kinds: ['appimage'] } as const;
+const LINUX_NOTICE = { platform: 'linux', arch: 'x64', kinds: [] } as const;
 
 function generate(): Vectors {
   const main = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
@@ -101,6 +104,16 @@ function generate(): Vectors {
   const stable = text(manifest('0.3.0'));
   const preview = text(manifest('0.3.0-preview.2', ['android', 'ios']));
   const windowsOnly = text(manifest('0.3.1', ['windows']));
+  const futureKinds = text(
+    manifest('0.3.1', ['android'], {
+      assets: [
+        ...assets('0.3.1', ['android']),
+        { platform: 'windows', arch: 'x64', kind: 'msix', file: 'ICARUS-Browser-0.3.1-win-x64.msix', size: 10, sha256: fakeHash('msix') },
+        { platform: 'freebsd', arch: 'x64', kind: 'pkg', file: 'ICARUS-Browser-0.3.1.pkg', size: 10, sha256: fakeHash('pkg') },
+        { platform: 'linux', arch: 'riscv64', kind: 'appimage', file: 'ICARUS-Browser-0.3.1-linux-riscv64.AppImage', size: 10, sha256: fakeHash('rv') },
+      ],
+    }),
+  );
   const cases: Array<Omit<ManifestCase, 'signatureValid' | 'parse' | 'decisions'> & { decisions: Array<Omit<DecisionCase, 'result' | 'file'>> }> = [
     {
       name: 'estable 0.3.0',
@@ -114,6 +127,8 @@ function generate(): Vectors {
         { current: '0.2.0', channel: 'stable', ...IOS },
         { current: '0.2.0', channel: 'stable', ...WINDOWS },
         { current: '0.2.0', channel: 'stable', ...MAC },
+        { current: '0.2.0', channel: 'stable', ...LINUX },
+        { current: '0.2.0', channel: 'stable', ...LINUX_NOTICE },
       ],
     },
     {
@@ -135,6 +150,17 @@ function generate(): Vectors {
       decisions: [
         { current: '0.3.0', channel: 'stable', ...ANDROID },
         { current: '0.3.0', channel: 'stable', ...IOS },
+      ],
+    },
+    {
+      // Paquetes que esta versión no conoce (otra plataforma u otro tipo): se ignoran.
+      name: 'paquetes de tipos futuros',
+      text: futureKinds,
+      signature: signText(futureKinds, main.privateKey),
+      decisions: [
+        { current: '0.3.0', channel: 'stable', ...ANDROID },
+        { current: '0.3.0', channel: 'stable', ...WINDOWS },
+        { current: '0.3.0', channel: 'stable', ...LINUX },
       ],
     },
     // El manifiesto cambia después de firmarlo.
@@ -163,7 +189,8 @@ function generate(): Vectors {
     ['SHA-256 en mayúsculas', text(manifest('0.3.0', undefined, { assets: [{ ...assets('0.3.0', ['android'])[0], sha256: fakeHash('x').toUpperCase() }] }))],
     ['tamaño cero', text(manifest('0.3.0', undefined, { assets: [{ ...assets('0.3.0', ['android'])[0], size: 0 }] }))],
     ['paquete repetido', text(manifest('0.3.0', undefined, { assets: [...assets('0.3.0', ['android']), ...assets('0.3.0', ['android'])] }))],
-    ['plataforma desconocida', text(manifest('0.3.0', undefined, { assets: [{ ...assets('0.3.0', ['android'])[0], platform: 'symbian' }] }))],
+    ['plataforma que no es texto', text(manifest('0.3.0', undefined, { assets: [{ ...assets('0.3.0', ['android'])[0], platform: 7 }] }))],
+    ['AppImage con otra extensión', text(manifest('0.3.0', undefined, { assets: [{ ...assets('0.3.0', ['linux'])[0], file: 'ICARUS-Browser-0.3.0-linux-x64.appimage' }] }))],
   ];
   for (const [name, body] of invalid) cases.push({ name, text: body, signature: signText(body, main.privateKey), decisions: [] });
 
@@ -238,5 +265,8 @@ describe('vectores de actualización compartidos con Android e iPhone', () => {
     expect(byName.get('firmado con otra clave')?.signatureValid).toBe(false);
     expect(byName.get('estable 0.3.0')?.decisions.find((item) => item.platform === 'android' && item.current === '0.4.0')?.result).toBe('rejected:older');
     expect(byName.get('preliminar 0.3.0-preview.2')?.decisions.find((item) => item.channel === 'stable')?.result).toBe('rejected:channel');
+    expect(byName.get('estable 0.3.0')?.decisions.find((item) => item.platform === 'linux' && item.kinds.length > 0)?.file).toBe('ICARUS-Browser-0.3.0-linux-x64.AppImage');
+    expect(byName.get('paquetes de tipos futuros')?.parse).toBe('ok');
+    expect(byName.get('paquetes de tipos futuros')?.decisions.find((item) => item.platform === 'windows')?.result).toBe('rejected:no-asset');
   });
 });

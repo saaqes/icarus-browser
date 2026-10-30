@@ -1,4 +1,8 @@
 import Foundation
+#if canImport(FoundationNetworking)
+// Linux (pruebas del núcleo con Swift para Linux): URLSession está en otro módulo.
+import FoundationNetworking
+#endif
 #if canImport(CryptoKit)
 import CryptoKit
 #endif
@@ -87,8 +91,8 @@ public enum UpdateManifests {
 
     private static let platforms: Set<String> = ["windows", "macos", "linux", "android", "ios"]
     private static let arches: Set<String> = ["x64", "arm64", "universal"]
-    private static let extensions = ["nsis": "exe", "zip": "zip", "dmg": "dmg", "apk": "apk", "ipa": "ipa"]
-    private static let fileName = Pattern("^ICARUS-Browser-[A-Za-z0-9._-]{1,80}\\.(exe|zip|dmg|apk|ipa)$")
+    private static let extensions = ["nsis": "exe", "zip": "zip", "dmg": "dmg", "appimage": "AppImage", "apk": "apk", "ipa": "ipa"]
+    private static let fileName = Pattern("^ICARUS-Browser-[A-Za-z0-9._-]{1,80}\\.(exe|zip|dmg|AppImage|apk|ipa)$")
     private static let sha256 = Pattern("^[0-9a-f]{64}$")
     private static let commit = Pattern("^[0-9a-f]{40}$")
     private static let isoDate = Pattern("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$")
@@ -106,25 +110,35 @@ public enum UpdateManifests {
         return formatter.date(from: text)
     }
 
-    private static func readAsset(_ raw: Any, version: String) -> UpdateAsset? {
+    private enum AssetRead {
+        case asset(UpdateAsset)
+        /// Plataforma, arquitectura o tipo que esta versión no conoce: se ignora, para que
+        /// un tipo de paquete nuevo no deje sin actualizaciones a las instalaciones existentes.
+        case unknown
+        case invalid
+    }
+
+    private static func readAsset(_ raw: Any, version: String) -> AssetRead {
         guard let item = raw as? [String: Any],
-              let platform = item["platform"] as? String, platforms.contains(platform),
-              let arch = item["arch"] as? String, arches.contains(arch),
-              let kind = item["kind"] as? String, let ext = extensions[kind],
-              let file = item["file"] as? String, fileName.matches(file), !file.contains(".."),
+              let platform = item["platform"] as? String,
+              let arch = item["arch"] as? String,
+              let kind = item["kind"] as? String
+        else { return .invalid }
+        guard platforms.contains(platform), arches.contains(arch), let ext = extensions[kind] else { return .unknown }
+        guard let file = item["file"] as? String, fileName.matches(file), !file.contains(".."),
               // El nombre debe corresponder a la versión y al tipo de paquete.
               file.contains(version), file.hasSuffix(".\(ext)"),
               let size = integer(item["size"]), size > 0, size <= 1024 * 1024 * 1024,
               let hash = item["sha256"] as? String, sha256.matches(hash)
-        else { return nil }
+        else { return .invalid }
         var versionCode: Int?
         if platform == "android" {
-            guard let code = integer(item["versionCode"]), code > 0, code <= Int64(Int32.max) else { return nil }
+            guard let code = integer(item["versionCode"]), code > 0, code <= Int64(Int32.max) else { return .invalid }
             versionCode = Int(code)
         } else if item.keys.contains("versionCode") {
-            return nil
+            return .invalid
         }
-        return UpdateAsset(platform: platform, arch: arch, kind: kind, file: file, size: size, sha256: hash, versionCode: versionCode)
+        return .asset(UpdateAsset(platform: platform, arch: arch, kind: kind, file: file, size: size, sha256: hash, versionCode: versionCode))
     }
 
     /// Valida un manifiesto ya leído como texto (los bytes firmados).
@@ -146,7 +160,12 @@ public enum UpdateManifests {
         var assets: [UpdateAsset] = []
         var keys = Set<String>()
         for item in list {
-            guard let asset = readAsset(item, version: versionText) else { return .invalid("assets") }
+            let asset: UpdateAsset
+            switch readAsset(item, version: versionText) {
+            case .asset(let read): asset = read
+            case .unknown: continue
+            case .invalid: return .invalid("assets")
+            }
             guard keys.insert("\(asset.platform)/\(asset.arch)/\(asset.kind)").inserted else { return .invalid("assets") }
             assets.append(asset)
         }

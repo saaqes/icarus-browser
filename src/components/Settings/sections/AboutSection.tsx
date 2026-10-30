@@ -2,6 +2,7 @@ import { useServices } from '../../../app/ServicesContext';
 import { useMessages } from '../../../i18n';
 import { IcarusMark } from '../../common/IcarusLogo';
 import { SettingsCard } from '../SettingsPage';
+import { AboutUpdatesCard } from './UpdatesSection';
 
 export function AboutSection() {
   const m = useMessages();
@@ -19,6 +20,7 @@ export function AboutSection() {
           <p className="about-hero__engine">{m.externalPage.engine(engine.info.name)}</p>
         </div>
       </section>
+      <AboutUpdatesCard />
       <SettingsCard title={m.app.fullName}>
         <p>{native ? t.descriptionDesktop : t.description}</p>
         <p className="field-hint">{t.disclaimer}</p>

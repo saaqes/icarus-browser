@@ -19,7 +19,7 @@ final class UpdateVectorsTests: XCTestCase {
         }
     }
 
-    func testFirmasValidacionYDecisionDeCadaManifiesto() throws {
+    func testFirmasDeCadaManifiesto() throws {
         #if !canImport(CryptoKit)
         // Sin CryptoKit (Linux) ninguna firma se acepta: se comprueba en macOS (CI).
         throw XCTSkip("CryptoKit solo existe en las plataformas de Apple")
@@ -27,15 +27,24 @@ final class UpdateVectorsTests: XCTestCase {
         let data = try Shared.json("test-vectors/updates.json")
         let publicKey = data["publicKey"] as! String
         XCTAssertTrue(UpdateManifests.isValidPublicKey(publicKey))
+        var failures: [String] = []
+        for item in data["manifests"] as! [[String: Any]] {
+            let name = item["name"] as! String
+            let signatureValid = UpdateManifests.verifySignature(Data((item["text"] as! String).utf8), signature: item["signature"] as! String, publicKeyPEM: publicKey)
+            if signatureValid != (item["signatureValid"] as! Bool) { failures.append("\(name): firma \(signatureValid)") }
+        }
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
+    }
+
+    /// Validación y decisión (no necesitan CryptoKit: también se comprueban en Linux).
+    func testValidacionYDecisionDeCadaManifiesto() throws {
+        let data = try Shared.json("test-vectors/updates.json")
         let manifests = data["manifests"] as! [[String: Any]]
         XCTAssertGreaterThanOrEqual(manifests.count, 25)
         var failures: [String] = []
         for item in manifests {
             let name = item["name"] as! String
-            let text = item["text"] as! String
-            let signatureValid = UpdateManifests.verifySignature(Data(text.utf8), signature: item["signature"] as! String, publicKeyPEM: publicKey)
-            if signatureValid != (item["signatureValid"] as! Bool) { failures.append("\(name): firma \(signatureValid)") }
-            let result = UpdateManifests.parse(text)
+            let result = UpdateManifests.parse(item["text"] as! String)
             let parse: String
             switch result {
             case .ok: parse = "ok"
