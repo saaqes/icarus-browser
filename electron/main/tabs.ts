@@ -17,6 +17,27 @@ import { nextZoom, zoomSite, type ZoomAction } from './zoom';
 
 const SNAPSHOT_TIMEOUT_MS = 3_000;
 
+/** URL comparable con el título que inventa Chromium (sin protocolo, `www.` ni barra final). */
+function bareUrl(text: string): string {
+  let value = text.trim();
+  try {
+    value = decodeURI(value);
+  } catch {
+    // Se compara tal cual.
+  }
+  return value.toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+}
+
+/**
+ * Título de la página, o vacío si aún no tiene. Mientras llega el `<title>`, Chromium
+ * devuelve la propia URL (`127.0.0.1:8080/panel`); la interfaz pondría entonces la
+ * dirección real en la pestaña aunque la barra muestre la personalizada.
+ */
+export function pageTitle(contents: WebContents, url: string): string {
+  const title = contents.getTitle();
+  return title && bareUrl(title) === bareUrl(url) ? '' : title;
+}
+
 interface TabRecord {
   id: string;
   view: WebContentsView;
@@ -341,7 +362,7 @@ export class TabManager {
       // El zoom guardado del sitio (también tras reiniciar ICARUS).
       const zoom = this.hooks.zoomFor(url);
       if (Math.abs(contents.getZoomFactor() - zoom) > 0.001) contents.setZoomFactor(zoom);
-      tab.state = { ...tab.state, url, title: contents.getTitle(), favicon: null, error: null };
+      tab.state = { ...tab.state, url, title: pageTitle(contents, url), favicon: null, error: null };
       this.hooks.onCommit(tab.id, contents, url);
       this.emit(tab);
     });

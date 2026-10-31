@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useServices } from '../../../app/ServicesContext';
 import { useBookmarks, useCustomAddresses, useSettings, useShortcuts, useWidgetData } from '../../../hooks/useStores';
 import { useMessages } from '../../../i18n';
-import { createBackup, downloadTextFile, parseBackup, readFileAsText, type BackupData } from '../../../services/backup/backup';
+import { createBackup, exportTextFile, parseBackup, readFileAsText, type BackupData } from '../../../services/backup/backup';
 import { STORAGE_PREFIX } from '../../../services/persistence/keys';
 import { estimateUsage } from '../../../services/persistence/storage';
 import type { EngineCapabilities } from '../../../services/navigation/engine';
@@ -42,10 +42,12 @@ export function AdvancedSection() {
     clearCustomAddressEditor();
   }, [clearCustomAddressEditor, customAddressEditor]);
 
-  const exportAll = () => {
+  const exportAll = async () => {
     const content = createBackup({ settings, shortcuts, customAddresses, bookmarks, widgets }, __APP_VERSION__, services.now());
-    downloadTextFile(`icarus-configuracion-${services.now().toISOString().slice(0, 10)}.json`, content);
-    notify('success', t.exportDone);
+    const result = await exportTextFile(services.native, `icarus-configuracion-${services.now().toISOString().slice(0, 10)}.json`, content);
+    if (result.status === 'saved') notify('success', t.exportSaved(result.path));
+    else if (result.status === 'downloaded') notify('success', t.exportDone);
+    else if (result.status === 'error') notify('error', m.customAddresses.transfer.saveError);
   };
 
   const onImportFile = async (file: File | undefined) => {
@@ -91,7 +93,7 @@ export function AdvancedSection() {
 
       <SettingsCard title={t.backup} description={t.backupHint}>
         <div className="manager-actions">
-          <button type="button" className="btn btn--ghost btn--sm" onClick={exportAll}>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => void exportAll()}>
             <Icon name="download" size={14} />
             {t.exportAll}
           </button>

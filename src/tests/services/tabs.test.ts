@@ -123,6 +123,16 @@ describe('describePage', () => {
     expect(describePage(external('https://bot.deriv.me/'), { customAddresses, titles }).title).toBe('miweb.com');
   });
 
+  it('mientras carga, el título que es la URL real no aparece en la pestaña', () => {
+    // Chromium usa la URL como título hasta que llega el <title> de la página nueva.
+    for (const title of ['https://bot.deriv.me/panel/usuarios?id=10', 'bot.deriv.me/panel/usuarios?id=10', 'www.bot.deriv.me/panel/usuarios?id=10/']) {
+      const page = { kind: 'web' as const, url: 'https://bot.deriv.me/panel/usuarios?id=10', title, openedExternally: false };
+      expect(describePage(page, { customAddresses, titles }).title).toBe('miweb.com/panel/usuarios?id=10');
+    }
+    const named = { kind: 'web' as const, url: 'https://bot.deriv.me/panel', title: 'Panel de bot.deriv.me', openedExternally: false };
+    expect(describePage(named, { customAddresses, titles }).title).toBe('Panel de bot.deriv.me');
+  });
+
   it('describe páginas internas', () => {
     expect(describePage({ kind: 'settings', section: 'advanced' }, { customAddresses: [], titles })).toMatchObject({
       realUrl: 'icarus://configuracion/avanzado',

@@ -1,6 +1,7 @@
 package io.github.saaqes.icarusbrowser
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.util.Base64
 import android.util.Log
@@ -108,6 +109,40 @@ class BrowserSmokeTest {
     private fun setLook(theme: ThemeId, mode: ColorMode) {
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             app.profile.updateSettings { it.copy(theme = theme, colorMode = mode) }
+        }
+    }
+
+    /** Lo que muestra el lanzador: alias activo, su nombre y que solo hay uno. */
+    private fun launcherEntries(): List<Pair<String, String>> {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(context.packageName)
+        return context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            .map { it.activityInfo.name.substringAfterLast('.') to it.loadLabel(context.packageManager).toString() }
+    }
+
+    @Test
+    fun elIconoYElNombreDelLanzadorSiguenAlEstilo() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        try {
+            for ((theme, expected) in listOf(
+                ThemeId.PANORAMA to ("LauncherPanorama" to "ICARUS Panorama"),
+                ThemeId.ESSENTIAL to ("LauncherEsencial" to "ICARUS Esencial"),
+                ThemeId.ICARUS to ("LauncherIcarus" to "ICARUS"),
+            )) {
+                setLook(theme, ColorMode.LIGHT)
+                // Se aplica al pasar ICARUS a segundo plano (al cerrar la actividad).
+                ActivityScenario.launch(MainActivity::class.java).use { scenario -> waitFor(scenario, "pestaña inicial") { it.currentTab != null } }
+                InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                assertEquals(listOf(expected), launcherEntries())
+                val icon = context.packageManager.getActivityInfo(
+                    android.content.ComponentName(context.packageName, "${MainActivity::class.java.name.substringBeforeLast('.')}.${expected.first}"),
+                    PackageManager.MATCH_DISABLED_COMPONENTS,
+                ).iconResource
+                assertTrue("el alias ${expected.first} no tiene icono propio", icon != 0)
+            }
+        } finally {
+            setLook(ThemeId.ICARUS, ColorMode.DARK)
+            LauncherIcons.apply(context, ThemeId.ICARUS)
         }
     }
 

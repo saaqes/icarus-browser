@@ -1,8 +1,11 @@
+import { useAppName } from '../../../hooks/useAppName';
+import { useAppearance } from '../../../hooks/useAppearance';
 import { useNative, useUpdateState } from '../../../hooks/useNative';
 import { useBrowser } from '../../BrowserShell/BrowserContext';
 import { useMessages } from '../../../i18n';
 import { formatBytes } from '../../../services/format';
 import type { UpdateState } from '../../../types/native';
+import type { ThemeId } from '../../../types/settings';
 import { IcarusMark } from '../../common/IcarusLogo';
 import { Icon } from '../../common/Icon';
 import { RadioList, Toggle } from '../../common/Controls';
@@ -13,12 +16,24 @@ export function UpdatesSection() {
   const native = useNative();
   const state = useUpdateState();
   const actions = useUpdateActions();
+  const { themeId } = useAppearance();
   if (!native || !state || !actions) return null;
-  return <UpdatesView state={state} platform={native.platform} actions={actions} />;
+  return <UpdatesView state={state} platform={native.platform} actions={actions} themeId={themeId} />;
 }
 
 /** Contenido de la sección (separado para probar cada estado). */
-export function UpdatesView({ state, platform, actions }: { state: UpdateState; platform: string; actions: UpdateActions }) {
+export function UpdatesView({
+  state,
+  platform,
+  actions,
+  themeId = 'icarus',
+}: {
+  state: UpdateState;
+  platform: string;
+  actions: UpdateActions;
+  /** Estilo actual: icono y nombre de la aplicación. */
+  themeId?: ThemeId;
+}) {
   const m = useMessages();
   const t = m.updates;
   const formatDate = (iso: string, withTime = true) =>
@@ -62,7 +77,7 @@ export function UpdatesView({ state, platform, actions }: { state: UpdateState; 
 
       <SettingsCard title={t.installed}>
         <div className="update-summary">
-          <IcarusMark size={48} tile />
+          <IcarusMark size={48} tile variant={themeId} />
           <div className="update-summary__text">
             <p className="update-summary__version">{t.version(state.currentVersion)}</p>
             <p className="update-summary__meta">
@@ -77,7 +92,7 @@ export function UpdatesView({ state, platform, actions }: { state: UpdateState; 
             </button>
           )}
         </div>
-        {supported && <UpdateFacts state={state} />}
+        {supported && <UpdateFacts state={state} appName={m.app.styleNames[themeId]} />}
         {supported && <UpdateStatus state={state} />}
         {supported && <KeychainNotice state={state} />}
         {supported && (!available || isUpdateInProgress(state)) && <UpdateButtons state={state} actions={actions} />}
@@ -148,6 +163,7 @@ export function AboutUpdatesCard() {
   const actions = useUpdateActions();
   const m = useMessages();
   const t = m.updates;
+  const appName = useAppName();
   const { setSettingsSection } = useBrowser();
   if (!native || !state || !actions) return null;
   const supported = state.mode !== 'unsupported';
@@ -155,7 +171,7 @@ export function AboutUpdatesCard() {
   return (
     <SettingsCard title={t.title}>
       <div className="about-updates" data-testid="about-updates">
-        <UpdateFacts state={state} />
+        <UpdateFacts state={state} appName={appName} />
         {supported ? (
           <>
             <UpdateStatus state={state} />

@@ -14,6 +14,12 @@ files:
   - dist-electron/**
   - package.json
 asar: true
+# Iconos de la aplicación de cada estilo (ventana, Dock y accesos directos de Windows):
+# resources/icons/<estilo>.png|.ico. Se generan con scripts/generate-style-icons.mjs.
+extraResources:
+  - from: build/icons
+    to: icons
+    filter: ["*.png", "*.ico"]
 # Idiomas de Chromium incluidos (mensajes de formularios, diálogos…).
 electronLanguages: [es, es-419, en-US, en-GB, pt-BR, fr, de, it]
 win:

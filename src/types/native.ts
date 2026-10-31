@@ -7,6 +7,8 @@
  * tsc (proceso principal y preload).
  */
 
+import type { ThemeId } from './settings';
+
 export const NATIVE_API_VERSION = 1;
 
 /** Texto de una página para el modo lectura: solo texto, nunca HTML. */
@@ -39,6 +41,9 @@ export interface NavigationErrorInfo {
 
 /** Estado real de la pestaña informado por Chromium. */
 export type ZoomAction = 'in' | 'out' | 'reset';
+
+/** Resultado de guardar un archivo exportado (la ruta la elige el usuario). */
+export type SaveTextResult = { status: 'saved'; path: string } | { status: 'cancelled' } | { status: 'error' };
 
 export interface WebTabState {
   tabId: string;
@@ -333,6 +338,12 @@ export interface IcarusNativeApi {
   };
   window: {
     setTitleBarColors(colors: { color: string; symbolColor: string }): void;
+    /** Icono de la aplicación (ventana, Dock y accesos directos de Windows) según el estilo. */
+    setStyle(style: ThemeId): void;
+  };
+  files: {
+    /** Pide dónde guardar (diálogo del sistema) y escribe el texto; propone `name`. */
+    saveText(name: string, content: string): Promise<SaveTextResult>;
   };
   history: {
     list(): Promise<HistoryItem[]>;

@@ -22,5 +22,6 @@ export const STRINGS = {
   dialogs: {
     saveAs: 'Guardar como',
     chooseDownloadFolder: 'Elegir carpeta de descargas',
+    export: 'Exportar',
   },
 };

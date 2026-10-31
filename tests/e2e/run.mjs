@@ -16,12 +16,12 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
@@ -150,6 +150,12 @@ const server = http.createServer((request, response) => {
       response.write('<!doctype html><title>Página lenta</title><p>Cargando…');
       slowResponses.add(response);
       response.on('close', () => slowResponses.delete(response));
+      return undefined;
+    case '/titulo-lento.html':
+      // El <title> llega 1,5 s después de que empiece el documento: entretanto Chromium usa la URL real como título.
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      response.write(`<!doctype html><html lang="es"><head><meta charset="utf-8">${' '.repeat(2048)}`);
+      setTimeout(() => response.end('<title>Título lento</title></head><body><p>Lista</p></body></html>'), 1500);
       return undefined;
     case '/enlaces.html':
       return send(
@@ -437,14 +443,28 @@ await step('9. Cerrar y crear pestañas libera las vistas', async () => {
   return `vistas: ${before} → ${before - 1}`;
 });
 
-await step('10. Comprobar los tres temas', async () => {
+await step('10. Comprobar los tres temas (con el nombre y el icono de la aplicación de cada uno)', async () => {
   const seen = [];
-  for (const [name, id] of [['Esencial', 'google-inspired'], ['Panorama', 'edge-inspired'], ['ICARUS', 'icarus']]) {
+  const styles = [
+    ['Esencial', 'google-inspired', 'ICARUS Esencial'],
+    ['Panorama', 'edge-inspired', 'ICARUS Panorama'],
+    ['ICARUS', 'icarus', 'ICARUS Browser'],
+  ];
+  for (const [name, id, appName] of styles) {
     await win.getByRole('button', { name: 'Personalizar', exact: true }).first().click();
     await win.locator('.theme-card', { hasText: name }).click();
     await eventually(async () => (await win.locator('.icarus-root').getAttribute('data-theme')) === id, `No se aplicó ${name}`);
     await win.keyboard.press('Escape');
-    seen.push(id);
+    // El nombre llega al título de la ventana nativa y el estilo al proceso principal (icono).
+    await eventually(() => app.evaluate(({ BrowserWindow }, title) => BrowserWindow.getAllWindows()[0].getTitle() === title, appName), `La ventana no se llama ${appName}`);
+    await eventually(() => {
+      try {
+        return JSON.parse(readFileSync(join(dataDir, 'branding.json'), 'utf8')).data.style === id;
+      } catch {
+        return false;
+      }
+    }, `El proceso principal no recibió el estilo ${id} para el icono`);
+    seen.push(appName);
   }
   return seen.join(', ');
 });
@@ -654,6 +674,29 @@ await step('18. B y D · Editar sin .icarus; rutas, pushState, fragmentos y redi
   const chrome = await visibleChrome();
   assert(!chrome.includes('127.0.0.1'), `Reapareció la dirección original: ${chrome}`);
 
+  // Al pasar a otra página del sitio, mientras llega su <title>, ni la pestaña ni la barra
+  // muestran la dirección real en ningún momento (se registra cada cambio de la interfaz).
+  await win.evaluate(() => {
+    const sample = () => {
+      const tab = document.querySelector('.tab.is-active');
+      window.__muestras.push(`${document.querySelector('.omnibox')?.textContent ?? ''} | ${tab?.textContent ?? ''} | ${tab?.getAttribute('title') ?? ''} | ${document.title}`);
+    };
+    window.__muestras = [];
+    window.__observador = new MutationObserver(sample);
+    window.__observador.observe(document, { subtree: true, childList: true, characterData: true, attributes: true });
+    sample();
+  });
+  await pageEval('/ruta/nueva', "location.href = '/titulo-lento.html'; true");
+  await waitForActiveTab('Título lento');
+  const samples = await win.evaluate(() => {
+    window.__observador.disconnect();
+    return window.__muestras;
+  });
+  const leaked = samples.find((text) => text.includes('127.0.0.1'));
+  assert(samples.some((text) => text.includes('otraweb.com/titulo-lento.html')), `No se registró la carga de la página: ${samples.slice(-3).join(' · ')}`);
+  assert(!leaked, `La dirección real apareció mientras cargaba la página: ${leaked}`);
+  await expectShown('otraweb.com/titulo-lento.html', 'Tras cargar una página con el título lento');
+
   // Redirección dentro del destino: se mantiene la dirección personalizada.
   await go('otraweb.com/salto');
   await eventually(async () => (await visibleUrl()) === `${base}/b.html`, 'La redirección no llegó a b.html');
@@ -662,7 +705,7 @@ await step('18. B y D · Editar sin .icarus; rutas, pushState, fragmentos y redi
   await go('otraweb.com/redirige');
   await eventually(async () => (await visibleUrl()) === `${local}/b.html`, 'La redirección a otro sitio no se completó');
   await expectShown(`${localHost}/b.html`, 'Tras una redirección a otro sitio');
-  return 'enlace, pushState, fragmento y redirección interna → otraweb.com · redirección externa → dirección real';
+  return 'enlace, pushState, fragmento, carga con título lento (sin la dirección real en ningún momento) y redirección interna → otraweb.com · redirección externa → dirección real';
 });
 
 await step('19. Protocolos peligrosos bloqueados (barra y enlaces)', async () => {
@@ -1303,6 +1346,59 @@ await step('38. Panorama como Edge: pestaña pegada, protocolo visible, iconos d
     }
   }, 'El perfil no se guardó en disco');
   return `${labels.join(' · ')} · lectura, acceso directo y perfil`;
+});
+
+await step('39. Importar y exportar las direcciones personalizadas (archivo real en disco)', async () => {
+  // Solo se sustituye la elección de la ruta en el diálogo del sistema; el archivo lo escribe ICARUS.
+  const exportPath = join(dataDir, 'exportadas', 'mis-direcciones.json');
+  mkdirSync(dirname(exportPath), { recursive: true });
+  await app.evaluate(({ dialog }, path) => {
+    globalThis.__dialogoGuardar = [];
+    dialog.showSaveDialog = async (...args) => {
+      globalThis.__dialogoGuardar.push(args.at(-1));
+      return { canceled: false, filePath: path };
+    };
+  }, exportPath);
+  const savedEntries = () =>
+    eventually(() => {
+      try {
+        const saved = JSON.parse(String(JSON.parse(readFileSync(join(dataDir, 'ui-storage.json'), 'utf8')).data['icarus.aliasRules']));
+        return saved.data ?? saved;
+      } catch {
+        return null;
+      }
+    }, 'No se pudieron leer las direcciones guardadas');
+  const before = await savedEntries();
+  assert(before.length >= 2, `Se esperaban varias direcciones de los pasos anteriores (${before.length})`);
+  const editor = await openAddressEditor();
+  const transfer = editor.getByRole('region', { name: 'Importar y exportar' });
+  await transfer.getByRole('button', { name: `Exportar ${before.length} direcciones` }).click();
+  await win.getByText(`${before.length} direcciones exportadas en ${exportPath}.`).waitFor();
+  const [options] = await app.evaluate(() => globalThis.__dialogoGuardar);
+  assert(String(options?.defaultPath).endsWith('icarus-direcciones.json'), `El diálogo no propuso icarus-direcciones.json (${options?.defaultPath})`);
+  const file = JSON.parse(readFileSync(exportPath, 'utf8'));
+  assert(file.format === 'icarus-custom-addresses' && file.entries.length === before.length, `El archivo exportado no tiene las ${before.length} direcciones`);
+  assert(JSON.stringify(file.entries.map((entry) => entry.id)) === JSON.stringify(before.map((entry) => entry.id)), 'El archivo exportado no coincide con lo guardado');
+
+  // Se borran todas y se importan desde el archivo: vuelven las mismas, con sus secciones.
+  const list = editor.getByRole('list', { name: 'Direcciones personalizadas' });
+  for (let count = 0; count < before.length; count += 1) {
+    await list.getByRole('button', { name: /^Eliminar / }).first().click();
+    await win.getByRole('alertdialog', { name: 'Eliminar dirección personalizada' }).getByRole('button', { name: 'Eliminar' }).click();
+  }
+  await eventually(async () => (await savedEntries()).length === 0, 'No se eliminaron las direcciones');
+  await editor.getByTestId('import-addresses').setInputFiles(exportPath);
+  await win.getByText(`Importación completada: ${before.length} nuevas, 0 actualizadas.`).waitFor();
+  const after = await eventually(async () => {
+    const saved = await savedEntries();
+    return saved.length === before.length ? saved : null;
+  }, 'Las direcciones importadas no se guardaron en disco');
+  const key = (entry) => `${entry.id} ${entry.target} ${entry.address} ${entry.enabled} ${(entry.sections ?? []).join(',')}`;
+  assert(JSON.stringify(after.map(key)) === JSON.stringify(before.map(key)), 'Las direcciones importadas no son las exportadas');
+  await editor.getByRole('button', { name: 'Cerrar' }).first().click();
+  await go('otraweb.com/a.html');
+  await expectShown('otraweb.com/a.html', 'Tras importar, la dirección personalizada vuelve a aplicarse');
+  return `${before.length} direcciones exportadas a disco con el diálogo del sistema, borradas e importadas de nuevo (con secciones)`;
 });
 
 if (process.env.ICARUS_E2E_INTERNET === '1') {

@@ -1,7 +1,9 @@
 package io.github.saaqes.icarusbrowser
 
+import android.app.Activity
 import android.app.Application
 import android.content.res.Configuration
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import io.github.saaqes.icarusbrowser.core.BookmarksStore
@@ -67,6 +69,23 @@ class IcarusApp : Application() {
         updates = UpdateManager(this)
         // Las listas se actualizan en segundo plano solo si han caducado (4 días).
         background.execute { shield.updateLists(onlyStale = true) }
+        // Icono y nombre del lanzador según el estilo. Se cambian cuando ICARUS pasa a segundo
+        // plano: algunos lanzadores cierran la tarea de un alias que se desactiva en uso.
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            private var started = 0
+            override fun onActivityStarted(activity: Activity) {
+                started += 1
+            }
+            override fun onActivityStopped(activity: Activity) {
+                started -= 1
+                if (started == 0 && !activity.isChangingConfigurations) LauncherIcons.apply(this@IcarusApp, profile.settings.theme)
+            }
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+            override fun onActivityResumed(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        })
     }
 
     private fun asset(name: String): String = assets.open(name).bufferedReader().use { it.readText() }

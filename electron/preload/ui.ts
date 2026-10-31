@@ -58,6 +58,10 @@ const api: IcarusNativeApi = {
   },
   window: {
     setTitleBarColors: ({ color, symbolColor }) => send('icarus:window:titlebar', color, symbolColor),
+    setStyle: (style) => send('icarus:window:style', style),
+  },
+  files: {
+    saveText: (name, content) => invoke('icarus:files:save-text', name, content),
   },
   history: {
     list: () => invoke('icarus:history:list'),

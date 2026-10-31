@@ -173,6 +173,13 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
 
     fun removeCustomAddress(id: String) = change { it.copy(customAddresses = it.customAddresses.filter { entry -> entry.id != id }) }
 
+    /** Añade o actualiza las direcciones de un archivo de ICARUS de cualquier plataforma (sin borrar ninguna). */
+    fun importCustomAddresses(items: JSONArray): CustomAddresses.ImportSummary {
+        val summary = CustomAddresses.mergeImported(customAddresses, items, Instant.now().toString())
+        change { it.copy(customAddresses = summary.entries) }
+        return summary
+    }
+
     /* ---------------------------------- Permisos ---------------------------------- */
 
     /** null = preguntar. */

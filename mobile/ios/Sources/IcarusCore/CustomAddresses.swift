@@ -557,6 +557,93 @@ public enum CustomAddresses {
         }
         return entries
     }
+
+    // MARK: Importar / exportar
+
+    public static let exportFormat = "icarus-custom-addresses"
+    private static let legacyExportFormat = "icarus-alias-rules"
+    /// Copia de seguridad completa de escritorio: se toman solo sus direcciones.
+    private static let backupFormat = "icarus-backup"
+
+    /// Archivo de exportación, el mismo que en escritorio y Android (se importa en cualquiera).
+    public static func exportFile(_ entries: [CustomAddress], now: String) -> String {
+        let list: [[String: Any]] = entries.map { entry in
+            var item: [String: Any] = ["id": entry.id, "target": entry.target, "address": entry.address, "enabled": entry.enabled,
+                                       "createdAt": entry.createdAt, "updatedAt": entry.updatedAt]
+            if !entry.sections.isEmpty { item["sections"] = entry.sections }
+            return item
+        }
+        let object: [String: Any] = ["format": exportFormat, "version": 2, "exportedAt": now, "entries": list]
+        let data = (try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])) ?? Data()
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    public enum ImportFile {
+        case ok([Any], fromBackup: Bool)
+        /// `invalid-json` o `invalid-format`, como en escritorio.
+        case failure(String)
+    }
+
+    /// Acepta los archivos de exportación (también los de reglas de alias) y las copias completas.
+    public static func parseFile(_ text: String) -> ImportFile {
+        guard let parsed = try? JSONSerialization.jsonObject(with: Data(text.utf8), options: [.fragmentsAllowed]) else { return .failure("invalid-json") }
+        if let items = parsed as? [Any] { return .ok(items, fromBackup: false) }
+        guard let object = parsed as? [String: Any] else { return .failure("invalid-format") }
+        switch object["format"] as? String {
+        case exportFormat?:
+            if let items = object["entries"] as? [Any] { return .ok(items, fromBackup: false) }
+        case legacyExportFormat?:
+            if let items = object["rules"] as? [Any] { return .ok(items, fromBackup: false) }
+        case backupFormat?:
+            if let data = object["data"] as? [String: Any], let items = (data["customAddresses"] ?? data["aliasRules"]) as? [Any] { return .ok(items, fromBackup: true) }
+        default:
+            break
+        }
+        return .failure("invalid-format")
+    }
+
+    public struct ImportSummary: Equatable {
+        public var entries: [CustomAddress]
+        public var added = 0
+        public var updated = 0
+        public var skipped = 0
+        /// Importadas desactivadas porque chocaban con otra activa.
+        public var disabled = 0
+    }
+
+    /// Combina las entradas importadas con las existentes: misma id → se reemplaza (en su
+    /// sitio); id nueva → se añade. Las no válidas se omiten y las que chocan con otra activa
+    /// se importan desactivadas.
+    public static func mergeImported(_ existing: [CustomAddress], _ items: [Any], now: String) -> ImportSummary {
+        var summary = ImportSummary(entries: existing)
+        for item in items {
+            guard let raw = item as? [String: Any], case .entry(var entry) = readEntry(raw, fallbackDate: now) else {
+                summary.skipped += 1
+                continue
+            }
+            let position = summary.entries.firstIndex { $0.id == entry.id }
+            if position == nil && summary.entries.count >= max {
+                summary.skipped += 1
+                continue
+            }
+            var others = summary.entries
+            if let position {
+                others.remove(at: position)
+                entry.createdAt = summary.entries[position].createdAt
+                entry.updatedAt = now
+            }
+            let next = appendResolvingConflicts(others, entry)
+            if next.disabled { summary.disabled += 1 }
+            if let position {
+                summary.entries[position] = next.entries[next.entries.count - 1]
+                summary.updated += 1
+            } else {
+                summary.entries = next.entries
+                summary.added += 1
+            }
+        }
+        return summary
+    }
 }
 
 /// Resultado de interpretar la barra de direcciones (equivale a resolveInput.ts).

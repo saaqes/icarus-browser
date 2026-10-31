@@ -159,6 +159,31 @@ final class SharedVectorsTests: XCTestCase {
         }
     }
 
+    func testImportarYExportarDireccionesComoEnEscritorio() throws {
+        let data = try Shared.json("test-vectors/custom-address-import.json")
+        let existing = Shared.customAddresses(data["existing"])
+        // La exportación de iPhone es el mismo archivo que la de escritorio.
+        let exported = try JSONSerialization.jsonObject(with: Data(CustomAddresses.exportFile(existing, now: data["exportedAt"] as! String).utf8)) as! NSDictionary
+        let expected = try JSONSerialization.jsonObject(with: Data((data["exported"] as! String).utf8)) as! NSDictionary
+        XCTAssertEqual(exported, expected)
+        for item in data["cases"] as! [[String: Any]] {
+            let name = item["name"] as! String
+            switch CustomAddresses.parseFile(item["text"] as! String) {
+            case .failure(let error):
+                XCTAssertFalse(item["ok"] as! Bool, name)
+                XCTAssertEqual(error, item["error"] as? String, name)
+            case .ok(let items, let fromBackup):
+                XCTAssertTrue(item["ok"] as! Bool, name)
+                XCTAssertEqual(fromBackup, item["fromBackup"] as? Bool, name)
+                let into = item["into"] as! String == "empty" ? [] : existing
+                let summary = CustomAddresses.mergeImported(into, items, now: data["now"] as! String)
+                XCTAssertEqual([summary.added, summary.updated, summary.skipped, summary.disabled],
+                               ["added", "updated", "skipped", "disabled"].map { item[$0] as! Int }, name)
+                XCTAssertEqual(summary.entries, Shared.customAddresses(item["entries"]), name)
+            }
+        }
+    }
+
     func testElDominioRegistrableCoincideConEscritorio() throws {
         let cases = try Shared.json("test-vectors/registrable-domain.json")["cases"] as! [[String: Any]]
         XCTAssertGreaterThanOrEqual(cases.count, 10)

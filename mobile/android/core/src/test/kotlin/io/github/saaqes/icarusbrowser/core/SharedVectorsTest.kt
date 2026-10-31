@@ -159,6 +159,37 @@ class SharedVectorsTest {
         }
     }
 
+    @Test
+    fun `importar y exportar direcciones da lo mismo que en escritorio`() {
+        val data = vectors("custom-address-import.json")
+        val existing = CustomAddresses.sanitize(data.getJSONArray("existing"))
+        // La exportación de Android es el mismo archivo que la de escritorio.
+        assertTrue(JSONObject(CustomAddresses.exportFile(existing, data.getString("exportedAt"))).similar(JSONObject(data.getString("exported"))), "exportación distinta")
+        val cases = data.getJSONArray("cases")
+        for (index in 0 until cases.length()) {
+            val case = cases.getJSONObject(index)
+            val name = case.getString("name")
+            when (val parsed = CustomAddresses.parseFile(case.getString("text"))) {
+                is CustomAddresses.ImportFile.Failure -> {
+                    assertEquals(false, case.getBoolean("ok"), name)
+                    assertEquals(case.getString("error"), parsed.error, name)
+                }
+                is CustomAddresses.ImportFile.Ok -> {
+                    assertEquals(true, case.getBoolean("ok"), name)
+                    assertEquals(case.getBoolean("fromBackup"), parsed.fromBackup, name)
+                    val into = if (case.getString("into") == "empty") emptyList() else existing
+                    val summary = CustomAddresses.mergeImported(into, parsed.items, data.getString("now"))
+                    assertEquals(
+                        listOf(case.getInt("added"), case.getInt("updated"), case.getInt("skipped"), case.getInt("disabled")),
+                        listOf(summary.added, summary.updated, summary.skipped, summary.disabled),
+                        name,
+                    )
+                    assertEquals(CustomAddresses.sanitize(case.getJSONArray("entries")), summary.entries, name)
+                }
+            }
+        }
+    }
+
     private fun strings(array: org.json.JSONArray?): List<String> = if (array == null) emptyList() else (0 until array.length()).map { array.getString(it) }
 
     @Test

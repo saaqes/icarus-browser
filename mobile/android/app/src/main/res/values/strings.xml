@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ICARUS</string>
+    <!-- Nombre bajo el icono con los estilos Esencial y Panorama (alias del lanzador). -->
+    <string name="app_name_esencial">ICARUS Esencial</string>
+    <string name="app_name_panorama">ICARUS Panorama</string>
 </resources>

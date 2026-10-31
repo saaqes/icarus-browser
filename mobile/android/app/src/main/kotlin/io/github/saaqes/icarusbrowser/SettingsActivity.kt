@@ -1,7 +1,9 @@
 package io.github.saaqes.icarusbrowser
 
 import android.app.Dialog
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.view.Gravity
 import android.view.View
@@ -30,9 +32,11 @@ import io.github.saaqes.icarusbrowser.core.shield.ShieldListInfo
 import io.github.saaqes.icarusbrowser.core.shield.ShieldState
 import io.github.saaqes.icarusbrowser.core.shield.ShieldStore
 import io.github.saaqes.icarusbrowser.core.update.UpdateChannel
+import java.io.ByteArrayOutputStream
 import java.text.DateFormat
 import java.text.NumberFormat
 import java.util.Date
+import java.time.Instant
 import java.util.Locale
 
 class SettingsActivity : ScreenActivity() {
@@ -495,6 +499,17 @@ class SettingsActivity : ScreenActivity() {
                 }
             })
         }
+        // Importar y exportar: el mismo archivo que en escritorio e iPhone, guardado donde elija el usuario.
+        addView(w.sectionLabel(transfer("title")))
+        addView(w.card {
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            addView(w.hint(transfer("hint")))
+            addView(w.horizontal(spacingDp = 10) {
+                setPadding(0, dp(10), 0, 0)
+                addView(w.button(transfer("export")) { exportAddresses() }.apply { isEnabled = entries.isNotEmpty() })
+                addView(w.button(transfer("import")) { importAddresses() })
+            })
+        })
         val howTo = app.strings.optJSONObject("customAddresses")?.optJSONObject("howTo")
         addView(w.sectionLabel(howTo?.optString("title").orEmpty()))
         addView(w.card {
@@ -504,6 +519,81 @@ class SettingsActivity : ScreenActivity() {
             addView(w.hint(howTo?.optString("security").orEmpty()).apply { setPadding(0, dp(8), 0, 0) })
         })
     }
+
+    private fun transfer(key: String, vararg params: Pair<String, String>) = app.sharedText("customAddresses", "transfer", key, *params)
+
+    /** El sistema pregunta dónde guardar el archivo (Descargas, Drive…). */
+    private fun exportAddresses() {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("application/json")
+            .putExtra(Intent.EXTRA_TITLE, "icarus-direcciones.json")
+        try {
+            startActivityForResult(intent, REQUEST_EXPORT_ADDRESSES)
+        } catch (_: ActivityNotFoundException) {
+            toast(transfer("saveError"))
+        }
+    }
+
+    private fun importAddresses() {
+        // Algunos proveedores no reconocen .json y lo dan como texto o binario genérico.
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*")
+            .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "text/plain", "application/octet-stream"))
+        try {
+            startActivityForResult(intent, REQUEST_IMPORT_ADDRESSES)
+        } catch (_: ActivityNotFoundException) {
+            toast(app.sharedText("customAddresses", "importErrors", "read"))
+        }
+    }
+
+    @Deprecated("API de Activity")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null) return
+        when (requestCode) {
+            REQUEST_EXPORT_ADDRESSES -> {
+                val entries = app.profile.customAddresses
+                val written = runCatching {
+                    contentResolver.openOutputStream(uri, "wt")?.use { it.write(CustomAddresses.exportFile(entries, Instant.now().toString()).toByteArray()) } != null
+                }.getOrDefault(false)
+                toast(if (!written) transfer("saveError") else if (entries.size == 1) transfer("exportedOne") else transfer("exported", "count" to entries.size.toString()))
+            }
+            REQUEST_IMPORT_ADDRESSES -> {
+                val text = readImportFile(uri) ?: return toast(app.sharedText("customAddresses", "importErrors", "read"))
+                when (val parsed = CustomAddresses.parseFile(text)) {
+                    is CustomAddresses.ImportFile.Failure -> toast(app.sharedText("customAddresses", "importErrors", parsed.error))
+                    is CustomAddresses.ImportFile.Ok -> {
+                        val summary = app.profile.importCustomAddresses(parsed.items)
+                        val lines = mutableListOf(ca("importDone", "added" to summary.added.toString(), "updated" to summary.updated.toString()))
+                        if (summary.skipped > 0) lines.add(ca("importSkipped", "skipped" to summary.skipped.toString()))
+                        if (summary.disabled > 0) lines.add(ca("importDisabled", "count" to summary.disabled.toString()))
+                        if (parsed.fromBackup) lines.add(transfer("fromBackup"))
+                        Toast.makeText(this, lines.joinToString("\n"), Toast.LENGTH_LONG).show()
+                        refresh()
+                    }
+                }
+            }
+        }
+    }
+
+    /** Texto del archivo elegido (como mucho [MAX_IMPORT_BYTES]); null si no se puede leer. */
+    private fun readImportFile(uri: Uri): String? = runCatching {
+        contentResolver.openInputStream(uri)?.use { stream ->
+            val out = ByteArrayOutputStream()
+            val chunk = ByteArray(8192)
+            while (true) {
+                val read = stream.read(chunk)
+                if (read < 0) break
+                if (out.size() + read > MAX_IMPORT_BYTES) return@use null
+                out.write(chunk, 0, read)
+            }
+            out.toString(Charsets.UTF_8.name())
+        }
+    }.getOrNull()
 
     /** Páginas que ya tiene el usuario, para elegir el destino sin escribirlo. */
     private fun destinationChoices(): List<String> {
@@ -797,6 +887,9 @@ class SettingsActivity : ScreenActivity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
     companion object {
+        private const val REQUEST_EXPORT_ADDRESSES = 41
+        private const val REQUEST_IMPORT_ADDRESSES = 42
+        private const val MAX_IMPORT_BYTES = 5 * 1024 * 1024
         const val EXTRA_SECTION = "section"
         const val UPDATES_TITLE = "Actualizaciones"
         /** Con la sección "addresses": entrada que se abre para editar. */

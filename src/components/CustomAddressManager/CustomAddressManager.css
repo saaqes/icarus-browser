@@ -12,10 +12,6 @@
   gap: var(--space-2);
 }
 
-.address-manager__spacer {
-  flex: 1;
-}
-
 .address-manager__search {
   position: relative;
   flex: 1 1 220px;
@@ -154,6 +150,36 @@
 
 /* Formulario */
 .address-form,
+.address-transfer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.address-transfer__text {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.address-transfer h3 {
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+
+.address-transfer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .address-howto {
   display: flex;
   flex-direction: column;

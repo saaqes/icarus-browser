@@ -5,7 +5,9 @@
  */
 
 import { ipcMain, type BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
-import type { ClearDataOptions, DesktopPreferences } from '../../src/types/native';
+import type { ClearDataOptions, DesktopPreferences, SaveTextResult } from '../../src/types/native';
+import type { ThemeId } from '../../src/types/settings';
+import { BRAND_STYLES } from './branding';
 import type { DownloadManager } from './downloads';
 import type { FaviconService } from './favicons';
 import type { HistoryStore } from './history';
@@ -36,6 +38,8 @@ export interface IpcContext {
   clearData: (options: ClearDataOptions) => Promise<void>;
   updates: UpdateService;
   setTitleBarColors: (color: string, symbolColor: string) => void;
+  saveTextFile: (name: string, content: string) => Promise<SaveTextResult>;
+  setStyle: (style: ThemeId) => void;
 }
 
 const TAB_COMMANDS = ['back', 'forward', 'reload', 'stop', 'close'] as const;
@@ -121,6 +125,9 @@ export function registerIpc(context: IpcContext): void {
   on('icarus:window:titlebar', (color, symbolColor) =>
     context.setTitleBarColors(assertColor(color, 'color'), assertColor(symbolColor, 'symbolColor')),
   );
+
+  on('icarus:window:style', (style) => context.setStyle(assertOneOf(style, BRAND_STYLES, 'style')));
+  handle('icarus:files:save-text', (name, content) => context.saveTextFile(assertString(name, 'name', 120), assertString(content, 'content', 16 * 1024 * 1024)));
 
   handle('icarus:history:list', () => context.history.list());
   handle('icarus:history:remove', (id) => context.history.remove(assertString(id, 'id', 64)));

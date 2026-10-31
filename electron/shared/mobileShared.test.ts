@@ -17,7 +17,14 @@ import { formatAddress, shortAddress } from '../../src/services/custom-addresses
 import { displayUrlFor } from '../../src/services/custom-addresses/mapping';
 import { classifyAddressEdit, joinBase, splitAddress } from '../../src/services/custom-addresses/rebase';
 import { parseSections, sectionOf } from '../../src/services/custom-addresses/sections';
-import { convertLegacyRule, sanitizeCustomAddresses, saveSectionAddress } from '../../src/services/custom-addresses/store';
+import {
+  convertLegacyRule,
+  exportCustomAddresses,
+  mergeImportedCustomAddresses,
+  parseCustomAddressFile,
+  sanitizeCustomAddresses,
+  saveSectionAddress,
+} from '../../src/services/custom-addresses/store';
 import { validateCustomAddressInput } from '../../src/services/custom-addresses/validation';
 import { buildSearchUrl } from '../../src/services/search/providers';
 import { createDefaultShortcuts } from '../../src/services/shortcuts/shortcuts';
@@ -292,6 +299,11 @@ const LEGACY_RULES = [
 /** Plantilla de un texto con parámetros: los parámetros se sustituyen por {nombre}. */
 function template<A extends string[]>(fn: (...args: A) => string, ...names: A): string {
   return fn(...(names.map((name) => `{${name}}`) as A));
+}
+
+/** Igual que `template` para textos con números (se usa la forma plural). */
+function count(fn: (...args: number[]) => string, ...names: string[]): string {
+  return template(fn as unknown as (...args: string[]) => string, ...names);
 }
 
 /* ------------------------------ ICARUS Shield ------------------------------ */
@@ -608,6 +620,75 @@ describe('datos compartidos con las apps móviles', () => {
     );
   });
 
+  it('vectores de importación y exportación de direcciones', () => {
+    const now = new Date('2026-04-02T10:00:00.000Z');
+    const existing = sanitizeCustomAddresses(VECTOR_ENTRIES, []);
+    const exported = exportCustomAddresses(existing, EPOCH);
+    const nueva = { id: 'nueva', target: 'https://nuevo.com/', address: 'https://minuevo.com/', enabled: true, createdAt: '2026-03-01T00:00:00.000Z', updatedAt: '2026-03-01T00:00:00.000Z' };
+    const files: Array<{ name: string; text: string; into: 'empty' | 'existing' }> = [
+      { name: 'exportación en una lista vacía', text: exported, into: 'empty' },
+      { name: 'la misma exportación sobre las mismas entradas (se actualizan)', text: exported, into: 'existing' },
+      {
+        name: 'exportación con una nueva, una que choca, una no válida y secciones',
+        text: JSON.stringify({
+          format: 'icarus-custom-addresses',
+          version: 2,
+          entries: [
+            nueva,
+            { id: 'choca', target: 'https://otro.com/', address: 'https://miweb.com/', enabled: true },
+            { id: 'rota', target: 'javascript:alert(1)', address: 'https://x.com/', enabled: true },
+            { id: 'secciones-malas', target: 'https://s.com/', address: 'https://t.com/', sections: 'home', enabled: true },
+            { target: 'https://sin-id.com/', address: 'https://sin-id2.com/', enabled: true },
+            { id: 'con-secciones', target: 'https://panel.com/', address: 'https://mipanel.com/', sections: ['Home', '#usuario'], enabled: true },
+            'no es una entrada',
+          ],
+        }),
+        into: 'existing',
+      },
+      {
+        name: 'reglas de alias antiguas',
+        text: JSON.stringify({
+          format: 'icarus-alias-rules',
+          version: 1,
+          rules: [
+            { id: 'x', matchType: 'host', pattern: 'otro.com', alias: 'miweb.com', targetUrl: 'https://otro.com/', enabled: true },
+            { id: 'y', matchType: 'host', pattern: 'nuevo2.com', alias: 'nuevo.icarus', targetUrl: 'https://nuevo2.com/', enabled: true },
+            { id: 'default-search', matchType: 'exact', pattern: 'https://www.google.com/', alias: 'buscar.icarus', targetUrl: 'https://www.google.com/', enabled: true },
+          ],
+        }),
+        into: 'existing',
+      },
+      {
+        name: 'copia de seguridad completa (solo se toman sus direcciones)',
+        text: JSON.stringify({ format: 'icarus-backup', version: 1, data: { settings: {}, shortcuts: [], customAddresses: [nueva, { ...nueva, id: 'deriv', address: 'https://renombrada.com/' }] } }),
+        into: 'existing',
+      },
+      { name: 'lista sin envoltorio', text: JSON.stringify([nueva]), into: 'empty' },
+      { name: 'JSON no válido', text: 'x', into: 'empty' },
+      { name: 'JSON cortado', text: '{"format": "icarus-custom-addresses", "entries": [', into: 'empty' },
+      { name: 'otro formato', text: '{"format":"otro","entries":[]}', into: 'empty' },
+      { name: 'copia de seguridad sin direcciones', text: '{"format":"icarus-backup","version":1,"data":{"settings":{}}}', into: 'empty' },
+    ];
+    const cases = files.map(({ name, text, into }) => {
+      const parsed = parseCustomAddressFile(text);
+      if (!parsed.ok) return { name, text, into, ok: false, error: parsed.error };
+      const summary = mergeImportedCustomAddresses(into === 'empty' ? [] : existing, parsed.items, { now });
+      return { name, text, into, ok: true, fromBackup: parsed.fromBackup === true, ...summary };
+    });
+    expectShared(
+      'test-vectors/custom-address-import.json',
+      json({
+        description:
+          'Importar y exportar direcciones personalizadas: «exported» es la exportación de «existing» con fecha «exportedAt»; cada caso importa su texto en una lista vacía o en «existing» con la fecha «now» (añadidas, actualizadas, omitidas, desactivadas por chocar y la lista resultante).',
+        existing,
+        exportedAt: EPOCH.toISOString(),
+        exported,
+        now: now.toISOString(),
+        cases,
+      }),
+    );
+  });
+
   it('vectores de ICARUS Shield', () => {
     const listText = `${BUILTIN_LIST_TEXT}\n${EXTRA_FILTERS.join('\n')}`;
     const parsed = parseFilterList(listText);
@@ -698,6 +779,20 @@ describe('datos compartidos con las apps móviles', () => {
           disabledToast: template(t.disabledToast, 'address'),
           toggleConflict: template(t.toggleConflict, 'address', 'target'),
           limit: t.limit,
+          importDone: count(t.importDone, 'added', 'updated'),
+          importSkipped: count(t.importSkipped, 'skipped'),
+          importDisabled: count(t.importDisabled, 'count'),
+          importErrors: t.importErrors,
+          transfer: {
+            title: t.transfer.title,
+            hint: t.transfer.hint,
+            export: es.common.export,
+            import: t.transfer.import,
+            exported: count(t.transfer.exported, 'count'),
+            exportedOne: t.transfer.exported(1),
+            saveError: t.transfer.saveError,
+            fromBackup: t.transfer.fromBackup,
+          },
           deleteTitle: t.deleteTitle,
           deleteBody: template(t.deleteBody, 'address', 'target'),
           discardTitle: t.discardTitle,

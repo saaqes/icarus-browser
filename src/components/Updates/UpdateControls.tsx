@@ -137,7 +137,7 @@ export function statusSummary(state: UpdateState, m: ReturnType<typeof useMessag
 }
 
 /** Ficha de la instalación: nombre, versión instalada, última disponible, estado y última comprobación. */
-export function UpdateFacts({ state }: { state: UpdateState }) {
+export function UpdateFacts({ state, appName }: { state: UpdateState; appName: string }) {
   const m = useMessages();
   const t = m.updates;
   const latest = state.available?.version ?? state.latestVersion;
@@ -148,7 +148,7 @@ export function UpdateFacts({ state }: { state: UpdateState }) {
     <dl className="update-facts" data-testid="update-facts">
       <div>
         <dt>{t.name}</dt>
-        <dd>{t.productName}</dd>
+        <dd>{appName}</dd>
       </div>
       <div>
         <dt>{t.installedLabel}</dt>

@@ -268,14 +268,19 @@ export const customAddressesSchema: DocumentSchema<CustomAddress[]> = {
 
 export const CUSTOM_ADDRESS_EXPORT_FORMAT = 'icarus-custom-addresses';
 const LEGACY_EXPORT_FORMAT = 'icarus-alias-rules';
+/** Copia de seguridad completa (services/backup): se toman solo sus direcciones. */
+const BACKUP_FORMAT = 'icarus-backup';
 
 export function exportCustomAddresses(entries: CustomAddress[], now: Date = new Date()): string {
   return JSON.stringify({ format: CUSTOM_ADDRESS_EXPORT_FORMAT, version: 2, exportedAt: now.toISOString(), entries }, null, 2);
 }
 
-export type ImportParse = { ok: true; items: unknown[] } | { ok: false; error: 'invalid-json' | 'invalid-format' };
+export type ImportParse = { ok: true; items: unknown[]; fromBackup?: true } | { ok: false; error: 'invalid-json' | 'invalid-format' };
 
-/** Acepta archivos exportados por esta versión y por las anteriores (reglas de alias). */
+/**
+ * Acepta archivos exportados por esta versión y por las anteriores (reglas de alias), y
+ * copias de seguridad completas de ICARUS, de las que se toman solo las direcciones.
+ */
 export function parseCustomAddressFile(text: string): ImportParse {
   let parsed: unknown;
   try {
@@ -289,6 +294,10 @@ export function parseCustomAddressFile(text: string): ImportParse {
   }
   if (isRecord(parsed) && parsed.format === LEGACY_EXPORT_FORMAT && Array.isArray(parsed.rules)) {
     return { ok: true, items: parsed.rules };
+  }
+  if (isRecord(parsed) && parsed.format === BACKUP_FORMAT && isRecord(parsed.data)) {
+    const items = parsed.data.customAddresses ?? parsed.data.aliasRules;
+    if (Array.isArray(items)) return { ok: true, items, fromBackup: true };
   }
   return { ok: false, error: 'invalid-format' };
 }

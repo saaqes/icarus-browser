@@ -1,5 +1,5 @@
-import { screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderApp, openSettingsFromMenu } from '../testUtils';
 
 type User = ReturnType<typeof renderApp>['user'];
@@ -220,5 +220,62 @@ describe('Direcciones personalizadas (Configuración → Avanzado)', () => {
     await user.click(within(screen.getByRole('dialog', { name: 'Información del sitio' })).getByRole('button', { name: 'Personalizar dirección' }));
     const manager = await screen.findByRole('dialog', { name: DIALOG });
     expect(within(manager).getByLabelText('1. Destino real')).toHaveValue('https://bot.deriv.me/');
+  });
+});
+
+describe('Importar y exportar (Personalizar direcciones URL)', () => {
+  const entry = (id: string, target: string, address: string) => ({ id, target, address, enabled: true, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('exporta todas las direcciones (también las desactivadas) en un archivo que se vuelve a importar', async () => {
+    const { user, services } = renderApp();
+    services.customAddresses.set([entry('deriv', 'https://bot.deriv.me/', 'https://miweb.com/'), { ...entry('apagada', 'https://a.com/', 'https://b.com/'), enabled: false, sections: ['home'] }]);
+    let blob: Blob | null = null;
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((value) => {
+      blob = value as Blob;
+      return 'blob:icarus/1';
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const manager = await openManager(user);
+    const transfer = within(manager).getByRole('region', { name: 'Importar y exportar' });
+    await user.click(within(transfer).getByRole('button', { name: 'Exportar 2 direcciones' }));
+    expect(await screen.findByText('2 direcciones exportadas (descargadas).')).toBeInTheDocument();
+    expect(click).toHaveBeenCalledTimes(1);
+    const file = JSON.parse(await blob!.text());
+    expect(file.format).toBe('icarus-custom-addresses');
+    expect(file.entries.map((item: { id: string; enabled: boolean; sections?: string[] }) => [item.id, item.enabled, item.sections ?? []])).toEqual([
+      ['deriv', true, []],
+      ['apagada', false, ['home']],
+    ]);
+
+    // El mismo archivo en un ICARUS vacío (otro equipo) recupera las dos.
+    services.customAddresses.set([]);
+    fireEvent.change(within(manager).getByTestId('import-addresses'), { target: { files: [new File([JSON.stringify(file)], 'icarus-direcciones.json', { type: 'application/json' })] } });
+    expect(await screen.findByText('Importación completada: 2 nuevas, 0 actualizadas.')).toBeInTheDocument();
+    expect(services.customAddresses.getSnapshot().map((item) => item.id)).toEqual(['deriv', 'apagada']);
+  });
+
+  it('sin direcciones, Exportar está desactivado; Importar acepta una copia de seguridad completa', async () => {
+    const { user, services } = renderApp();
+    const manager = await openManager(user);
+    const transfer = within(manager).getByRole('region', { name: 'Importar y exportar' });
+    expect(within(transfer).getByRole('button', { name: 'Exportar 0 direcciones' })).toBeDisabled();
+    expect(transfer).toHaveTextContent('Android');
+    const backup = { format: 'icarus-backup', version: 1, data: { settings: {}, customAddresses: [entry('deriv', 'https://bot.deriv.me/', 'https://miweb.com/')] } };
+    fireEvent.change(within(manager).getByTestId('import-addresses'), { target: { files: [new File([JSON.stringify(backup)], 'copia.json')] } });
+    expect(await screen.findByText(/solo se importaron sus direcciones personalizadas/)).toBeInTheDocument();
+    await waitFor(() => expect(services.customAddresses.getSnapshot().map((item) => item.address)).toEqual(['https://miweb.com/']));
+    expect(within(manager).getByRole('list', { name: DIALOG })).toHaveTextContent('miweb.com');
+  });
+
+  it('un archivo que no es de ICARUS no cambia nada', async () => {
+    const { user, services } = renderApp();
+    services.customAddresses.set([entry('deriv', 'https://bot.deriv.me/', 'https://miweb.com/')]);
+    const manager = await openManager(user);
+    fireEvent.change(within(manager).getByTestId('import-addresses'), { target: { files: [new File(['{"format":"otro"}'], 'otro.json')] } });
+    expect(await screen.findByText('El archivo no contiene direcciones personalizadas de ICARUS.')).toBeInTheDocument();
+    expect(services.customAddresses.getSnapshot()).toHaveLength(1);
   });
 });

@@ -6,6 +6,7 @@
 
 import type { BookmarksData } from '../../types/bookmarks';
 import type { CustomAddress } from '../../types/customAddress';
+import type { IcarusNativeApi, SaveTextResult } from '../../types/native';
 import type { Settings } from '../../types/settings';
 import type { Shortcut } from '../../types/shortcuts';
 import type { WidgetData } from '../../types/widgets';
@@ -79,6 +80,18 @@ export function downloadTextFile(fileName: string, content: string, mime = 'appl
   anchor.click();
   anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+export type ExportResult = SaveTextResult | { status: 'downloaded' };
+
+/**
+ * Guarda un archivo exportado. En la aplicación de escritorio, el usuario elige dónde en
+ * el diálogo del sistema y se informa de la ruta; en la versión web se descarga.
+ */
+export async function exportTextFile(native: IcarusNativeApi | null, fileName: string, content: string): Promise<ExportResult> {
+  if (native?.files) return native.files.saveText(fileName, content);
+  downloadTextFile(fileName, content);
+  return { status: 'downloaded' };
 }
 
 export function readFileAsText(file: File): Promise<string> {

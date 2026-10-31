@@ -9,18 +9,22 @@
  */
 
 import { join, resolve } from 'node:path';
-import { app, Menu, net, session, shell, webContents, type WebContents } from 'electron';
+import { app, Menu, nativeImage, net, session, shell, webContents, type WebContents } from 'electron';
 import type { ClearDataOptions, DesktopPreferences, NativeEvent } from '../../src/types/native';
+import type { ThemeId } from '../../src/types/settings';
 import { macMenuTemplate } from './appMenu';
+import { sanitizeBranding, shortcutIcon, shortcutsToUpdate, STYLE_ICON_FILES, STYLE_NAMES, windowsShortcutPaths } from './branding';
 import { DownloadManager } from './downloads';
 import { FaviconService } from './favicons';
 import { HistoryStore } from './history';
+import { JsonFile } from './jsonFile';
 import { registerIpc } from './ipc';
 import { AuthManager } from './auth';
 import { PermissionManager } from './permissions';
 import { createPreferencesFile } from './preferences';
 import { createListFetcher, ShieldService } from './shieldService';
-import { TabManager } from './tabs';
+import { pageTitle, TabManager } from './tabs';
+import { saveTextFile } from './textFiles';
 import { ZoomStore } from './zoom';
 import { registerUiScheme, serveUi, UI_ENTRY, UI_ORIGIN } from './uiProtocol';
 import { UiStorage } from './uiStorage';
@@ -109,6 +113,38 @@ async function start(): Promise<void> {
     if (!window.isDestroyed()) window.webContents.send('icarus:event', event);
   };
 
+  // Icono y nombre de la aplicación según el estilo (diseños propios, ver branding.ts).
+  // Se recuerda para aplicarlo al arrancar, antes de que cargue la interfaz, y para
+  // recuperar los accesos directos que el instalador rehace al actualizar.
+  const branding = new JsonFile(join(dataDir, 'branding.json'), { version: 1, defaults: () => sanitizeBranding(null), sanitize: sanitizeBranding, delayMs: 0 });
+  const iconsDir = app.isPackaged ? join(process.resourcesPath, 'icons') : join(app.getAppPath(), 'build', 'icons');
+  const applyStyle = (style: ThemeId) => {
+    const file = STYLE_ICON_FILES[style];
+    const image = nativeImage.createFromPath(join(iconsDir, `${file}.${process.platform === 'win32' ? 'ico' : 'png'}`));
+    if (!image.isEmpty()) {
+      if (process.platform === 'darwin') app.dock?.setIcon(image);
+      else if (!window.isDestroyed()) window.setIcon(image);
+    }
+    if (process.platform === 'darwin') app.setAboutPanelOptions({ applicationName: STYLE_NAMES[style], applicationVersion: app.getVersion() });
+    if (process.platform === 'win32' && app.isPackaged) {
+      const wanted = shortcutIcon(style, iconsDir, process.execPath);
+      const read = (path: string) => {
+        try {
+          return shell.readShortcutLink(path);
+        } catch {
+          return null; // No existe o no se puede leer.
+        }
+      };
+      for (const path of shortcutsToUpdate(windowsShortcutPaths(app.getPath('appData'), app.getPath('desktop')), read, process.execPath, wanted)) {
+        // Se conserva todo lo demás del acceso directo (destino, AppUserModelID…): solo cambia el icono.
+        const link = read(path);
+        if (!link || !shell.writeShortcutLink(path, 'update', { ...link, ...wanted })) console.warn(`[estilo] No se pudo cambiar el icono de ${path}`);
+      }
+    }
+    if (branding.get().style !== style) branding.set({ style });
+  };
+  applyStyle(branding.get().style);
+
   const history = new HistoryStore(join(dataDir, 'history.json'), () => emit({ type: 'history-changed' }));
   const favicons = new FaviconService(webSession, join(dataDir, 'favicons.json'));
   let tabs: TabManager;
@@ -168,7 +204,7 @@ async function start(): Promise<void> {
     navigationBlocked: (tabId, url, protocol) => emit({ type: 'navigation-blocked', tabId, url: url.slice(0, 300), protocol }),
     fetchFavicon: (pageUrl, candidates) => favicons.fetchPageIcon(pageUrl, candidates),
     onCommit: (tabId, contents, url) => {
-      history.add(url, contents.getTitle());
+      history.add(url, pageTitle(contents, url));
       permissions.cancelForTab(tabId);
     },
     onTitle: (url, title) => history.updateTitle(url, title),
@@ -239,6 +275,8 @@ async function start(): Promise<void> {
     setTitleBarColors: (color, symbolColor) => {
       if (process.platform !== 'darwin' && !window.isDestroyed()) window.setTitleBarOverlay({ color, symbolColor });
     },
+    saveTextFile: (name, content) => saveTextFile(window.isDestroyed() ? null : window, name, content),
+    setStyle: applyStyle,
   });
 
   // Las ventanas que la interfaz intente abrir se convierten en pestañas.

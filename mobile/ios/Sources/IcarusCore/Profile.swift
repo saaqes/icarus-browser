@@ -222,6 +222,14 @@ public final class Profile {
 
     public func removeCustomAddress(id: String) { change { $0.customAddresses.removeAll { $0.id == id } } }
 
+    /// Añade o actualiza las direcciones de un archivo de ICARUS de cualquier plataforma (sin borrar ninguna).
+    @discardableResult
+    public func importCustomAddresses(_ items: [Any]) -> CustomAddresses.ImportSummary {
+        let summary = CustomAddresses.mergeImported(customAddresses, items, now: Profile.timestamp())
+        change { $0.customAddresses = summary.entries }
+        return summary
+    }
+
     /// Fecha ISO 8601 con milisegundos, como `new Date().toISOString()` en escritorio.
     private static func timestamp() -> String {
         let formatter = ISO8601DateFormatter()

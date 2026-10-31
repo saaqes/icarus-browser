@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import WebKit
 
 struct SettingsView: View {
@@ -342,12 +343,55 @@ struct ShieldSettings: View {
 
 // MARK: Direcciones personalizadas
 
+/// Archivo de exportación de direcciones (el mismo JSON que en escritorio y Android).
+struct CustomAddressesFile: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    var text: String
+
+    init(text: String) { self.text = text }
+
+    init(configuration: ReadConfiguration) throws {
+        text = String(decoding: configuration.file.regularFileContents ?? Data(), as: UTF8.self)
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: Data(text.utf8))
+    }
+}
+
 struct CustomAddressList: View {
     @ObservedObject private var services = AppServices.shared
     @State private var deleting: CustomAddress?
     @State private var message: String?
+    @State private var exporting: CustomAddressesFile?
+    @State private var importing = false
+
+    private static let maxImportBytes = 5 * 1024 * 1024
 
     private func t(_ key: String, _ params: [String: String] = [:]) -> String { services.text("customAddresses", key, params) }
+    private func transfer(_ key: String, _ params: [String: String] = [:]) -> String { services.text("customAddresses", "transfer", key, params) }
+
+    private func importFile(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard size <= Self.maxImportBytes, let data = try? Data(contentsOf: url), data.count <= Self.maxImportBytes else {
+            message = services.text("customAddresses", "importErrors", "read")
+            return
+        }
+        switch CustomAddresses.parseFile(String(decoding: data, as: UTF8.self)) {
+        case .failure(let error):
+            message = services.text("customAddresses", "importErrors", error)
+        case .ok(let items, let fromBackup):
+            let summary = services.profile.importCustomAddresses(items)
+            var lines = [t("importDone", ["added": String(summary.added), "updated": String(summary.updated)])]
+            if summary.skipped > 0 { lines.append(t("importSkipped", ["skipped": String(summary.skipped)])) }
+            if summary.disabled > 0 { lines.append(t("importDisabled", ["count": String(summary.disabled)])) }
+            if fromBackup { lines.append(transfer("fromBackup")) }
+            message = lines.joined(separator: "\n")
+        }
+    }
 
     var body: some View {
         List {
@@ -381,6 +425,18 @@ struct CustomAddressList: View {
                     .swipeActions { Button("Eliminar", role: .destructive) { deleting = entry } }
                 }
             }
+            Section {
+                let entries = services.profile.customAddresses
+                Button {
+                    exporting = CustomAddressesFile(text: CustomAddresses.exportFile(entries, now: ISO8601DateFormatter().string(from: Date())))
+                } label: { Label(transfer("export"), systemImage: "square.and.arrow.up") }
+                .disabled(entries.isEmpty)
+                Button { importing = true } label: { Label(transfer("import"), systemImage: "square.and.arrow.down") }
+            } header: {
+                Text(transfer("title"))
+            } footer: {
+                Text(transfer("hint"))
+            }
             Section(services.text("customAddresses", "howTo", "title")) {
                 let steps = services.textList("customAddresses", "howTo", "steps")
                 ForEach(Array(steps.enumerated()), id: \.offset) { index, step in Text("\(index + 1). \(step)").font(.subheadline) }
@@ -396,6 +452,15 @@ struct CustomAddressList: View {
             Text(t("deleteBody", ["address": CustomAddresses.shortAddress(entry.address), "target": CustomAddresses.shortAddress(entry.target)]))
         }
         .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("Aceptar", role: .cancel) {} }
+        .fileExporter(isPresented: Binding(get: { exporting != nil }, set: { if !$0 { exporting = nil } }), document: exporting,
+                      contentType: .json, defaultFilename: "icarus-direcciones") { result in
+            let count = services.profile.customAddresses.count
+            switch result {
+            case .success: message = count == 1 ? transfer("exportedOne") : transfer("exported", ["count": String(count)])
+            case .failure: message = transfer("saveError")
+            }
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.json, .plainText, .data]) { importFile($0) }
     }
 }
 

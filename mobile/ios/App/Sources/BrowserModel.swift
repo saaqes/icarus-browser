@@ -27,11 +27,26 @@ enum AddressFormat {
                        secure: parsed.protocol == "https:", insecure: parsed.protocol == "http:", custom: match?.entry)
     }
 
+    /// URL comparable con un título: sin protocolo, `www.` ni barra final.
+    private static func bareURL(_ text: String) -> String {
+        var value = (text.trimmed.removingPercentEncoding ?? text.trimmed).lowercased()
+        if let scheme = value.range(of: "^[a-z][a-z0-9+.-]*://", options: .regularExpression) { value.removeSubrange(scheme) }
+        if value.hasPrefix("www.") { value.removeFirst(4) }
+        while value.hasSuffix("/") { value.removeLast() }
+        return value
+    }
+
+    /// ¿El «título» es solo la URL real? Mostrarlo pondría la dirección real en la
+    /// pestaña de un sitio personalizado (WebKit puede darlo así mientras carga).
+    static func isURLTitle(_ title: String, _ url: String) -> Bool {
+        !title.trimmed.isEmpty && bareURL(title) == bareURL(url)
+    }
+
     /// Título visible de una página: el de la página o, si no tiene, su dirección visible.
     @MainActor
     static func title(_ url: String, _ pageTitle: String) -> String {
         if url == InternalPage.newTab.url { return "Nueva pestaña" }
-        if !pageTitle.trimmed.isEmpty { return pageTitle }
+        if !pageTitle.trimmed.isEmpty && !isURLTitle(pageTitle, url) { return pageTitle }
         return CustomAddresses.shortAddress(display(url).full)
     }
 }

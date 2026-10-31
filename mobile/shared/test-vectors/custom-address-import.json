@@ -1,0 +1,554 @@
+{
+  "description": "Importar y exportar direcciones personalizadas: «exported» es la exportación de «existing» con fecha «exportedAt»; cada caso importa su texto en una lista vacía o en «existing» con la fecha «now» (añadidas, actualizadas, omitidas, desactivadas por chocar y la lista resultante).",
+  "existing": [
+    {
+      "target": "https://bot.deriv.me/",
+      "address": "https://miweb.com/",
+      "enabled": true,
+      "id": "deriv",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "target": "http://localhost:3000/",
+      "address": "http://miapp.com/v2",
+      "enabled": true,
+      "id": "local",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "target": "https://ejemplo.com/docs",
+      "address": "https://docs.miweb.org/",
+      "enabled": true,
+      "id": "docs",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "target": "https://es.wikipedia.org/",
+      "address": "https://wiki.icarus/",
+      "enabled": true,
+      "id": "migrada",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "target": "https://apagada.com/",
+      "address": "https://desactivada.com/",
+      "enabled": false,
+      "id": "apagada",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "target": "https://bot.deriv.me/",
+      "address": "https://otrodominio.com/",
+      "sections": [
+        "home",
+        "usuario"
+      ],
+      "enabled": true,
+      "id": "deriv-secciones",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "target": "https://otrositio.com/",
+      "address": "https://miweb.com/",
+      "sections": [
+        "tienda"
+      ],
+      "enabled": true,
+      "id": "tienda",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "exported": "{\n  \"format\": \"icarus-custom-addresses\",\n  \"version\": 2,\n  \"exportedAt\": \"2026-01-01T00:00:00.000Z\",\n  \"entries\": [\n    {\n      \"target\": \"https://bot.deriv.me/\",\n      \"address\": \"https://miweb.com/\",\n      \"enabled\": true,\n      \"id\": \"deriv\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"http://localhost:3000/\",\n      \"address\": \"http://miapp.com/v2\",\n      \"enabled\": true,\n      \"id\": \"local\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://ejemplo.com/docs\",\n      \"address\": \"https://docs.miweb.org/\",\n      \"enabled\": true,\n      \"id\": \"docs\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://es.wikipedia.org/\",\n      \"address\": \"https://wiki.icarus/\",\n      \"enabled\": true,\n      \"id\": \"migrada\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://apagada.com/\",\n      \"address\": \"https://desactivada.com/\",\n      \"enabled\": false,\n      \"id\": \"apagada\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://bot.deriv.me/\",\n      \"address\": \"https://otrodominio.com/\",\n      \"sections\": [\n        \"home\",\n        \"usuario\"\n      ],\n      \"enabled\": true,\n      \"id\": \"deriv-secciones\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://otrositio.com/\",\n      \"address\": \"https://miweb.com/\",\n      \"sections\": [\n        \"tienda\"\n      ],\n      \"enabled\": true,\n      \"id\": \"tienda\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    }\n  ]\n}",
+  "now": "2026-04-02T10:00:00.000Z",
+  "cases": [
+    {
+      "name": "exportación en una lista vacía",
+      "text": "{\n  \"format\": \"icarus-custom-addresses\",\n  \"version\": 2,\n  \"exportedAt\": \"2026-01-01T00:00:00.000Z\",\n  \"entries\": [\n    {\n      \"target\": \"https://bot.deriv.me/\",\n      \"address\": \"https://miweb.com/\",\n      \"enabled\": true,\n      \"id\": \"deriv\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"http://localhost:3000/\",\n      \"address\": \"http://miapp.com/v2\",\n      \"enabled\": true,\n      \"id\": \"local\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://ejemplo.com/docs\",\n      \"address\": \"https://docs.miweb.org/\",\n      \"enabled\": true,\n      \"id\": \"docs\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://es.wikipedia.org/\",\n      \"address\": \"https://wiki.icarus/\",\n      \"enabled\": true,\n      \"id\": \"migrada\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://apagada.com/\",\n      \"address\": \"https://desactivada.com/\",\n      \"enabled\": false,\n      \"id\": \"apagada\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://bot.deriv.me/\",\n      \"address\": \"https://otrodominio.com/\",\n      \"sections\": [\n        \"home\",\n        \"usuario\"\n      ],\n      \"enabled\": true,\n      \"id\": \"deriv-secciones\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://otrositio.com/\",\n      \"address\": \"https://miweb.com/\",\n      \"sections\": [\n        \"tienda\"\n      ],\n      \"enabled\": true,\n      \"id\": \"tienda\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    }\n  ]\n}",
+      "into": "empty",
+      "ok": true,
+      "fromBackup": false,
+      "entries": [
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "id": "deriv",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "http://localhost:3000/",
+          "address": "http://miapp.com/v2",
+          "enabled": true,
+          "id": "local",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://ejemplo.com/docs",
+          "address": "https://docs.miweb.org/",
+          "enabled": true,
+          "id": "docs",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://es.wikipedia.org/",
+          "address": "https://wiki.icarus/",
+          "enabled": true,
+          "id": "migrada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://apagada.com/",
+          "address": "https://desactivada.com/",
+          "enabled": false,
+          "id": "apagada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://otrodominio.com/",
+          "sections": [
+            "home",
+            "usuario"
+          ],
+          "enabled": true,
+          "id": "deriv-secciones",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://otrositio.com/",
+          "address": "https://miweb.com/",
+          "sections": [
+            "tienda"
+          ],
+          "enabled": true,
+          "id": "tienda",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        }
+      ],
+      "added": 7,
+      "updated": 0,
+      "skipped": 0,
+      "disabled": 0
+    },
+    {
+      "name": "la misma exportación sobre las mismas entradas (se actualizan)",
+      "text": "{\n  \"format\": \"icarus-custom-addresses\",\n  \"version\": 2,\n  \"exportedAt\": \"2026-01-01T00:00:00.000Z\",\n  \"entries\": [\n    {\n      \"target\": \"https://bot.deriv.me/\",\n      \"address\": \"https://miweb.com/\",\n      \"enabled\": true,\n      \"id\": \"deriv\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"http://localhost:3000/\",\n      \"address\": \"http://miapp.com/v2\",\n      \"enabled\": true,\n      \"id\": \"local\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://ejemplo.com/docs\",\n      \"address\": \"https://docs.miweb.org/\",\n      \"enabled\": true,\n      \"id\": \"docs\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://es.wikipedia.org/\",\n      \"address\": \"https://wiki.icarus/\",\n      \"enabled\": true,\n      \"id\": \"migrada\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://apagada.com/\",\n      \"address\": \"https://desactivada.com/\",\n      \"enabled\": false,\n      \"id\": \"apagada\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://bot.deriv.me/\",\n      \"address\": \"https://otrodominio.com/\",\n      \"sections\": [\n        \"home\",\n        \"usuario\"\n      ],\n      \"enabled\": true,\n      \"id\": \"deriv-secciones\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    },\n    {\n      \"target\": \"https://otrositio.com/\",\n      \"address\": \"https://miweb.com/\",\n      \"sections\": [\n        \"tienda\"\n      ],\n      \"enabled\": true,\n      \"id\": \"tienda\",\n      \"createdAt\": \"2026-01-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-01-01T00:00:00.000Z\"\n    }\n  ]\n}",
+      "into": "existing",
+      "ok": true,
+      "fromBackup": false,
+      "entries": [
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "id": "deriv",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "http://localhost:3000/",
+          "address": "http://miapp.com/v2",
+          "enabled": true,
+          "id": "local",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "https://ejemplo.com/docs",
+          "address": "https://docs.miweb.org/",
+          "enabled": true,
+          "id": "docs",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "https://es.wikipedia.org/",
+          "address": "https://wiki.icarus/",
+          "enabled": true,
+          "id": "migrada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "https://apagada.com/",
+          "address": "https://desactivada.com/",
+          "enabled": false,
+          "id": "apagada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://otrodominio.com/",
+          "sections": [
+            "home",
+            "usuario"
+          ],
+          "enabled": true,
+          "id": "deriv-secciones",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "https://otrositio.com/",
+          "address": "https://miweb.com/",
+          "sections": [
+            "tienda"
+          ],
+          "enabled": true,
+          "id": "tienda",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        }
+      ],
+      "added": 0,
+      "updated": 7,
+      "skipped": 0,
+      "disabled": 0
+    },
+    {
+      "name": "exportación con una nueva, una que choca, una no válida y secciones",
+      "text": "{\"format\":\"icarus-custom-addresses\",\"version\":2,\"entries\":[{\"id\":\"nueva\",\"target\":\"https://nuevo.com/\",\"address\":\"https://minuevo.com/\",\"enabled\":true,\"createdAt\":\"2026-03-01T00:00:00.000Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"},{\"id\":\"choca\",\"target\":\"https://otro.com/\",\"address\":\"https://miweb.com/\",\"enabled\":true},{\"id\":\"rota\",\"target\":\"javascript:alert(1)\",\"address\":\"https://x.com/\",\"enabled\":true},{\"id\":\"secciones-malas\",\"target\":\"https://s.com/\",\"address\":\"https://t.com/\",\"sections\":\"home\",\"enabled\":true},{\"target\":\"https://sin-id.com/\",\"address\":\"https://sin-id2.com/\",\"enabled\":true},{\"id\":\"con-secciones\",\"target\":\"https://panel.com/\",\"address\":\"https://mipanel.com/\",\"sections\":[\"Home\",\"#usuario\"],\"enabled\":true},\"no es una entrada\"]}",
+      "into": "existing",
+      "ok": true,
+      "fromBackup": false,
+      "entries": [
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "id": "deriv",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "http://localhost:3000/",
+          "address": "http://miapp.com/v2",
+          "enabled": true,
+          "id": "local",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://ejemplo.com/docs",
+          "address": "https://docs.miweb.org/",
+          "enabled": true,
+          "id": "docs",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://es.wikipedia.org/",
+          "address": "https://wiki.icarus/",
+          "enabled": true,
+          "id": "migrada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://apagada.com/",
+          "address": "https://desactivada.com/",
+          "enabled": false,
+          "id": "apagada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://otrodominio.com/",
+          "sections": [
+            "home",
+            "usuario"
+          ],
+          "enabled": true,
+          "id": "deriv-secciones",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://otrositio.com/",
+          "address": "https://miweb.com/",
+          "sections": [
+            "tienda"
+          ],
+          "enabled": true,
+          "id": "tienda",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://nuevo.com/",
+          "address": "https://minuevo.com/",
+          "enabled": true,
+          "id": "nueva",
+          "createdAt": "2026-03-01T00:00:00.000Z",
+          "updatedAt": "2026-03-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://otro.com/",
+          "address": "https://miweb.com/",
+          "enabled": false,
+          "id": "choca",
+          "createdAt": "2026-04-02T10:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "https://panel.com/",
+          "address": "https://mipanel.com/",
+          "sections": [
+            "home",
+            "usuario"
+          ],
+          "enabled": true,
+          "id": "con-secciones",
+          "createdAt": "2026-04-02T10:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        }
+      ],
+      "added": 3,
+      "updated": 0,
+      "skipped": 4,
+      "disabled": 1
+    },
+    {
+      "name": "reglas de alias antiguas",
+      "text": "{\"format\":\"icarus-alias-rules\",\"version\":1,\"rules\":[{\"id\":\"x\",\"matchType\":\"host\",\"pattern\":\"otro.com\",\"alias\":\"miweb.com\",\"targetUrl\":\"https://otro.com/\",\"enabled\":true},{\"id\":\"y\",\"matchType\":\"host\",\"pattern\":\"nuevo2.com\",\"alias\":\"nuevo.icarus\",\"targetUrl\":\"https://nuevo2.com/\",\"enabled\":true},{\"id\":\"default-search\",\"matchType\":\"exact\",\"pattern\":\"https://www.google.com/\",\"alias\":\"buscar.icarus\",\"targetUrl\":\"https://www.google.com/\",\"enabled\":true}]}",
+      "into": "existing",
+      "ok": true,
+      "fromBackup": false,
+      "entries": [
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://miweb.com/",
+          "enabled": true,
+          "id": "deriv",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "http://localhost:3000/",
+          "address": "http://miapp.com/v2",
+          "enabled": true,
+          "id": "local",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://ejemplo.com/docs",
+          "address": "https://docs.miweb.org/",
+          "enabled": true,
+          "id": "docs",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://es.wikipedia.org/",
+          "address": "https://wiki.icarus/",
+          "enabled": true,
+          "id": "migrada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://apagada.com/",
+          "address": "https://desactivada.com/",
+          "enabled": false,
+          "id": "apagada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://otrodominio.com/",
+          "sections": [
+            "home",
+            "usuario"
+          ],
+          "enabled": true,
+          "id": "deriv-secciones",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://otrositio.com/",
+          "address": "https://miweb.com/",
+          "sections": [
+            "tienda"
+          ],
+          "enabled": true,
+          "id": "tienda",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://otro.com/",
+          "address": "https://miweb.com/",
+          "enabled": false,
+          "id": "x",
+          "createdAt": "2026-04-02T10:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "https://nuevo2.com/",
+          "address": "https://nuevo.icarus/",
+          "enabled": true,
+          "id": "y",
+          "createdAt": "2026-04-02T10:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        }
+      ],
+      "added": 2,
+      "updated": 0,
+      "skipped": 1,
+      "disabled": 1
+    },
+    {
+      "name": "copia de seguridad completa (solo se toman sus direcciones)",
+      "text": "{\"format\":\"icarus-backup\",\"version\":1,\"data\":{\"settings\":{},\"shortcuts\":[],\"customAddresses\":[{\"id\":\"nueva\",\"target\":\"https://nuevo.com/\",\"address\":\"https://minuevo.com/\",\"enabled\":true,\"createdAt\":\"2026-03-01T00:00:00.000Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"},{\"id\":\"deriv\",\"target\":\"https://nuevo.com/\",\"address\":\"https://renombrada.com/\",\"enabled\":true,\"createdAt\":\"2026-03-01T00:00:00.000Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"}]}}",
+      "into": "existing",
+      "ok": true,
+      "fromBackup": true,
+      "entries": [
+        {
+          "target": "https://nuevo.com/",
+          "address": "https://renombrada.com/",
+          "enabled": false,
+          "id": "deriv",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-04-02T10:00:00.000Z"
+        },
+        {
+          "target": "http://localhost:3000/",
+          "address": "http://miapp.com/v2",
+          "enabled": true,
+          "id": "local",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://ejemplo.com/docs",
+          "address": "https://docs.miweb.org/",
+          "enabled": true,
+          "id": "docs",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://es.wikipedia.org/",
+          "address": "https://wiki.icarus/",
+          "enabled": true,
+          "id": "migrada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://apagada.com/",
+          "address": "https://desactivada.com/",
+          "enabled": false,
+          "id": "apagada",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://bot.deriv.me/",
+          "address": "https://otrodominio.com/",
+          "sections": [
+            "home",
+            "usuario"
+          ],
+          "enabled": true,
+          "id": "deriv-secciones",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://otrositio.com/",
+          "address": "https://miweb.com/",
+          "sections": [
+            "tienda"
+          ],
+          "enabled": true,
+          "id": "tienda",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "target": "https://nuevo.com/",
+          "address": "https://minuevo.com/",
+          "enabled": true,
+          "id": "nueva",
+          "createdAt": "2026-03-01T00:00:00.000Z",
+          "updatedAt": "2026-03-01T00:00:00.000Z"
+        }
+      ],
+      "added": 1,
+      "updated": 1,
+      "skipped": 0,
+      "disabled": 1
+    },
+    {
+      "name": "lista sin envoltorio",
+      "text": "[{\"id\":\"nueva\",\"target\":\"https://nuevo.com/\",\"address\":\"https://minuevo.com/\",\"enabled\":true,\"createdAt\":\"2026-03-01T00:00:00.000Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"}]",
+      "into": "empty",
+      "ok": true,
+      "fromBackup": false,
+      "entries": [
+        {
+          "target": "https://nuevo.com/",
+          "address": "https://minuevo.com/",
+          "enabled": true,
+          "id": "nueva",
+          "createdAt": "2026-03-01T00:00:00.000Z",
+          "updatedAt": "2026-03-01T00:00:00.000Z"
+        }
+      ],
+      "added": 1,
+      "updated": 0,
+      "skipped": 0,
+      "disabled": 0
+    },
+    {
+      "name": "JSON no válido",
+      "text": "x",
+      "into": "empty",
+      "ok": false,
+      "error": "invalid-json"
+    },
+    {
+      "name": "JSON cortado",
+      "text": "{\"format\": \"icarus-custom-addresses\", \"entries\": [",
+      "into": "empty",
+      "ok": false,
+      "error": "invalid-json"
+    },
+    {
+      "name": "otro formato",
+      "text": "{\"format\":\"otro\",\"entries\":[]}",
+      "into": "empty",
+      "ok": false,
+      "error": "invalid-format"
+    },
+    {
+      "name": "copia de seguridad sin direcciones",
+      "text": "{\"format\":\"icarus-backup\",\"version\":1,\"data\":{\"settings\":{}}}",
+      "into": "empty",
+      "ok": false,
+      "error": "invalid-format"
+    }
+  ]
+}

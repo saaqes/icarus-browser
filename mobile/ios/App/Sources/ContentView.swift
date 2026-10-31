@@ -57,6 +57,8 @@ struct ContentView: View {
             if value == .active { Task { await updates.checkIfDue() } }
         }
         .onChange(of: updates.status) { _ in notifyUpdate() }
+        // Icono de la app del estilo elegido (no al arrancar: solo cuando el usuario lo cambia).
+        .onChange(of: services.settings.theme) { theme in AppIcon.apply(theme) }
         .task {
             notifyUpdate()
             await updates.checkIfDue()

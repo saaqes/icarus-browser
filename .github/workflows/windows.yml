@@ -77,8 +77,24 @@ jobs:
           $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Depth 2 -Filter 'ICARUS Browser.exe' | Select-Object -First 1
           if (-not $exe) { throw 'El instalador no dejó ICARUS Browser.exe en %LOCALAPPDATA%\Programs' }
           "Instalado en $($exe.DirectoryName)"
+          $env:ICARUS_SMOKE_STYLE = 'edge-inspired'
           node tests/e2e/smoke-packaged.mjs "$($exe.FullName)"
           if ($LASTEXITCODE -ne 0) { throw 'El navegador instalado no superó la prueba de humo' }
+          # El estilo Panorama cambia el icono de los accesos directos que creó el instalador
+          # (solo el icono: el nombre y el destino siguen siendo los del instalador).
+          $shell = New-Object -ComObject WScript.Shell
+          $links = @(
+            (Join-Path ([Environment]::GetFolderPath('Programs')) 'ICARUS Browser.lnk'),
+            (Join-Path ([Environment]::GetFolderPath('Desktop')) 'ICARUS Browser.lnk')
+          )
+          foreach ($link in $links) {
+            if (-not (Test-Path $link)) { throw "El instalador no creó $link" }
+            $shortcut = $shell.CreateShortcut($link)
+            "$link → $($shortcut.TargetPath) · icono $($shortcut.IconLocation)"
+            if ($shortcut.TargetPath -ne $exe.FullName) { throw "El acceso directo ya no abre ICARUS ($($shortcut.TargetPath))" }
+            if ($shortcut.IconLocation -notlike '*\resources\icons\panorama.ico,0') { throw "El acceso directo no tomó el icono de Panorama ($($shortcut.IconLocation))" }
+          }
+          if (-not (Test-Path (Join-Path $exe.DirectoryName 'resources\icons\esencial.ico'))) { throw 'Faltan los iconos de los estilos en resources\icons' }
           $uninstaller = Join-Path $exe.DirectoryName 'Uninstall ICARUS Browser.exe'
           if (-not (Test-Path $uninstaller)) { throw 'Falta el desinstalador' }
           Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait

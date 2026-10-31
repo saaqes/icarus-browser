@@ -43,9 +43,9 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
+            <!-- El icono del lanzador lo ponen los alias de abajo (uno por estilo). -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.APP_BROWSER" />
             </intent-filter>
             <intent-filter>
@@ -60,6 +60,48 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Icono y nombre del lanzador según el estilo (LauncherIcons.kt): solo uno está activo.
+             Son diseños propios de ICARUS, no logotipos de otros navegadores. -->
+        <activity-alias
+            android:name=".LauncherIcarus"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherEsencial"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_esencial"
+            android:label="@string/app_name_esencial"
+            android:roundIcon="@mipmap/ic_launcher_esencial"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherPanorama"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_panorama"
+            android:label="@string/app_name_panorama"
+            android:roundIcon="@mipmap/ic_launcher_panorama"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <activity
             android:name=".SettingsActivity"

@@ -2,6 +2,8 @@
 <resources>
     <!-- Fondo del logotipo (public/icarus.svg). -->
     <color name="icarus_launcher_background">#16141C</color>
+    <!-- Fondo del icono del estilo Esencial (build/icons/esencial.svg). -->
+    <color name="icarus_launcher_esencial_background">#FFFFFF</color>
     <color name="icarus_window_light">#ECE8F5</color>
     <color name="icarus_window_dark">#0E0D12</color>
 </resources>

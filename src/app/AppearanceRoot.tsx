@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { OverlayRootContext } from '../components/common/OverlayRoot';
 import { useAppearance } from '../hooks/useAppearance';
+import { useMessages } from '../i18n';
 import { useServices } from './ServicesContext';
 
 /**
@@ -11,6 +12,8 @@ import { useServices } from './ServicesContext';
 export function AppearanceRoot({ children }: { children: ReactNode }) {
   const appearance = useAppearance();
   const { native } = useServices();
+  const m = useMessages();
+  const appName = m.app.styleNames[appearance.themeId];
   const [overlayRoot, setOverlayRoot] = useState<HTMLElement | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -26,6 +29,13 @@ export function AppearanceRoot({ children }: { children: ReactNode }) {
       native.window.setTitleBarColors({ color, symbolColor });
     }
   }, [appearance.mode, appearance.themeId, native]);
+
+  // Nombre e icono de la aplicación según el estilo: título de la ventana (barra de tareas,
+  // Alt+Tab) y, en escritorio, el icono de la ventana, del Dock y de los accesos directos.
+  useEffect(() => {
+    document.title = appName;
+    native?.window.setStyle(appearance.themeId);
+  }, [appName, appearance.themeId, native]);
 
   const style = {
     '--accent': appearance.accent,

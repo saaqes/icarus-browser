@@ -94,6 +94,24 @@
     "disabledToast": "{address} desactivada: se mostrará la dirección real.",
     "toggleConflict": "No se puede activar: choca con {address} ({target}).",
     "limit": "Has alcanzado el máximo de direcciones personalizadas.",
+    "importDone": "Importación completada: {added} nuevas, {updated} actualizadas.",
+    "importSkipped": "{skipped} entradas no válidas se omitieron.",
+    "importDisabled": "{count} entradas se importaron desactivadas porque chocaban con otra activa.",
+    "importErrors": {
+      "invalid-json": "El archivo no es un JSON válido.",
+      "invalid-format": "El archivo no contiene direcciones personalizadas de ICARUS.",
+      "read": "No se pudo leer el archivo."
+    },
+    "transfer": {
+      "title": "Importar y exportar",
+      "hint": "Exporta guarda en un archivo todas tus direcciones personalizadas: destinos, direcciones, secciones y si están activas. Importa las recupera desde un archivo de ICARUS (de este equipo, de otro, de Android o de iPhone) o desde una copia de seguridad completa. Las que ya tienes se actualizan y no se borra ninguna; si una choca con otra activa, se importa desactivada.",
+      "export": "Exportar",
+      "import": "Importar",
+      "exported": "{count} direcciones exportadas.",
+      "exportedOne": "1 dirección exportada.",
+      "saveError": "No se pudo guardar el archivo. Prueba con otra carpeta.",
+      "fromBackup": "El archivo era una copia de seguridad completa: solo se importaron sus direcciones personalizadas."
+    },
     "deleteTitle": "Eliminar dirección personalizada",
     "deleteBody": "¿Eliminar {address}? {target} volverá a mostrar su dirección real.",
     "discardTitle": "Descartar cambios",

@@ -515,4 +515,84 @@ object CustomAddresses {
         }
         return entries
     }
+
+    /* ---------------------------- Importar / exportar ---------------------------- */
+
+    const val EXPORT_FORMAT = "icarus-custom-addresses"
+    private const val LEGACY_EXPORT_FORMAT = "icarus-alias-rules"
+    /** Copia de seguridad completa de escritorio: se toman solo sus direcciones. */
+    private const val BACKUP_FORMAT = "icarus-backup"
+
+    /** Archivo de exportación, el mismo que en escritorio e iPhone (se importa en cualquiera). */
+    fun exportFile(entries: List<CustomAddress>, now: String): String = JSONObject()
+        .put("format", EXPORT_FORMAT)
+        .put("version", 2)
+        .put("exportedAt", now)
+        .put("entries", CustomAddress.listToJson(entries))
+        .toString(2)
+
+    sealed interface ImportFile {
+        data class Ok(val items: JSONArray, val fromBackup: Boolean = false) : ImportFile
+        /** `invalid-json` o `invalid-format`, como en escritorio. */
+        data class Failure(val error: String) : ImportFile
+    }
+
+    /** Acepta los archivos de exportación (también los de reglas de alias) y las copias completas. */
+    fun parseFile(text: String): ImportFile {
+        val parsed = try {
+            org.json.JSONTokener(text).nextValue()
+        } catch (_: org.json.JSONException) {
+            return ImportFile.Failure("invalid-json")
+        }
+        if (parsed is JSONArray) return ImportFile.Ok(parsed)
+        if (parsed !is JSONObject) return ImportFile.Failure("invalid-json")
+        val entries = parsed.opt("entries") as? JSONArray
+        val rules = parsed.opt("rules") as? JSONArray
+        val data = parsed.opt("data") as? JSONObject
+        return when (parsed.opt("format")) {
+            EXPORT_FORMAT -> entries?.let { ImportFile.Ok(it) }
+            LEGACY_EXPORT_FORMAT -> rules?.let { ImportFile.Ok(it) }
+            BACKUP_FORMAT -> ((data?.opt("customAddresses") ?: data?.opt("aliasRules")) as? JSONArray)?.let { ImportFile.Ok(it, fromBackup = true) }
+            else -> null
+        } ?: ImportFile.Failure("invalid-format")
+    }
+
+    data class ImportSummary(val entries: List<CustomAddress>, val added: Int, val updated: Int, val skipped: Int, val disabled: Int)
+
+    /**
+     * Combina las entradas importadas con las existentes: misma id → se reemplaza (en su
+     * sitio); id nueva → se añade. Las no válidas se omiten y las que chocan con otra activa
+     * se importan desactivadas.
+     */
+    fun mergeImported(existing: List<CustomAddress>, items: JSONArray, now: String): ImportSummary {
+        var entries = existing
+        var added = 0
+        var updated = 0
+        var skipped = 0
+        var disabled = 0
+        for (index in 0 until items.length()) {
+            val read = readEntry(items.optJSONObject(index), now) as? CustomAddress
+            if (read == null) {
+                skipped += 1
+                continue
+            }
+            val position = entries.indexOfFirst { it.id == read.id }
+            if (position < 0 && entries.size >= MAX) {
+                skipped += 1
+                continue
+            }
+            val others = if (position >= 0) entries.filterIndexed { i, _ -> i != position } else entries
+            val entry = if (position >= 0) read.copy(createdAt = entries[position].createdAt, updatedAt = now) else read
+            val (next, wasDisabled) = appendResolvingConflicts(others, entry)
+            if (wasDisabled) disabled += 1
+            if (position >= 0) {
+                entries = entries.mapIndexed { i, current -> if (i == position) next.last() else current }
+                updated += 1
+            } else {
+                entries = next
+                added += 1
+            }
+        }
+        return ImportSummary(entries, added, updated, skipped, disabled)
+    }
 }

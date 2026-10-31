@@ -28,7 +28,7 @@ import {
   type CustomAddressConflicts,
   type CustomAddressErrors,
 } from '../../services/custom-addresses';
-import { downloadTextFile, readFileAsText } from '../../services/backup/backup';
+import { exportTextFile, readFileAsText } from '../../services/backup/backup';
 import type { CustomAddress, CustomAddressInput } from '../../types/customAddress';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Toggle } from '../common/Controls';
@@ -130,6 +130,13 @@ export function CustomAddressManager({ onClose, start }: { onClose: () => void; 
     notify('success', enabled ? t.enabledToast(shortAddress(entry.address)) : t.disabledToast(shortAddress(entry.address)));
   };
 
+  const exportFile = async () => {
+    const result = await exportTextFile(services.native, 'icarus-direcciones.json', exportCustomAddresses(entries, services.now()));
+    if (result.status === 'saved') notify('success', t.transfer.saved(entries.length, result.path));
+    else if (result.status === 'downloaded') notify('success', t.transfer.downloaded(entries.length));
+    else if (result.status === 'error') notify('error', t.transfer.saveError);
+  };
+
   const importFile = async (file: File | undefined) => {
     if (!file) return;
     try {
@@ -141,6 +148,7 @@ export function CustomAddressManager({ onClose, start }: { onClose: () => void; 
       const summary = mergeImportedCustomAddresses(services.customAddresses.getSnapshot(), parsed.items, { now: services.now() });
       setEntries(summary.entries);
       notify('success', t.importDone(summary.added, summary.updated));
+      if (parsed.fromBackup) notify('info', t.transfer.fromBackup);
       if (summary.skipped) notify('info', t.importSkipped(summary.skipped));
       if (summary.disabled) notify('info', t.importDisabled(summary.disabled));
     } catch {
@@ -164,16 +172,6 @@ export function CustomAddressManager({ onClose, start }: { onClose: () => void; 
             <input type="search" className="input" placeholder={t.searchPlaceholder} value={query} onChange={(event) => setQuery(event.target.value)} />
           </label>
         )}
-        <span className="address-manager__spacer" />
-        <button type="button" className="btn btn--ghost btn--sm" onClick={() => downloadTextFile('icarus-direcciones.json', exportCustomAddresses(entries, services.now()))} disabled={entries.length === 0}>
-          <Icon name="download" size={14} />
-          {m.common.export}
-        </button>
-        <button type="button" className="btn btn--ghost btn--sm" onClick={() => fileRef.current?.click()}>
-          <Icon name="upload" size={14} />
-          {m.common.import}
-        </button>
-        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(event) => importFile(event.target.files?.[0])} data-testid="import-addresses" />
       </div>
 
       <div className="address-manager__layout">
@@ -246,6 +244,24 @@ export function CustomAddressManager({ onClose, start }: { onClose: () => void; 
           )}
         </div>
       </div>
+
+      <section className="address-transfer" aria-labelledby="address-transfer-title">
+        <div className="address-transfer__text">
+          <h3 id="address-transfer-title">{t.transfer.title}</h3>
+          <p className="field-hint">{t.transfer.hint}</p>
+        </div>
+        <div className="address-transfer__actions">
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => void exportFile()} disabled={entries.length === 0} title={entries.length === 0 ? t.transfer.nothing : undefined}>
+            <Icon name="download" size={14} />
+            {t.transfer.export(entries.length)}
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => fileRef.current?.click()}>
+            <Icon name="upload" size={14} />
+            {t.transfer.import}
+          </button>
+        </div>
+        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(event) => importFile(event.target.files?.[0])} data-testid="import-addresses" />
+      </section>
 
       <ConfirmDialog
         open={deleting !== null}

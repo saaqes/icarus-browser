@@ -45,7 +45,8 @@ Los tipos están en `src/types/native.ts` y los compilan tanto Vite como `tsc`. 
 | `history` | `list`, `remove` | `icarus:history:*` |
 | `downloads` | `list`, `cancel`, `open`, `showInFolder`, `clear`, `chooseDirectory` | `icarus:downloads:*` |
 | `shield` | `getState`, `setEnabled`, `setListEnabled`, `addList`, `removeList`, `updateLists`, `setCustomRules`, `setSiteAllowed` | `icarus:shield:*` |
-| `privacy`, `permissions`, `auth`, `preferences`, `favicons`, `window` | borrar datos, responder permisos, enviar o cancelar credenciales HTTP, preferencias de escritorio, iconos, colores de la barra de título | `icarus:*` |
+| `privacy`, `permissions`, `auth`, `preferences`, `favicons`, `window` | borrar datos, responder permisos, enviar o cancelar credenciales HTTP, preferencias de escritorio, iconos, colores de la barra de título, estilo para el icono de la aplicación (`setStyle`, solo uno de los tres estilos: ventana, Dock y accesos directos de Windows de este ejecutable, ver `electron/main/branding.ts`) | `icarus:*` |
+| `files` | `saveText(nombre, texto)`: exportar a un archivo; la ruta la elige el usuario en el diálogo de guardar del sistema (la interfaz solo propone el nombre, que se sanea y termina en `.json`) | `icarus:files:save-text` |
 | `onEvent` | `tab-state`, `open-in-new-tab`, `shortcut`, `permission-request`, `auth-request`, `find-result`, `downloads`, `history-changed`, `shield`… | `icarus:event` |
 
 `electron/main/ipc.ts` comprueba en cada mensaje que el remitente es la `webContents` de la interfaz y que la URL del marco es `icarus-app://ui/`, y valida cada argumento (`electron/main/validate.ts`); un argumento inválido rechaza la llamada.
@@ -76,6 +77,7 @@ Son una capa de la interfaz, común a los estilos y al motor: el proceso princip
 - **Navegar**: `resolveInput()` convierte lo escrito en la barra. Si está dentro de una dirección personalizada, se pide a Chromium la URL real equivalente (`tabs.navigate` con la URL del destino). La vista carga siempre la URL real y Chromium valida su certificado como en cualquier otra página: no hay proxy, protocolo propio, DNS ni certificados.
 - **Seguridad**: el icono de la barra sale del protocolo real y de los errores de Chromium. Con un error de certificado (`did-fail-load` −200…−299) la barra muestra la dirección real que falló, sin dirección personalizada. Los avisos de permisos y de autenticación llegan del proceso principal con el origen real.
 - Cuando la URL real sale del destino (redirección a otro sitio o un enlace), `displayUrlFor()` deja de coincidir y la barra muestra la URL real nueva.
+- **Título durante la carga**: entre `did-navigate` y el `<title>` de la página nueva, `webContents.getTitle()` devuelve la propia URL real (`127.0.0.1:8080/panel`). `pageTitle()` (`electron/main/tabs.ts`) la descarta para el estado de la pestaña y el historial, y `describePage()` descarta además cualquier título que sea solo la URL real (también los guardados antes): la pestaña muestra entonces la dirección visible.
 - Los enlaces que una página haga a la dirección personalizada no se resuelven: van al sitio real con ese nombre. Solo se resuelve lo que escribe el usuario.
 
 ## Persistencia en escritorio
@@ -90,6 +92,7 @@ Todo se guarda en la carpeta de datos de usuario de Electron (`%APPDATA%\ICARUS 
 | `downloads.json` | Lista de descargas |
 | `shield/` | Configuración y listas de ICARUS Shield ([SHIELD.md](SHIELD.md)) |
 | `window-state.json` | Tamaño, posición y estado maximizado de la ventana |
+| `branding.json` | Estilo del icono de la aplicación (se aplica al arrancar, antes de que cargue la interfaz, y recupera los accesos directos tras una actualización) |
 | `Partitions/icarus-web/` | Cookies, caché y almacenamiento de los sitios (gestionado por Chromium) |
 
 - Cada archivo tiene el sobre `{ version, savedAt, data }`, se escribe en un archivo temporal y se renombra (no queda a medias si se corta la luz), y se sanea al leerlo. Un archivo dañado se conserva como `<archivo>.corrupt-<fecha>` y se usan los valores predeterminados.

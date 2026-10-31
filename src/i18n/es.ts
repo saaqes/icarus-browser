@@ -44,6 +44,8 @@ export const es = {
   app: {
     name: 'ICARUS',
     fullName: 'ICARUS Browser',
+    /** Nombre de la aplicación con cada estilo (título de la ventana, Acerca de y Android). */
+    styleNames: { icarus: 'ICARUS Browser', 'google-inspired': 'ICARUS Esencial', 'edge-inspired': 'ICARUS Panorama' },
     prototype: 'Prototipo',
     preview: 'Versión preliminar',
   },
@@ -564,6 +566,7 @@ export const es = {
       },
       importRepaired: 'Algunos valores del archivo no eran válidos y se sustituyeron por los predeterminados.',
       exportDone: 'Archivo de configuración generado.',
+      exportSaved: (path: string) => `Configuración exportada en ${path}.`,
       experimental: 'Funciones experimentales y estado del prototipo',
       experimentalDesktop: 'Estado del motor de navegación',
       engine: 'Motor de navegación',
@@ -701,6 +704,20 @@ export const es = {
       'invalid-json': 'El archivo no es un JSON válido.',
       'invalid-format': 'El archivo no contiene direcciones personalizadas de ICARUS.',
       read: 'No se pudo leer el archivo.',
+    },
+    transfer: {
+      title: 'Importar y exportar',
+      hint:
+        'Exporta guarda en un archivo todas tus direcciones personalizadas: destinos, direcciones, secciones y si están activas. Importa las recupera desde un archivo de ICARUS (de este equipo, de otro, de Android o de iPhone) o desde una copia de seguridad completa. Las que ya tienes se actualizan y no se borra ninguna; si una choca con otra activa, se importa desactivada.',
+      export: (count: number) => (count === 1 ? 'Exportar 1 dirección' : `Exportar ${count} direcciones`),
+      import: 'Importar',
+      nothing: 'Aún no hay direcciones que exportar.',
+      saved: (count: number, path: string) => `${count === 1 ? '1 dirección exportada' : `${count} direcciones exportadas`} en ${path}.`,
+      downloaded: (count: number) => (count === 1 ? '1 dirección exportada (descargada).' : `${count} direcciones exportadas (descargadas).`),
+      /** En Android e iPhone, donde la ruta la elige el selector del sistema. */
+      exported: (count: number) => (count === 1 ? '1 dirección exportada.' : `${count} direcciones exportadas.`),
+      saveError: 'No se pudo guardar el archivo. Prueba con otra carpeta.',
+      fromBackup: 'El archivo era una copia de seguridad completa: solo se importaron sus direcciones personalizadas.',
     },
     deleteTitle: 'Eliminar dirección personalizada',
     deleteBody: (address: string, target: string) => `¿Eliminar ${address}? ${target} volverá a mostrar su dirección real.`,

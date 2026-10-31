@@ -41,6 +41,25 @@ export interface PageTitles {
   bookmarks: string;
 }
 
+/** URL comparable con un título: sin protocolo, `www.` ni barra final. */
+function bareUrl(text: string): string {
+  let value = text.trim();
+  try {
+    value = decodeURI(value);
+  } catch {
+    // Se compara tal cual.
+  }
+  return value.toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+}
+
+/**
+ * ¿El «título» es solo la URL real? Chromium y WebView lo dan así mientras carga el
+ * `<title>`: mostrarlo pondría la dirección real en la pestaña de un sitio personalizado.
+ */
+export function isUrlTitle(title: string, url: string): boolean {
+  return title !== '' && bareUrl(title) === bareUrl(url);
+}
+
 export function describePage(page: PageEntry, options: { customAddresses: CustomAddress[]; titles: PageTitles }): PagePresentation {
   if (page.kind !== 'web') {
     const internal: Record<Exclude<PageEntry['kind'], 'web'>, { title: string; icon: PageIcon }> = {
@@ -68,12 +87,13 @@ export function describePage(page: PageEntry, options: { customAddresses: Custom
   // destino, vuelve a mostrarse la dirección real del sitio al que se llegó.
   const custom = displayUrlFor(page.url, options.customAddresses);
   const addressUrl = custom?.url ?? page.url;
+  const title = page.title?.trim() ?? '';
   return {
     kind: 'web',
     realUrl: page.url,
     addressUrl,
     customAddress: custom?.entry ?? null,
-    title: page.title?.trim() || shortAddress(addressUrl) || page.url,
+    title: (title && !isUrlTitle(title, page.url) ? title : '') || shortAddress(addressUrl) || page.url,
     icon: 'site',
     protocol: url?.protocol === 'http:' ? 'http:' : url?.protocol === 'https:' ? 'https:' : null,
     hostname: url?.hostname ?? null,

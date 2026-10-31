@@ -1,6 +1,7 @@
 package io.github.saaqes.icarusbrowser
 
 import android.content.Context
+import android.net.Uri
 import android.text.Editable
 import android.text.InputType
 import android.text.SpannableString
@@ -49,10 +50,22 @@ object AddressFormat {
         return Display(text, CustomAddresses.formatAddress(shown, true).toString(), parsed.protocol == "https:", parsed.protocol == "http:", match?.entry)
     }
 
+    private val SCHEME = Regex("^[a-z][a-z0-9+.-]*://")
+
+    /** URL comparable con un título: sin protocolo, `www.` ni barra final. */
+    private fun bareUrl(text: String): String = Uri.decode(text.trim()).lowercase().replace(SCHEME, "").removePrefix("www.").trimEnd('/')
+
+    /**
+     * ¿El «título» es solo la URL real? WebView lo da así mientras carga el `<title>`:
+     * mostrarlo pondría la dirección real en la pestaña de un sitio personalizado.
+     */
+    fun isUrlTitle(title: String, url: String): Boolean = title.isNotBlank() && bareUrl(title) == bareUrl(url)
+
     /** Título visible de una página: el de la página o, si no tiene, su dirección visible. */
     fun title(url: String, pageTitle: String): String {
         if (url == InternalPage.NEW_TAB.url) return "Nueva pestaña"
-        return pageTitle.ifBlank { display(url).let { CustomAddresses.shortAddress(it.full) } }
+        if (pageTitle.isNotBlank() && !isUrlTitle(pageTitle, url)) return pageTitle
+        return display(url).let { CustomAddresses.shortAddress(it.full) }
     }
 }
 

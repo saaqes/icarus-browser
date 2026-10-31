@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { exportTextFile } from '../../services/backup/backup';
 import {
   convertLegacyRule,
   createCustomAddress,
@@ -21,6 +22,7 @@ import { loadDocument } from '../../services/persistence/document';
 import { STORAGE_KEYS } from '../../services/persistence/keys';
 import { createMemoryStorage } from '../../services/persistence/storage';
 import type { CustomAddress } from '../../types/customAddress';
+import type { IcarusNativeApi } from '../../types/native';
 
 const NOW = new Date('2026-10-25T10:00:00.000Z');
 const entry = (id: string, target: string, address: string, enabled = true, createdAt = '2026-01-01T00:00:00.000Z'): CustomAddress => ({
@@ -264,6 +266,20 @@ describe('importar y exportar', () => {
     expect(summary.entries.find((item) => item.id === 'y')?.address).toBe('https://nuevo.icarus/');
     expect(parseCustomAddressFile('{"format":"otro"}')).toEqual({ ok: false, error: 'invalid-format' });
     expect(parseCustomAddressFile('x')).toEqual({ ok: false, error: 'invalid-json' });
+  });
+
+  it('de una copia de seguridad completa toma solo las direcciones', () => {
+    const backup = (data: unknown) => JSON.stringify({ format: 'icarus-backup', version: 1, data });
+    expect(parseCustomAddressFile(backup({ settings: {}, customAddresses: [deriv] }))).toEqual({ ok: true, items: [deriv], fromBackup: true });
+    expect(parseCustomAddressFile(backup({ aliasRules: [] }))).toEqual({ ok: true, items: [], fromBackup: true });
+    expect(parseCustomAddressFile(backup({ settings: {} }))).toEqual({ ok: false, error: 'invalid-format' });
+  });
+
+  it('en el escritorio el usuario elige dónde guardar; en la web se descarga', async () => {
+    const saveText = vi.fn().mockResolvedValue({ status: 'saved', path: 'C:\\Usuarios\\ana\\icarus-direcciones.json' });
+    const native = { files: { saveText } } as unknown as IcarusNativeApi;
+    await expect(exportTextFile(native, 'icarus-direcciones.json', '{}')).resolves.toEqual({ status: 'saved', path: 'C:\\Usuarios\\ana\\icarus-direcciones.json' });
+    expect(saveText).toHaveBeenCalledWith('icarus-direcciones.json', '{}');
   });
 });
 

@@ -9,6 +9,10 @@
  * barra y comprueba que la página se carga en una vista web sin el puente
  * nativo. No usa la conexión automática de Playwright a todas las vistas.
  *
+ * Con ICARUS_SMOKE_STYLE=<estilo> (p. ej. edge-inspired), al final se cambia el icono de la
+ * aplicación a ese estilo desde la interfaz; el flujo de Windows comprueba después que los
+ * accesos directos que creó el instalador lo tomaron.
+ *
  * Uso: npm run dist:dir (o dist:win) && node tests/e2e/smoke-packaged.mjs [ejecutable [argumentos…]]
  * Sin argumento busca el ejecutable de release/ para la plataforma actual. Con
  * el Electron de desarrollo hay que pasar la carpeta del proyecto:
@@ -147,6 +151,20 @@ try {
     return list.includes('ui-storage.json') ? list : null;
   }, 'No se guardaron datos en la carpeta de usuario');
   console.log(`  ✓ Datos guardados en la carpeta de usuario (${files.length} elementos)`);
+
+  const style = process.env.ICARUS_SMOKE_STYLE;
+  if (style) {
+    // El mismo mensaje que envía la interfaz al elegir un estilo en «Personalizar».
+    await ui.evaluate(`(window.icarusNative.window.setStyle(${JSON.stringify(style)}), true)`);
+    await eventually(() => {
+      try {
+        return JSON.parse(readFileSync(join(dataDir, 'branding.json'), 'utf8')).data.style === style;
+      } catch {
+        return false;
+      }
+    }, `El proceso principal no aplicó el estilo ${style}`);
+    console.log(`  ✓ Icono de la aplicación cambiado al estilo ${style}`);
+  }
 } catch (error) {
   failed = true;
   console.error(`  ✗ ${error.message}`);
