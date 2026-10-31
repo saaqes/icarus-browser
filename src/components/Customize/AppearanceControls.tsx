@@ -23,6 +23,7 @@ import { BACKGROUND_PRESETS } from '../../themes/backgrounds';
 import { BACKGROUND_SWATCHES } from '../../themes/color';
 import {
   ACCENT_IDS,
+  APP_ICON_IDS,
   BACKGROUND_PRESET_IDS,
   SHORTCUT_COLUMNS,
   THEME_IDS,
@@ -33,6 +34,7 @@ import {
   type ThemeId,
 } from '../../types/settings';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { IcarusMark } from '../common/IcarusLogo';
 import { Segmented, Toggle } from '../common/Controls';
 import { Icon } from '../common/Icon';
 import { useToast } from '../common/Toast';
@@ -368,6 +370,41 @@ export function ResetThemeControl() {
         }}
       />
     </>
+  );
+}
+
+/**
+ * Icono y nombre de la aplicación, aparte del estilo: el del estilo o una variante fija.
+ * Son variantes propias del logotipo de ICARUS (no los de Chrome ni Edge). En escritorio
+ * cambian la ventana, el Dock y los accesos directos; en Android, el icono del lanzador.
+ */
+export function AppIconControl() {
+  const m = useMessages();
+  const t = m.customize.appIcon;
+  const [settings, updateSettings] = useSettings();
+  const { themeId } = useAppearance();
+  const selected = settings.appearance.appIcon;
+  return (
+    <fieldset className="theme-picker app-icon-picker">
+      <legend className="field-label">{t.title}</legend>
+      <div className="theme-picker__options app-icon-picker__options">
+        {APP_ICON_IDS.map((id) => (
+          <label key={id} className={`theme-card app-icon-card${id === selected ? ' is-selected' : ''}`}>
+            <input
+              type="radio"
+              name="icarus-app-icon"
+              value={id}
+              checked={id === selected}
+              onChange={() => updateSettings((current) => ({ ...current, appearance: { ...current.appearance, appIcon: id } }))}
+            />
+            <IcarusMark size={44} tile variant={id === 'auto' ? themeId : id} />
+            <span className="theme-card__name">{t.options[id]}</span>
+            <span className="theme-card__inspired">{id === 'auto' ? t.autoNow(m.app.styleNames[themeId]) : m.app.styleNames[id]}</span>
+          </label>
+        ))}
+      </div>
+      <p className="field-hint">{t.hint}</p>
+    </fieldset>
   );
 }
 

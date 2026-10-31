@@ -13,7 +13,7 @@ export function AppearanceRoot({ children }: { children: ReactNode }) {
   const appearance = useAppearance();
   const { native } = useServices();
   const m = useMessages();
-  const appName = m.app.styleNames[appearance.themeId];
+  const appName = m.app.styleNames[appearance.appIcon];
   const [overlayRoot, setOverlayRoot] = useState<HTMLElement | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -30,12 +30,13 @@ export function AppearanceRoot({ children }: { children: ReactNode }) {
     }
   }, [appearance.mode, appearance.themeId, native]);
 
-  // Nombre e icono de la aplicación según el estilo: título de la ventana (barra de tareas,
-  // Alt+Tab) y, en escritorio, el icono de la ventana, del Dock y de los accesos directos.
+  // Nombre e icono de la aplicación (los del estilo o los elegidos en Apariencia): título de
+  // la ventana (barra de tareas, Alt+Tab) y, en escritorio, el icono de la ventana, del Dock
+  // y de los accesos directos.
   useEffect(() => {
     document.title = appName;
-    native?.window.setStyle(appearance.themeId);
-  }, [appName, appearance.themeId, native]);
+    native?.window.setStyle(appearance.appIcon);
+  }, [appName, appearance.appIcon, native]);
 
   const style = {
     '--accent': appearance.accent,

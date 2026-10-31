@@ -8,6 +8,10 @@
 export const THEME_IDS = ['google-inspired', 'edge-inspired', 'icarus'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 
+/** Icono y nombre de la aplicación: `auto` sigue al estilo; si no, la variante elegida. */
+export const APP_ICON_IDS = ['auto', ...THEME_IDS] as const;
+export type AppIconId = (typeof APP_ICON_IDS)[number];
+
 export const COLOR_MODES = ['light', 'dark', 'system'] as const;
 export type ColorMode = (typeof COLOR_MODES)[number];
 export type ResolvedColorMode = Exclude<ColorMode, 'system'>;
@@ -101,6 +105,8 @@ export interface AppearanceSettings {
   themes: Record<ThemeId, ThemeConfig>;
   widgets: Record<WidgetId, boolean>;
   reduceMotion: boolean;
+  /** Icono (y nombre) de la aplicación: el del estilo o uno fijo, elegido aparte. */
+  appIcon: AppIconId;
 }
 
 export interface NavigationSettings {

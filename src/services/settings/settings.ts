@@ -23,6 +23,7 @@ import {
   SHORTCUT_STYLES,
   STARTUP_BEHAVIORS,
   THEME_IDS,
+  APP_ICON_IDS,
   WIDGET_IDS,
   WIDGET_PLACEMENTS,
   type AppearanceSettings,
@@ -64,6 +65,7 @@ export function createDefaultSettings(): Settings {
       },
       widgets: createDefaultWidgets(),
       reduceMotion: false,
+      appIcon: 'auto',
     },
     navigation: {
       newTabPage: 'home',
@@ -189,6 +191,7 @@ export function sanitizeSettings(raw: unknown, issues: string[]): Settings {
       WIDGET_IDS.map((id) => [id, readBoolean(widgetsRaw[id], defaults.appearance.widgets[id], `appearance.widgets.${id}`, issues)]),
     ) as Record<WidgetId, boolean>,
     reduceMotion: readBoolean(appearanceRaw.reduceMotion, defaults.appearance.reduceMotion, 'appearance.reduceMotion', issues),
+    appIcon: readEnum(appearanceRaw.appIcon, APP_ICON_IDS, defaults.appearance.appIcon, 'appearance.appIcon', issues),
   };
 
   const navigationRaw = readRecord(root.navigation, 'navigation', issues);

@@ -16,9 +16,9 @@ export function UpdatesSection() {
   const native = useNative();
   const state = useUpdateState();
   const actions = useUpdateActions();
-  const { themeId } = useAppearance();
+  const { appIcon } = useAppearance();
   if (!native || !state || !actions) return null;
-  return <UpdatesView state={state} platform={native.platform} actions={actions} themeId={themeId} />;
+  return <UpdatesView state={state} platform={native.platform} actions={actions} appIcon={appIcon} />;
 }
 
 /** Contenido de la sección (separado para probar cada estado). */
@@ -26,13 +26,13 @@ export function UpdatesView({
   state,
   platform,
   actions,
-  themeId = 'icarus',
+  appIcon = 'icarus',
 }: {
   state: UpdateState;
   platform: string;
   actions: UpdateActions;
-  /** Estilo actual: icono y nombre de la aplicación. */
-  themeId?: ThemeId;
+  /** Variante del icono y el nombre de la aplicación. */
+  appIcon?: ThemeId;
 }) {
   const m = useMessages();
   const t = m.updates;
@@ -77,7 +77,7 @@ export function UpdatesView({
 
       <SettingsCard title={t.installed}>
         <div className="update-summary">
-          <IcarusMark size={48} tile variant={themeId} />
+          <IcarusMark size={48} tile variant={appIcon} />
           <div className="update-summary__text">
             <p className="update-summary__version">{t.version(state.currentVersion)}</p>
             <p className="update-summary__meta">
@@ -92,7 +92,7 @@ export function UpdatesView({
             </button>
           )}
         </div>
-        {supported && <UpdateFacts state={state} appName={m.app.styleNames[themeId]} />}
+        {supported && <UpdateFacts state={state} appName={m.app.styleNames[appIcon]} />}
         {supported && <UpdateStatus state={state} />}
         {supported && <KeychainNotice state={state} />}
         {supported && (!available || isUpdateInProgress(state)) && <UpdateButtons state={state} actions={actions} />}

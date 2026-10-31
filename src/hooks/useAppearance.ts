@@ -15,6 +15,8 @@ export type ResolvedBackground =
 
 export interface ResolvedAppearance {
   themeId: ThemeId;
+  /** Variante del icono y el nombre de la aplicación (la del estilo con «Según el estilo»). */
+  appIcon: ThemeId;
   config: ThemeConfig;
   mode: ResolvedColorMode;
   systemMode: ResolvedColorMode;
@@ -29,7 +31,8 @@ export function useAppearance(): ResolvedAppearance {
   const [settings] = useSettings();
   const [uploaded] = useBackgroundImage();
   const system = useSystemColorScheme();
-  const { theme: themeId, themes, reduceMotion } = settings.appearance;
+  const { theme: themeId, themes, reduceMotion, appIcon: appIconSetting } = settings.appearance;
+  const appIcon = appIconSetting === 'auto' ? themeId : appIconSetting;
   const config = themes[themeId];
 
   return useMemo(() => {
@@ -41,6 +44,7 @@ export function useAppearance(): ResolvedAppearance {
     else if (setting.kind === 'upload' && uploaded) background = { kind: 'image', url: uploaded.dataUrl };
     return {
       themeId,
+      appIcon,
       config,
       mode,
       systemMode: system.mode,
@@ -50,5 +54,5 @@ export function useAppearance(): ResolvedAppearance {
       background,
       reduceMotion,
     };
-  }, [config, reduceMotion, system.mode, system.supported, themeId, uploaded]);
+  }, [appIcon, config, reduceMotion, system.mode, system.supported, themeId, uploaded]);
 }

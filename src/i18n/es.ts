@@ -463,6 +463,12 @@ export const es = {
     moreSettings: 'Más opciones en Configuración',
     reduceMotion: 'Reducir animaciones',
     reduceMotionHint: 'Desactiva transiciones y efectos animados.',
+    appIcon: {
+      title: 'Icono de la aplicación',
+      options: { auto: 'Según el estilo', icarus: 'ICARUS', 'google-inspired': 'Esencial (estilo Chrome)', 'edge-inspired': 'Panorama (estilo Edge)' },
+      autoNow: (name: string) => `Ahora: ${name}`,
+      hint: 'Elige el icono y el nombre de ICARUS aparte del estilo. Son variantes propias del logotipo de ICARUS, no los logotipos de Google Chrome ni de Microsoft Edge. En Windows cambian al momento la ventana, la barra de tareas y los accesos directos; en Android, el icono y el nombre del lanzador al salir de ICARUS.',
+    },
   },
   settings: {
     title: 'Configuración',

@@ -151,7 +151,13 @@ class BrowserSmokeTest {
                 ).iconResource
                 assertTrue("el alias ${expected.first} no tiene icono propio", icon != 0)
             }
+            // Icono elegido aparte del estilo (Configuración → Icono de la aplicación).
+            InstrumentationRegistry.getInstrumentation().runOnMainSync { app.profile.updateSettings { it.copy(theme = ThemeId.ICARUS, appIcon = ThemeId.PANORAMA) } }
+            ActivityScenario.launch(MainActivity::class.java).use { scenario -> waitFor(scenario, "pestaña inicial") { it.currentTab != null } }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            assertEquals(listOf("LauncherPanorama" to "ICARUS Panorama"), launcherEntries())
         } finally {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync { app.profile.updateSettings { it.copy(appIcon = null) } }
             setLook(ThemeId.ICARUS, ColorMode.DARK)
             LauncherIcons.apply(context, ThemeId.ICARUS)
         }

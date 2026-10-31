@@ -88,7 +88,7 @@ Las dos apps reproducen la barra de escritorio con la misma lógica (`CustomAddr
 
 ## Icono y nombre de la app según el estilo
 
-Diseños propios de ICARUS (`build/icons/*.svg`), no logotipos de otros navegadores.
+Diseños propios de ICARUS (`build/icons/*.svg`), no logotipos de otros navegadores. Por defecto siguen al estilo; Configuración → «Icono de la aplicación» elige uno fijo (`Settings.appIcon`, `launcherIcon` = el elegido o el del estilo), como en escritorio.
 
 - **Android**: tres alias de `MainActivity` en el manifiesto (`LauncherIcarus`, `LauncherEsencial`, `LauncherPanorama`), cada uno con su icono adaptativo (`mipmap-anydpi-v26/ic_launcher_*.xml`) y su nombre (ICARUS, ICARUS Esencial, ICARUS Panorama); solo uno está activo. `LauncherIcons.apply` activa primero el del estilo y después desactiva los demás (`DONT_KILL_APP`) cuando ICARUS pasa a segundo plano, porque algunos lanzadores cierran la tarea de un alias que se desactiva en uso. Algunos lanzadores tardan unos segundos en mostrarlo o quitan el acceso de la pantalla de inicio. Lo comprueba `BrowserSmokeTest.elIconoYElNombreDelLanzadorSiguenAlEstilo` en el emulador.
 - **iPhone y iPad**: iconos alternativos `AppIcon-Esencial` y `AppIcon-Panorama` (`ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES`), aplicados con `setAlternateIconName` cuando el usuario cambia de estilo (iOS lo confirma con un aviso). El nombre bajo el icono no se puede cambiar.

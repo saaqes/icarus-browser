@@ -11,11 +11,11 @@ export function AboutSection() {
   const t = m.settings.about;
   const { engine, native } = useServices();
   const appName = useAppName();
-  const { themeId } = useAppearance();
+  const { appIcon } = useAppearance();
   return (
     <>
       <section className="about-hero">
-        <IcarusMark size={64} tile variant={themeId} />
+        <IcarusMark size={64} tile variant={appIcon} />
         <div>
           <p className="about-hero__name">{appName}</p>
           <p className="about-hero__version">

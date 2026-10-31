@@ -24,6 +24,11 @@ public struct Settings: Codable, Equatable {
     public var showShortcuts = true
     /// «Mostrar siempre las URL completas»: sin foco, la barra muestra `https://` y `www.`.
     public var showFullUrls = false
+    /// Icono de la app elegido aparte del estilo; nil: el del estilo.
+    public var appIcon: ThemeId?
+
+    /// Variante del icono de la app que se muestra.
+    public var launcherIcon: ThemeId { appIcon ?? theme }
 
     public init() {}
 
@@ -40,6 +45,7 @@ public struct Settings: Codable, Equatable {
         restoreSession = (try? container.decodeIfPresent(Bool.self, forKey: .restoreSession)) ?? defaults.restoreSession
         showShortcuts = (try? container.decodeIfPresent(Bool.self, forKey: .showShortcuts)) ?? defaults.showShortcuts
         showFullUrls = (try? container.decodeIfPresent(Bool.self, forKey: .showFullUrls)) ?? defaults.showFullUrls
+        appIcon = (try? container.decodeIfPresent(ThemeId.self, forKey: .appIcon)) ?? nil
     }
 }
 

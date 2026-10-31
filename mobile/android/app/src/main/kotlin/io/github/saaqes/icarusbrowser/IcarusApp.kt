@@ -69,8 +69,8 @@ class IcarusApp : Application() {
         updates = UpdateManager(this)
         // Las listas se actualizan en segundo plano solo si han caducado (4 días).
         background.execute { shield.updateLists(onlyStale = true) }
-        // Icono y nombre del lanzador según el estilo. Se cambian cuando ICARUS pasa a segundo
-        // plano: algunos lanzadores cierran la tarea de un alias que se desactiva en uso.
+        // Icono y nombre del lanzador (los del estilo o los elegidos en Apariencia). Se cambian cuando
+        // ICARUS pasa a segundo plano: algunos lanzadores cierran la tarea de un alias que se desactiva en uso.
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             private var started = 0
             override fun onActivityStarted(activity: Activity) {
@@ -78,7 +78,7 @@ class IcarusApp : Application() {
             }
             override fun onActivityStopped(activity: Activity) {
                 started -= 1
-                if (started == 0 && !activity.isChangingConfigurations) LauncherIcons.apply(this@IcarusApp, profile.settings.theme)
+                if (started == 0 && !activity.isChangingConfigurations) LauncherIcons.apply(this@IcarusApp, profile.settings.launcherIcon)
             }
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
             override fun onActivityResumed(activity: Activity) = Unit

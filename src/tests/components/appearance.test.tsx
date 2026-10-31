@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { renderApp } from '../testUtils';
+import { openSettingsFromMenu, renderApp } from '../testUtils';
 
 async function openCustomize(user: ReturnType<typeof renderApp>['user']) {
   await user.click(screen.getByRole('button', { name: 'Personalizar' }));
@@ -107,5 +107,37 @@ describe('apariencia y temas', () => {
     const second = renderApp({ storage: first.storage });
     expect(second.root()).toHaveAttribute('data-theme', 'edge-inspired');
     expect(second.root()).toHaveAttribute('data-mode', 'dark');
+  });
+});
+
+describe('Icono de la aplicación (Configuración → Apariencia)', () => {
+  it('se elige aparte del estilo, cambia el nombre de la ventana y se conserva al reiniciar', async () => {
+    const first = renderApp();
+    const { user } = first;
+    await openSettingsFromMenu(user);
+    await user.click(screen.getByRole('button', { name: 'Apariencia' }));
+    const group = screen.getByRole('group', { name: 'Icono de la aplicación' });
+    // Por defecto sigue al estilo (ICARUS).
+    expect(within(group).getByRole('radio', { name: /Según el estilo/ })).toBeChecked();
+    expect(group).toHaveTextContent('Ahora: ICARUS Browser');
+    expect(document.title).toBe('ICARUS Browser');
+
+    await user.click(within(group).getByRole('radio', { name: /Panorama \(estilo Edge\)/ }));
+    expect(document.title).toBe('ICARUS Panorama');
+    // El estilo no cambia: solo el icono y el nombre de la aplicación.
+    expect(first.root()).toHaveAttribute('data-theme', 'icarus');
+    expect(screen.getByText(/no los logotipos de Google Chrome ni de Microsoft Edge/)).toBeInTheDocument();
+    first.unmount();
+
+    const second = renderApp({ storage: first.storage });
+    expect(document.title).toBe('ICARUS Panorama');
+    await openSettingsFromMenu(second.user);
+    await second.user.click(screen.getByRole('button', { name: 'Apariencia' }));
+    const again = screen.getByRole('group', { name: 'Icono de la aplicación' });
+    expect(within(again).getByRole('radio', { name: /Panorama \(estilo Edge\)/ })).toBeChecked();
+    await second.user.click(within(again).getByRole('radio', { name: /Esencial \(estilo Chrome\)/ }));
+    expect(document.title).toBe('ICARUS Esencial');
+    await second.user.click(within(again).getByRole('radio', { name: /Según el estilo/ }));
+    expect(document.title).toBe('ICARUS Browser');
   });
 });

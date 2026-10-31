@@ -38,7 +38,12 @@ data class Settings(
     val showShortcuts: Boolean = true,
     /** «Mostrar siempre las URL completas»: sin ella, la barra oculta https:// y www. como Chrome. */
     val showFullUrls: Boolean = false,
-)
+    /** Icono y nombre del lanzador elegidos aparte del estilo; null: los del estilo. */
+    val appIcon: ThemeId? = null,
+) {
+    /** Variante del icono y el nombre de la app que se muestra en el lanzador. */
+    val launcherIcon: ThemeId get() = appIcon ?: theme
+}
 
 data class Shortcut(val id: String, val title: String, val url: String)
 
@@ -239,7 +244,8 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
                     .put("saveHistory", settings.saveHistory)
                     .put("restoreSession", settings.restoreSession)
                     .put("showShortcuts", settings.showShortcuts)
-                    .put("showFullUrls", settings.showFullUrls),
+                    .put("showFullUrls", settings.showFullUrls)
+                    .put("appIcon", settings.appIcon?.id ?: "auto"),
             )
             .put("shortcuts", JSONArray().also { array -> data.shortcuts.forEach { array.put(JSONObject().put("id", it.id).put("title", it.title).put("url", it.url)) } })
             .put("customAddresses", CustomAddress.listToJson(data.customAddresses))
@@ -261,6 +267,7 @@ class Profile(dir: File, defaultsJson: String, private val onChange: () -> Unit 
             restoreSession = raw.optBoolean("restoreSession", true),
             showShortcuts = raw.optBoolean("showShortcuts", true),
             showFullUrls = raw.optBoolean("showFullUrls", false),
+            appIcon = raw.optString("appIcon").let { id -> ThemeId.entries.firstOrNull { it.id == id } },
         )
         val shortcuts = json.optJSONArray("shortcuts")?.let { array ->
             (0 until array.length()).mapNotNull { index ->

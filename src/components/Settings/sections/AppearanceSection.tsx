@@ -1,6 +1,7 @@
 import { useMessages } from '../../../i18n';
 import {
   AccentControl,
+  AppIconControl,
   BackgroundControl,
   ColorModeControl,
   LayoutControl,
@@ -19,6 +20,9 @@ export function AppearanceSection() {
         <ThemePicker />
         <ColorModeControl />
         <AccentControl />
+      </SettingsCard>
+      <SettingsCard title={m.customize.appIcon.title}>
+        <AppIconControl />
       </SettingsCard>
       <SettingsCard title={m.customize.background}>
         <BackgroundControl />

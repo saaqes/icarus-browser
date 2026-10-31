@@ -36,6 +36,21 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                     AccentPicker()
                 }
+                // Icono de la app aparte del estilo: variantes propias de ICARUS, no los logotipos
+                // de Chrome ni de Edge. iOS lo confirma con un aviso y no permite cambiar el nombre.
+                Section {
+                    Picker("Icono de la aplicación", selection: binding(\.appIcon)) {
+                        Text("Según el estilo").tag(ThemeId?.none)
+                        Text("ICARUS").tag(ThemeId?.some(.icarus))
+                        Text("Esencial (estilo Chrome)").tag(ThemeId?.some(.essential))
+                        Text("Panorama (estilo Edge)").tag(ThemeId?.some(.panorama))
+                    }
+                    .pickerStyle(.inline)
+                } header: {
+                    Text("Icono de la aplicación")
+                } footer: {
+                    Text("Variantes propias del logotipo de ICARUS, no los logotipos de Google Chrome ni de Microsoft Edge. iOS pide confirmación y no permite cambiar el nombre bajo el icono.")
+                }
                 Section("Navegación") {
                     Picker("Buscador", selection: binding(\.searchProvider)) {
                         ForEach(SearchProvider.allCases, id: \.self) { Text($0.displayName).tag($0) }

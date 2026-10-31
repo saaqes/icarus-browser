@@ -53,7 +53,7 @@ final class StoresTests: XCTestCase {
         guard case .errors(_, let limit) = profile.saveShortcut(title: "Más", url: "https://mas.com/") else { return XCTFail() }
         XCTAssertTrue(limit)
 
-        profile.updateSettings { $0.theme = .panorama; $0.colorMode = .dark; $0.searchProvider = .duckduckgo; $0.accent = "teal" }
+        profile.updateSettings { $0.theme = .panorama; $0.colorMode = .dark; $0.searchProvider = .duckduckgo; $0.accent = "teal"; $0.appIcon = .essential }
         guard case .ok = profile.saveCustomAddress(target: "mail.google.com", address: "correo.miweb.com", enabled: true) else { return XCTFail() }
         // Nunca se sobrescribe otra entrada en silencio: el conflicto nombra la existente.
         guard case .errors(let conflict, let other) = profile.saveCustomAddress(target: "otro.com", address: "correo.miweb.com", enabled: true) else {
@@ -69,6 +69,12 @@ final class StoresTests: XCTestCase {
         XCTAssertEqual(reopened.settings.colorMode, .dark)
         XCTAssertEqual(reopened.settings.searchProvider, .duckduckgo)
         XCTAssertEqual(reopened.settings.accent, "teal")
+        // Icono elegido aparte del estilo; sin elegir, el del estilo.
+        XCTAssertEqual(reopened.settings.appIcon, .essential)
+        XCTAssertEqual(reopened.settings.launcherIcon, .essential)
+        var automatic = reopened.settings
+        automatic.appIcon = nil
+        XCTAssertEqual(automatic.launcherIcon, .panorama)
         XCTAssertEqual(CustomAddresses.displayURL(for: "https://mail.google.com/x?y=1", reopened.customAddresses)?.url, "https://correo.miweb.com/x?y=1")
         XCTAssertEqual(reopened.permission(origin: "https://reunion.com", .camera), true)
         XCTAssertNil(reopened.permission(origin: "https://reunion.com", .microphone))

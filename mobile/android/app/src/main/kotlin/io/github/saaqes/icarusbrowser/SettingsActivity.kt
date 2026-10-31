@@ -110,6 +110,28 @@ class SettingsActivity : ScreenActivity() {
         ) { mode -> app.profile.updateSettings { it.copy(colorMode = mode) } })
         addView(accentPicker(settings.accent))
 
+        // Icono y nombre de la app aparte del estilo: variantes propias de ICARUS, no los
+        // logotipos de Chrome ni de Edge. Se aplican al salir de ICARUS (LauncherIcons).
+        addView(w.sectionLabel("Icono de la aplicación"))
+        addView(w.card {
+            val choices = listOf(
+                null to ("Según el estilo" to "Ahora: ${launcherName(settings.theme)}"),
+                ThemeId.ICARUS to ("ICARUS" to launcherName(ThemeId.ICARUS)),
+                ThemeId.ESSENTIAL to ("Esencial (estilo Chrome)" to launcherName(ThemeId.ESSENTIAL)),
+                ThemeId.PANORAMA to ("Panorama (estilo Edge)" to launcherName(ThemeId.PANORAMA)),
+            )
+            for ((choice, labels) in choices) {
+                val check = if (settings.appIcon == choice) android.widget.ImageView(context).apply { setIcon(R.drawable.icarus_check, look.accent) } else null
+                val row = w.row(null, labels.first, labels.second, check) {
+                    app.profile.updateSettings { it.copy(appIcon = choice) }
+                    toast("El icono cambiará al salir de ICARUS.")
+                }
+                row.addView(android.widget.ImageView(context).apply { setImageResource(launcherIconRes(choice ?: settings.theme)) }, 0, LinearLayout.LayoutParams(dp(32), dp(32)))
+                addView(row)
+            }
+        })
+        addView(w.hint("Variantes propias del logotipo de ICARUS, no los logotipos de Google Chrome ni de Microsoft Edge. Algunos lanzadores tardan unos segundos en mostrar el icono nuevo o quitan el acceso de la pantalla de inicio (queda en el cajón de aplicaciones).").apply { setPadding(dp(4), dp(6), dp(4), 0) })
+
         addView(w.sectionLabel("Navegación"))
         addView(w.card {
             for (provider in SearchProvider.entries) {
@@ -518,6 +540,18 @@ class SettingsActivity : ScreenActivity() {
             for (index in 0 until (steps?.length() ?: 0)) addView(w.text("${index + 1}. ${steps!!.optString(index)}", 14f, p.fg2).apply { setPadding(0, dp(4), 0, dp(4)) })
             addView(w.hint(howTo?.optString("security").orEmpty()).apply { setPadding(0, dp(8), 0, 0) })
         })
+    }
+
+    private fun launcherName(theme: ThemeId) = when (theme) {
+        ThemeId.ICARUS -> getString(R.string.app_name)
+        ThemeId.ESSENTIAL -> getString(R.string.app_name_esencial)
+        ThemeId.PANORAMA -> getString(R.string.app_name_panorama)
+    }
+
+    private fun launcherIconRes(theme: ThemeId) = when (theme) {
+        ThemeId.ICARUS -> R.mipmap.ic_launcher
+        ThemeId.ESSENTIAL -> R.mipmap.ic_launcher_esencial
+        ThemeId.PANORAMA -> R.mipmap.ic_launcher_panorama
     }
 
     private fun transfer(key: String, vararg params: Pair<String, String>) = app.sharedText("customAddresses", "transfer", key, *params)

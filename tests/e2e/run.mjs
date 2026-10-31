@@ -466,7 +466,26 @@ await step('10. Comprobar los tres temas (con el nombre y el icono de la aplicac
     }, `El proceso principal no recibió el estilo ${id} para el icono`);
     seen.push(appName);
   }
-  return seen.join(', ');
+  // Configuración → Apariencia → «Icono de la aplicación»: aparte del estilo (que sigue siendo ICARUS).
+  const brandingStyle = () => {
+    try {
+      return JSON.parse(readFileSync(join(dataDir, 'branding.json'), 'utf8')).data.style;
+    } catch {
+      return null;
+    }
+  };
+  const windowTitle = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle());
+  await openSettings('Apariencia');
+  const icons = win.getByRole('group', { name: 'Icono de la aplicación' });
+  await icons.getByText('Panorama (estilo Edge)').click();
+  await eventually(async () => (await windowTitle()) === 'ICARUS Panorama', 'El icono elegido no cambió el nombre de la ventana');
+  await eventually(() => brandingStyle() === 'edge-inspired', 'El proceso principal no recibió el icono elegido');
+  assert((await win.locator('.icarus-root').getAttribute('data-theme')) === 'icarus', 'Elegir el icono cambió el estilo');
+  await icons.getByText('Según el estilo').click();
+  await eventually(async () => (await windowTitle()) === 'ICARUS Browser', 'Volver a «Según el estilo» no recuperó el nombre');
+  await eventually(() => brandingStyle() === 'icarus', 'Volver a «Según el estilo» no recuperó el icono');
+  await win.keyboard.press('Escape');
+  return `${seen.join(', ')} · icono elegido aparte: ICARUS Panorama con el estilo ICARUS`;
 });
 
 await step('11. Menús sobre la página: captura y ocultación de la vista', async () => {

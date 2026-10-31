@@ -77,7 +77,7 @@ class StoresTest {
     fun `preferencias, direcciones personalizadas, permisos y sesión se guardan`() {
         val profile = Profile(dir, defaults)
         profile.updateSettings { it.copy(theme = ThemeId.PANORAMA, colorMode = ColorMode.DARK, searchProvider = SearchProvider.DUCKDUCKGO, accent = "teal") }
-        profile.updateSettings { it.copy(showFullUrls = true) }
+        profile.updateSettings { it.copy(showFullUrls = true, appIcon = ThemeId.ESSENTIAL) }
         assertIs<CustomAddresses.Validation.Ok>(profile.saveCustomAddress("bot.deriv.me", "miweb.com", true))
         // No sobrescribe otra entrada: devuelve el conflicto.
         val conflict = assertIs<CustomAddresses.Validation.Errors>(profile.saveCustomAddress("otro.com", "miweb.com", true))
@@ -93,6 +93,10 @@ class StoresTest {
         assertEquals(SearchProvider.DUCKDUCKGO, reopened.settings.searchProvider)
         assertEquals("teal", reopened.settings.accent)
         assertTrue(reopened.settings.showFullUrls)
+        // Icono elegido aparte del estilo (Esencial con el estilo Panorama); sin elegir, el del estilo.
+        assertEquals(ThemeId.ESSENTIAL, reopened.settings.appIcon)
+        assertEquals(ThemeId.ESSENTIAL, reopened.settings.launcherIcon)
+        assertEquals(ThemeId.PANORAMA, reopened.settings.copy(appIcon = null).launcherIcon)
         assertEquals(listOf("https://miweb.com/"), reopened.customAddresses.map { it.address })
         assertEquals("https://miweb.com/x?y=1", CustomAddresses.displayUrlFor("https://bot.deriv.me/x?y=1", reopened.customAddresses)?.url)
         assertEquals(true, reopened.permission("https://mapas.com", SitePermission.LOCATION))
