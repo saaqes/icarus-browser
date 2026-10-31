@@ -411,8 +411,10 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
 
   const stop = useCallback(() => {
     const tab = getActiveTab(sessionRef.current);
+    // Con el motor integrado, la carga termina cuando Chromium lo confirma (estado de la
+    // pestaña): así «Recargar» no aparece mientras la página sigue cargando de verdad.
     if (embedded) engine.stop?.(tab.id);
-    dispatch({ type: 'tab/loading', tabId: tab.id, loading: false });
+    else dispatch({ type: 'tab/loading', tabId: tab.id, loading: false });
   }, [embedded, engine]);
 
   const reload = useCallback(() => {
