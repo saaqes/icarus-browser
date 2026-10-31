@@ -16,18 +16,36 @@ interface MarkProps {
 }
 
 interface Palette {
+  /** Fondo cuadrado redondeado (ICARUS) o redondo (Esencial y Panorama). */
+  shape: 'square' | 'circle';
   wing: [string, string];
+  /** Un color por pluma (de la mayor a la menor) en lugar del degradado del ala. */
+  feathers?: [string, string, string];
   sun: [string, string];
-  tile: string | [string, string];
+  /** Color o degradado (de abajo a la izquierda a arriba a la derecha). */
+  tile: string | string[];
   border?: string;
 }
 
-/** Los mismos colores que los iconos de la aplicación de cada estilo (build/icons). */
+/** Los mismos diseños que los iconos de la aplicación de cada estilo (build/icons). */
 const PALETTES: Record<ThemeId, Palette> = {
-  icarus: { wing: ['#6d28d9', '#c4b5fd'], sun: ['#f5f0ff', '#b9a4ff'], tile: '#16141c' },
-  'google-inspired': { wing: ['#1f63d1', '#86aef5'], sun: ['#fff4d6', '#f3b552'], tile: '#ffffff', border: '#d6dde9' },
-  'edge-inspired': { wing: ['#d7f1ff', '#ffffff'], sun: ['#ffffff', '#9fd8ff'], tile: ['#0b63c4', '#0f7a80'] },
+  icarus: { shape: 'square', wing: ['#6d28d9', '#c4b5fd'], sun: ['#f5f0ff', '#b9a4ff'], tile: '#16141c' },
+  'google-inspired': {
+    shape: 'circle',
+    wing: ['#34a853', '#34a853'],
+    feathers: ['#34a853', '#fbbc04', '#ea4335'],
+    sun: ['#4285f4', '#4285f4'],
+    tile: '#ffffff',
+    border: '#dadce0',
+  },
+  'edge-inspired': { shape: 'circle', wing: ['#d9f1ff', '#ffffff'], sun: ['#ffffff', '#c8f5d6'], tile: ['#0c59a4', '#1b9de2', '#2fc4c4', '#5ed66e'] },
 };
+
+const FEATHERS = [
+  'M10 48c11-1.5 23.5-8.5 34-21-4.6 12.6-15.4 21.5-31 24.5Z',
+  'M12.5 39.5c8.6-1.4 17.4-6.3 24.4-14.4-3.6 9.2-11.4 15.7-22.8 18Z',
+  'M16 31.5c6-1.1 11.2-4.2 15.5-9-2.2 6-7 10.2-14.2 11.8Z',
+];
 
 export function IcarusMark({ size = 28, className, tile = false, variant = 'icarus' }: MarkProps) {
   const id = useId().replace(/:/g, '');
@@ -51,18 +69,29 @@ export function IcarusMark({ size = 28, className, tile = false, variant = 'icar
           <stop offset="1" stopColor={palette.sun[1]} />
         </radialGradient>
         {Array.isArray(palette.tile) && (
-          <linearGradient id={`${id}-tile`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor={palette.tile[0]} />
-            <stop offset="1" stopColor={palette.tile[1]} />
+          <linearGradient id={`${id}-tile`} x1="0.1" y1="0.95" x2="0.95" y2="0.1">
+            {palette.tile.map((color, index, all) => (
+              <stop key={color} offset={index / (all.length - 1)} stopColor={color} />
+            ))}
           </linearGradient>
         )}
       </defs>
-      {tile && <rect width="64" height="64" rx="16" fill={Array.isArray(palette.tile) ? `url(#${id}-tile)` : palette.tile} />}
-      {tile && palette.border && <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="15.25" fill="none" stroke={palette.border} strokeWidth="1.5" />}
+      {tile &&
+        (palette.shape === 'circle' ? (
+          <circle cx="32" cy="32" r="31" fill={Array.isArray(palette.tile) ? `url(#${id}-tile)` : palette.tile} />
+        ) : (
+          <rect width="64" height="64" rx="16" fill={Array.isArray(palette.tile) ? `url(#${id}-tile)` : palette.tile} />
+        ))}
+      {tile && palette.border && <circle cx="32" cy="32" r="30.25" fill="none" stroke={palette.border} strokeWidth="1.5" />}
       <circle cx="41" cy="22" r="9" fill={`url(#${id}-sun)`} />
-      <path d="M10 48c11-1.5 23.5-8.5 34-21-4.6 12.6-15.4 21.5-31 24.5Z" fill={`url(#${id}-wing)`} />
-      <path d="M12.5 39.5c8.6-1.4 17.4-6.3 24.4-14.4-3.6 9.2-11.4 15.7-22.8 18Z" fill={`url(#${id}-wing)`} opacity="0.8" />
-      <path d="M16 31.5c6-1.1 11.2-4.2 15.5-9-2.2 6-7 10.2-14.2 11.8Z" fill={`url(#${id}-wing)`} opacity="0.6" />
+      {FEATHERS.map((d, index) => (
+        <path
+          key={d}
+          d={d}
+          fill={palette.feathers ? palette.feathers[index] : `url(#${id}-wing)`}
+          opacity={palette.feathers ? undefined : [1, 0.8, 0.6][index]}
+        />
+      ))}
     </svg>
   );
 }

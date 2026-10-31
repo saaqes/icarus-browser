@@ -50,9 +50,15 @@ function buildIco(images) {
   return Buffer.concat([header, ...images.map((image) => image.png)]);
 }
 
-/** iPhone recorta las esquinas: el fondo llega al borde y sin el contorno decorativo. */
+/**
+ * iPhone y Android recortan la forma: el fondo (`id="fondo"`, cuadrado redondeado o
+ * círculo) llega al borde y sin el contorno decorativo (`id="borde"`).
+ */
 function fullBleed(svg) {
-  return svg.replace(/<rect x="0\.75"[^>]*\/>\s*/, '').replace('rx="16"', 'rx="0"');
+  return svg
+    .replace(/<(?:rect|circle) id="borde"[^>]*\/>\s*/, '')
+    .replace(/<circle id="fondo" cx="32" cy="32" r="31"/, '<rect id="fondo" width="64" height="64"')
+    .replace('rx="16"', 'rx="0"');
 }
 
 const browser = await chromium.launch();
