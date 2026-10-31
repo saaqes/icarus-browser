@@ -16,6 +16,11 @@
 # más recientes; los borradores creados a mano y las versiones publicadas no se tocan.
 # La publicación usa el entorno «release»: en Settings → Environments se le pueden
 # añadir revisores obligatorios para aprobar cada versión antes de publicarla.
+#
+# También se puede lanzar a mano (Actions → Publicación automática → Run workflow), por
+# ejemplo después de guardar el secreto de firma: repite la decisión para el último commit
+# de la rama principal (o el indicado) con sus paquetes ya probados. Un borrador automático
+# de ese commit no impide publicarlo: al publicar la versión, el borrador se elimina.
 name: Publicación automática
 
 on:
@@ -23,22 +28,30 @@ on:
     workflows: [CI, Windows, macOS, Android, iPhone y iPad]
     types: [completed]
     branches: [main, 'claude/**']
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit (SHA completo) de la rama principal; vacío = el último
+        required: false
+        default: ''
 
 permissions:
   contents: write
   actions: read
 
 concurrency:
-  group: publicacion-${{ github.event.workflow_run.head_sha }}
+  group: publicacion-${{ github.event.workflow_run.head_sha || inputs.commit || github.sha }}
   cancel-in-progress: false
 
 jobs:
   collect:
     name: Reunir los paquetes probados y decidir
-    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      draft_tag: ${{ steps.runs.outputs.draft_tag }}
       ready: ${{ steps.runs.outputs.ready }}
       publish: ${{ steps.plan.outputs.publish }}
       version: ${{ steps.plan.outputs.version }}
@@ -47,8 +60,30 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      SHA: ${{ github.event.workflow_run.head_sha }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
+      - name: Commit que se publica
+        id: commit
+        env:
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          INPUT_SHA: ${{ inputs.commit }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            sha=${INPUT_SHA:-$(gh api "repos/$GH_REPO/commits/$DEFAULT_BRANCH" --jq .sha)}
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::«$sha» no es el SHA completo de un commit."; exit 1; }
+            # Solo commits que están en la rama principal.
+            status=$(gh api "repos/$GH_REPO/compare/$sha...$DEFAULT_BRANCH" --jq .status)
+            if [ "$status" = ahead ] || [ "$status" = identical ]; then branch=$DEFAULT_BRANCH; else branch="(fuera de $DEFAULT_BRANCH)"; fi
+          else
+            sha=$RUN_SHA
+            branch=$RUN_BRANCH
+          fi
+          echo "Commit $sha · rama $branch"
+          echo "SHA=$sha" >> "$GITHUB_ENV"
+          echo "HEAD_BRANCH=$branch" >> "$GITHUB_ENV"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       - name: ¿Han terminado bien todas las plataformas?
         id: runs
         run: |
@@ -69,19 +104,23 @@ jobs:
             fi
             ids+=("$(jq -r '.id' <<<"$run")")
           done
-          # Ya hay una versión o un borrador de este commit: no se repite.
-          existing=$(gh api "repos/$GH_REPO/releases?per_page=100" --jq "[.[] | select(.target_commitish == \"$SHA\")] | .[0].tag_name // empty")
+          # Ya hay una versión de este commit: no se repite. Su borrador automático no impide
+          # publicarla (se elimina al publicar), pero no se crea otro.
+          gh api "repos/$GH_REPO/releases?per_page=100" > releases.json
+          existing=$(jq -r --arg sha "$SHA" '[.[] | select(.target_commitish == $sha and ((.tag_name | test("-auto[.]")) | not))] | .[0].tag_name // empty' releases.json)
+          draft=$(jq -r --arg sha "$SHA" '[.[] | select(.target_commitish == $sha and .draft and (.tag_name | test("-auto[.]")))] | .[0].tag_name // empty' releases.json)
           if [ -n "$existing" ]; then
             echo "::notice::El commit $SHA ya tiene $existing."
             ready=false
           fi
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "draft_tag=$draft" >> "$GITHUB_OUTPUT"
           echo "ids=${ids[*]}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         if: steps.runs.outputs.ready == 'true'
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ steps.commit.outputs.sha }}
       - uses: actions/setup-node@v4
         if: steps.runs.outputs.ready == 'true'
         with:
@@ -111,8 +150,6 @@ jobs:
         id: plan
         if: steps.runs.outputs.ready == 'true'
         env:
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           HAS_SIGNING_KEY: ${{ secrets.ICARUS_UPDATE_SIGNING_KEY != '' }}
           HAS_KEYSTORE: ${{ secrets.ICARUS_KEYSTORE_BASE64 != '' && secrets.ICARUS_KEYSTORE_PASSWORD != '' && secrets.ICARUS_KEY_ALIAS != '' && secrets.ICARUS_KEY_PASSWORD != '' }}
         run: node scripts/release/auto-plan.mjs
@@ -136,7 +173,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      SHA: ${{ github.event.workflow_run.head_sha }}
+      SHA: ${{ needs.collect.outputs.sha }}
       MODE: ${{ needs.collect.outputs.publish }}
       VERSION: ${{ needs.collect.outputs.version }}
       TAG: ${{ needs.collect.outputs.tag }}
@@ -144,7 +181,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ needs.collect.outputs.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -226,22 +263,28 @@ jobs:
             gh release view "$TAG" --json url --jq .url
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Eliminar el borrador automático de este commit
+        if: needs.collect.outputs.draft_tag != ''
+        env:
+          DRAFT_TAG: ${{ needs.collect.outputs.draft_tag }}
+        run: gh release delete "$DRAFT_TAG" --yes
+
   draft:
     name: Crear el borrador automático
     needs: collect
-    if: needs.collect.outputs.ready == 'true' && needs.collect.outputs.publish == 'none'
+    if: needs.collect.outputs.ready == 'true' && needs.collect.outputs.publish == 'none' && needs.collect.outputs.draft_tag == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      SHA: ${{ github.event.workflow_run.head_sha }}
+      SHA: ${{ needs.collect.outputs.sha }}
       VERSION: ${{ needs.collect.outputs.version }}
       KEEP: 5
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ needs.collect.outputs.sha }}
       - uses: actions/download-artifact@v4
         with:
           name: paquetes-probados

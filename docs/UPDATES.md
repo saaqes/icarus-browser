@@ -186,6 +186,12 @@ paquetes ya probados (sin volver a compilar) y decide con `scripts/release/auto-
 - **Si no**, se crea un borrador privado `vX.Y.Z-auto.<commit>` sin manifiesto.
 - **Si falla cualquier prueba, no se publica ni se crea nada.**
 
+También se puede lanzar a mano: Actions → **Publicación automática** → *Run workflow*
+(opcionalmente con el SHA de un commit de la rama principal; vacío = el último). Repite
+la decisión con los paquetes ya probados de ese commit, por ejemplo después de guardar el
+secreto de firma. Un borrador automático del mismo commit no lo impide: al publicarse la
+versión, ese borrador se elimina.
+
 Así, publicar es subir la versión en el mismo commit (o en uno posterior) y empujarlo:
 
 ```bash
@@ -206,8 +212,9 @@ actualizaciones. Una sola vez:
 1. **Crear la clave** de firma: con la página «Clave de actualizaciones de ICARUS» (la
    genera WebCrypto en tu navegador y no la envía a ningún sitio) o con
    `node scripts/release/generate-update-key.mjs`.
-2. **Guardar la privada** como secreto `ICARUS_UPDATE_SIGNING_KEY` (Settings → Secrets and
-   variables → Actions).
+2. **Guardar la privada** como secreto **del repositorio** `ICARUS_UPDATE_SIGNING_KEY`
+   (Settings → Secrets and variables → Actions → pestaña *Secrets* → *New repository
+   secret*; no en *Variables* ni como secreto de un entorno), con las líneas BEGIN y END.
 3. **Añadir la pública** al repositorio (`build/update-public-key.pem` y
    `mobile/ios/App/Resources/update-public-key.pem`) y subir la versión (por ejemplo, a
    0.2.1) en el mismo commit. Cuando pasen los cinco flujos, se publica v0.2.1.
