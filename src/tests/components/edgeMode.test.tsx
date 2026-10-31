@@ -87,4 +87,18 @@ describe('Modo Edge (Panorama)', () => {
     expect(document.querySelector('.tabstrip__brand')).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'Pestañas abiertas' })).toBeNull();
   });
+
+  it('Esencial (Chrome) también abre la lista de pestañas desde la esquina', async () => {
+    const storage = createMemoryStorage();
+    saveDocument(storage, settingsSchema, setTheme(settingsSchema.defaults(), 'google-inspired'));
+    const { user } = renderApp({ storage });
+    expect(document.querySelector('.tabstrip__brand')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Pestañas abiertas' }));
+    expect(screen.getByRole('menu', { name: 'Pestañas abiertas' })).toBeInTheDocument();
+  });
+
+  it('encima del buscador, el nombre de la aplicación elegida (Esencial y Panorama)', () => {
+    renderEdge();
+    expect(screen.getByTestId('home-app-name')).toHaveTextContent('ICARUS Panorama');
+  });
 });

@@ -13,8 +13,8 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.2.2"
-    CURRENT_PROJECT_VERSION: "20299"
+    MARKETING_VERSION: "0.2.3"
+    CURRENT_PROJECT_VERSION: "20399"
     CODE_SIGN_STYLE: Automatic
 targets:
   ICARUS:

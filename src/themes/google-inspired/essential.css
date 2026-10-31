@@ -30,15 +30,20 @@
 
 .essential__logo {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: var(--space-3);
   color: var(--home-fg);
+  text-align: center;
 }
 
-.essential__wordmark {
-  font-size: 2.6rem;
+/* Nombre de la aplicación elegida (ICARUS, ICARUS Esencial o ICARUS Panorama); más junto
+   que la marca de una palabra (.wordmark) para que quepa en una línea. */
+.essential__logo .essential__wordmark {
+  font-size: 2.4rem;
   font-weight: 500;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.08em;
 }
 
 .essential__main .searchbox {

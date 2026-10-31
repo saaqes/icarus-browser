@@ -11,6 +11,7 @@ import { IcarusMark } from '../../components/common/IcarusLogo';
 import { SearchBox } from '../../components/SearchBox/SearchBox';
 import { ShortcutGrid } from '../../components/ShortcutGrid/ShortcutGrid';
 import { WidgetPanel } from '../../components/WidgetPanel/WidgetPanel';
+import { useAppName } from '../../hooks/useAppName';
 import { useNow } from '../../hooks/useNow';
 import { useSettings } from '../../hooks/useStores';
 import { useMessages } from '../../i18n';
@@ -24,6 +25,7 @@ export function PanoramaHome({ layout }: HomeLayoutProps) {
   const [, updateSettings] = useSettings();
   const { setCustomizeOpen } = useBrowser();
   const side = layout.widgetPlacement === 'side';
+  const appName = useAppName();
 
   return (
     <div className={`panorama${side ? ' panorama--side' : ''}`}>
@@ -42,6 +44,7 @@ export function PanoramaHome({ layout }: HomeLayoutProps) {
 
       <div className="panorama__body">
         <div className="panorama__hero">
+          <h1 className="panorama__name" data-testid="home-app-name">{appName}</h1>
           <SearchBox variant="panel" />
           {layout.showShortcuts && <ShortcutGrid shortcutStyle={layout.shortcutStyle} columns={layout.shortcutColumns} />}
         </div>

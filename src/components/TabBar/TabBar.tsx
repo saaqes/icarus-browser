@@ -38,8 +38,9 @@ export function TabBar() {
   const { themeId } = useAppearance();
   const { session, describe, activateTab, closeTab, newTab, webState } = useBrowser();
 
-  // Como Microsoft Edge, el estilo Panorama no muestra la marca de la aplicación en la
-  // esquina: un botón cuadrado con un chevron abre la lista de pestañas abiertas.
+  // Como Microsoft Edge y Google Chrome, los estilos Panorama y Esencial no muestran la marca
+  // de la aplicación en la esquina: un botón con un chevron abre la lista de pestañas abiertas.
+  const tabListButton = themeId === 'edge-inspired' || themeId === 'google-inspired';
   const tabMenu: MenuEntry[] = [
     ...session.tabs.map((tab) => {
       const presentation = describe(getCurrentEntry(tab).page);
@@ -56,7 +57,7 @@ export function TabBar() {
 
   return (
     <div className="tabstrip">
-      {themeId === 'edge-inspired' ? (
+      {tabListButton ? (
         <MenuButton label={m.tabs.list} items={tabMenu} className="tabstrip__tabmenu" align="start">
           <Icon name="chevronDown" size={16} />
         </MenuButton>
