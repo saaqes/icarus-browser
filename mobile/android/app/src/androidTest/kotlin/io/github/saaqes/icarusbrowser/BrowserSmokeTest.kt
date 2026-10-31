@@ -112,12 +112,22 @@ class BrowserSmokeTest {
         }
     }
 
-    /** Lo que muestra el lanzador: alias activo, su nombre y que solo hay uno. */
+    /**
+     * Lo que muestra el lanzador: alias activo, su nombre y que solo hay uno. Sin
+     * MATCH_DEFAULT_ONLY: las entradas del lanzador no tienen la categoría DEFAULT.
+     */
+    @Suppress("DEPRECATION")
     private fun launcherEntries(): List<Pair<String, String>> {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(context.packageName)
-        return context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        return context.packageManager.queryIntentActivities(intent, 0)
             .map { it.activityInfo.name.substringAfterLast('.') to it.loadLabel(context.packageManager).toString() }
+    }
+
+    private fun aliasState(alias: String): Int {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val component = android.content.ComponentName(context.packageName, "${MainActivity::class.java.name.substringBeforeLast('.')}.$alias")
+        return context.packageManager.getComponentEnabledSetting(component)
     }
 
     @Test
@@ -133,7 +143,8 @@ class BrowserSmokeTest {
                 // Se aplica al pasar ICARUS a segundo plano (al cerrar la actividad).
                 ActivityScenario.launch(MainActivity::class.java).use { scenario -> waitFor(scenario, "pestaña inicial") { it.currentTab != null } }
                 InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-                assertEquals(listOf(expected), launcherEntries())
+                val states = listOf("LauncherIcarus", "LauncherEsencial", "LauncherPanorama").associateWith(::aliasState)
+                assertEquals("estado de los alias: $states", listOf(expected), launcherEntries())
                 val icon = context.packageManager.getActivityInfo(
                     android.content.ComponentName(context.packageName, "${MainActivity::class.java.name.substringBeforeLast('.')}.${expected.first}"),
                     PackageManager.MATCH_DISABLED_COMPONENTS,
