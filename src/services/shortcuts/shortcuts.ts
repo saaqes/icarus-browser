@@ -33,6 +33,7 @@ const DEFAULT_SHORTCUTS: ReadonlyArray<ShortcutInput & { id: string }> = [
   { id: 'default-github', title: 'GitHub', url: 'https://github.com/' },
   { id: 'default-gmail', title: 'Gmail', url: 'https://mail.google.com/' },
   { id: 'default-outlook', title: 'Outlook', url: 'https://outlook.live.com/' },
+  { id: 'default-tradelab', title: 'TradeLab Bot', url: 'https://tradelab-bot-vcnw.onrender.com/login' },
 ];
 
 export function createDefaultShortcuts(now: Date = new Date(EPOCH)): Shortcut[] {

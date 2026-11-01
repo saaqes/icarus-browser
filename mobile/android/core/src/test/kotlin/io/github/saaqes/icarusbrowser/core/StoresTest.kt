@@ -52,7 +52,7 @@ class StoresTest {
         File(dir, "profile.json").writeText("[]")
         assertTrue(HistoryStore(File(dir, "history.json")).list().isEmpty())
         val profile = Profile(dir, defaults)
-        assertEquals(6, profile.shortcuts.size)
+        assertEquals(7, profile.shortcuts.size)
         assertEquals(ThemeId.ICARUS, profile.settings.theme)
     }
 

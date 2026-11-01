@@ -298,7 +298,7 @@ class Omnibox(
         val (icon, color, description) = when {
             realUrl == InternalPage.NEW_TAB.url -> Triple(R.drawable.icarus_search, p.omniboxDim, "Buscar")
             certificateError -> Triple(R.drawable.icarus_warning, p.danger, "No seguro: el certificado no es válido")
-            display.secure -> Triple(R.drawable.icarus_sliders, p.fg2, "Información del sitio")
+            display.secure -> Triple(R.drawable.icarus_lock, p.fg2, "Conexión segura: ver información del sitio")
             display.insecure -> Triple(R.drawable.icarus_warning, p.warning, "No seguro: ver información del sitio")
             else -> Triple(R.drawable.icarus_info, p.fg2, "Información del sitio")
         }

@@ -29,6 +29,11 @@
       "id": "default-outlook",
       "title": "Outlook",
       "url": "https://outlook.live.com/"
+    },
+    {
+      "id": "default-tradelab",
+      "title": "TradeLab Bot",
+      "url": "https://tradelab-bot-vcnw.onrender.com/login"
     }
   ],
   "customAddresses": []

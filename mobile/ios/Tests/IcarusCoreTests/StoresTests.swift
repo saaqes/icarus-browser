@@ -40,7 +40,7 @@ final class StoresTests: XCTestCase {
 
     func testElPerfilValidaYGuarda() throws {
         let profile = try Profile(directory: directory, defaultsJSON: defaults())
-        XCTAssertEqual(profile.shortcuts.count, 6)
+        XCTAssertEqual(profile.shortcuts.count, 7)
         guard case .ok(let shortcut) = profile.saveShortcut(title: "  Docs ", url: "docs.ejemplo.com") else { return XCTFail() }
         XCTAssertEqual(shortcut.url, "https://docs.ejemplo.com/")
         guard case .errors(let errors, _) = profile.saveShortcut(title: "", url: "javascript:alert(1)") else { return XCTFail() }

@@ -361,7 +361,7 @@ Las apps móviles tienen interfaz nativa (vistas de Android en Kotlin; SwiftUI e
 | Favoritos (estrella, carpetas, página propia) | Sí | Sí | No |
 | Zoom de la página | Real de Chromium, por sitio y guardado | Pellizcar (WebView) | Pellizcar (WebKit) |
 | Barra de navegación | Arriba (Chrome/Edge) | Arriba y fija en los tres estilos | Según el estilo |
-| Icono de seguridad real, «No seguro», error de certificado con la dirección real | Sí | Sí | Sí |
+| Icono de seguridad real (candado en HTTPS como en PC), «No seguro», error de certificado con la dirección real | Sí | Sí | Sí |
 | ICARUS Shield: bloqueo de solicitudes reales | `webRequest` de Chromium | `shouldInterceptRequest` (también service workers) | Reglas de contenido de WebKit (`WKContentRuleList`) |
 | Contador de bloqueos | Real, por página y total | Real, por página y total | **No hay**: WebKit no informa de lo que bloquea |
 | Listas (básica, EasyList, EasyPrivacy, Peter Lowe, propias), reglas propias y excepciones por sitio | Sí | Sí | Sí; los filtros que WebKit no puede expresar se omiten y se cuentan (26 de 113 650 en EasyList y EasyPrivacy) |

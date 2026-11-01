@@ -164,7 +164,7 @@ struct BrowserScreen: View {
         let display = currentDisplay
         if addressFocused || tab.showingNewTab { return ("magnifyingglass", look.fg3, "Buscar", false) }
         if certificateError { return ("exclamationmark.triangle.fill", look.danger, "No seguro: el certificado no es válido", true) }
-        if display.secure { return ("slider.horizontal.3", look.fg2, "Información del sitio", false) }
+        if display.secure { return ("lock.fill", look.fg2, "Conexión segura: ver información del sitio", false) }
         if display.insecure { return ("exclamationmark.triangle", look.color("warning"), "No seguro: ver información del sitio", true) }
         return ("info.circle", look.fg2, "Información del sitio", false)
     }
